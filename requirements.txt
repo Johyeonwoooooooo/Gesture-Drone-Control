@@ -1,0 +1,5 @@
+djitellopy==2.5.0
+mediapipe==0.10.9
+opencv-python==4.8.1.78
+numpy>=1.23.5,<2.0.0
+DroneBlocksTelloSimulator
