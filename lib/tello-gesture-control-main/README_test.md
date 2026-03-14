@@ -17,3 +17,8 @@ conda activate drone_gesture
 pip install [PATH to .whl]
 pip install -r requirements.txt
 ```
+
+# 테스트
+```powershell
+python tests/webcam_gesture_test.py
+```
