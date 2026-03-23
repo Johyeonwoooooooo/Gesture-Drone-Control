@@ -5,10 +5,15 @@ import time
 import threading
 
 # ========================
-# Tello 연결
+# Tello 시뮬레이터 연결
 # ========================
-tello = Tello()
+Tello.CONTROL_UDP_PORT_CLIENT = 9000   # sketch_to_flight.py 와 동일한 시뮬레이터 포트
+print("start")
+tello = Tello("127.0.0.1")
+print("created")
+
 tello.connect()
+print("connected")
 tello.streamoff()
 tello.streamon()
 print(f"[시작] 배터리 {tello.get_battery()}% | 제스처 조종을 시작합니다.")

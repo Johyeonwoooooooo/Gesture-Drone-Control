@@ -12,7 +12,7 @@ CANVAS_H       = 700
 PIXELS_PER_CM  = 5.0      # 1cm = 5픽셀 (그림 크기 결정)
 FLIGHT_SPEED   = 40       # RC 속도 (0~100)
 RC_INTERVAL    = 0.05     # RC 명령 전송 주기 (초)
-SAMPLE_DIST    = 50       # 웨이포인트 샘플링 간격 (픽셀)
+SAMPLE_DIST    = 100      # 웨이포인트 샘플링 간격 (픽셀)
 HOVER_SECS     = 2.0      # 이륙 후 안정화 시간 (초)
 
 
@@ -30,7 +30,7 @@ def sample_path(points: list, dist: int) -> list:
         dx = points[i][0] - points[i-1][0]
         dy = points[i][1] - points[i-1][1]
         accum += np.hypot(dx, dy)
-        if accum >= dist:
+        if accum >= dist:   
             result.append(points[i])
             accum = 0.0
 
