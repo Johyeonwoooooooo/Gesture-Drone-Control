@@ -1,0 +1,34 @@
+_target_: src.data.datamodule.MultiDataModule
+
+train_dataset: null
+
+val_datasets:
+  - _target_: src.data.stray_refined.dataset.StrayRefinedDataset
+    _partial_: true
+    data_dir: /home/bm_ai/yb/slamdunk/datasets/mosaic3d/data/stray_refined
+    split: val
+    ignore_label: -100
+    repeat: 1
+    transforms:
+      - type: Copy
+        keys_dict: { coord: origin_coord }
+      - type: CenterShift
+        apply_z: true
+      - type: NormalizeColor
+      - type: Add
+        keys_dict: { condition: ARKitScenes }
+      - type: ToTensor
+      - type: Collect
+        keys: [origin_coord, coord, color, origin_idx, condition]
+        offset_keys_dict: { offset: coord, pc_count: origin_coord }
+        feat_keys: [color]
+
+collate_fn:
+  _target_: src.data.utils.collate.point_collate_fn_with_masks
+  _partial_: true
+  grid_size: 0.02
+
+batch_size: 1
+num_workers: 4
+in_channel: 3
+checkpoint_monitor: null
