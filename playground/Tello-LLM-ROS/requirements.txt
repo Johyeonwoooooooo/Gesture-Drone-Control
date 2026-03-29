@@ -1,0 +1,10 @@
+numpy
+ollama
+opencv-python
+Pillow
+pyyaml
+cryptography
+rospkg
+djitellopy
+baidu-aip
+openai
