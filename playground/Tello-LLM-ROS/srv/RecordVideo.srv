@@ -1,7 +1,0 @@
-# --- Request ---
-float32 duration      # 视频录制的时长（秒）
----
-# --- Response ---
-bool success          # 指示录制是否成功启动
-string message        # 提供额外信息（如成功启动或错误原因）
-string file_path      # 预期的视频保存路径
