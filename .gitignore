@@ -7,6 +7,7 @@ __pycache__/
 
 # 3D map file 
 *.ply
+*.npy 
 
 # virtual environment
 venv/
