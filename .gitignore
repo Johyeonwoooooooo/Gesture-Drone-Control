@@ -5,6 +5,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# 3D map file 
+*.ply
+*.npy 
+
 # virtual environment
 venv/
 .env/
