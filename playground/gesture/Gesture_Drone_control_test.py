@@ -7,12 +7,10 @@ import threading
 # ========================
 # Tello 시뮬레이터 연결
 # ========================
-# Tello.CONTROL_UDP_PORT_CLIENT = 9000   # sketch_to_flight.py 와 동일한 시뮬레이터 포트
-# print("start")
-# tello = Tello("127.0.0.1")
-# print("created")
-
-tello = Tello()
+Tello.CONTROL_UDP_PORT_CLIENT = 9000   # sketch_to_flight.py 와 동일한 시뮬레이터 포트
+print("start")
+tello = Tello("127.0.0.1")
+print("created")
 
 tello.connect()
 print("connected")
@@ -35,7 +33,7 @@ cap = cv2.VideoCapture(0)
 # ========================
 # 드론 제어 설정
 # ========================
-MOVE_SPEED = 45  # 이동 속도 (0~100)
+MOVE_SPEED = 30  # 이동 속도 (0~100)
 
 current_gesture = None
 gesture_lock = threading.Lock()
@@ -138,7 +136,7 @@ def run_camera():
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             result = hands.process(rgb)
 
-            gesture_text = "손을 인식 중..."
+            gesture_text = "waiting gesture..."
             gesture_color = (200, 200, 200)
 
             if result.multi_hand_landmarks and result.multi_handedness:
@@ -166,7 +164,7 @@ def run_camera():
                         with gesture_lock:
                             current_gesture = gesture
                     else:
-                        gesture_text = "제스처 없음"
+                        gesture_text = "no gesture"
                         gesture_color = (100, 100, 255)
                         with gesture_lock:
                             current_gesture = None
