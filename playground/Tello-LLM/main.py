@@ -11,7 +11,7 @@ from tello_tools import DroneTools
 from video_streamer import VideoStreamer
 from llm_tools import tools_definitions
 
-# --- Choose between Tello or MockTello based on configuration ---
+# --- Choose between Tello, Simulator or MockTello based on configuration ---
 if USE_REAL_DRONE:
     from djitellopy import Tello
 elif USE_SIMULATOR:
@@ -19,7 +19,7 @@ elif USE_SIMULATOR:
 
     Tello.CONTROL_UDP_PORT_CLIENT = 9000
     tello = Tello("127.0.0.1")  
-    
+
 else:
     from mock_tello import MockTello as Tello 
 
