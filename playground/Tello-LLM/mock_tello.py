@@ -3,15 +3,15 @@ import time
 import numpy as np
 
 class MockFrameReader:
-    """模拟 djitellopy 的 FrameReader，总是返回一个黑色的图像。"""
+    """Simulates djitellopy's FrameReader, always returning a black image."""
     def __init__(self):
-        # 创建一个 960x720 的黑色图像 (Tello的标准分辨率)
+        # Create a 960x720 black image (Tello standard resolution)
         self.frame = np.zeros((720, 960, 3), dtype=np.uint8)
 
 class MockTello:
     """
-    一个模拟的 Tello 类，用于在没有真实无人机时进行调试。
-    它实现了 djitellopy.Tello 的关键方法，但只在控制台打印日志。
+    A simulated Tello class for debugging when no real drone is present.
+    It implements key methods of djitellopy.Tello but only prints logs to the console.
     """
     def __init__(self):
         self.is_flying = False

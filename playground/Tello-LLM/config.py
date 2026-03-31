@@ -1,16 +1,16 @@
-# 本地模型名
+# Local model name
 LLM_MODEL = "qwen3:1.7b" 
 
-# Tello无人机的默认等待超时时间（秒）
+# Tello drone default waiting timeout (seconds)
 TELLO_COMMAND_TIMEOUT = 15
 
-# 是否显示实时视频画面。在远程调试或无图形界面的环境下，请设置为 False
+# Whether to display real-time video. Set to False for remote debugging or environments without a graphical interface.
 SHOW_VIDEO_STREAM = False
 
-# 是否使用真实的Tello无人机。设置为 False 时，将使用模拟器进行调试，
+# Whether to use a real Tello drone. Set to False to use the simulator for debugging,
 USE_REAL_DRONE = False
 
-# 设置为 True: 所有指令都将发送给LLM进行理解。
-# 设置为 False: 程序会先尝试将用户输入作为直接指令（如 "takeoff", "move forward 50"）进行解析。
-#              如果解析失败，才会调用LLM。这可以为简单指令节省时间。
+# Set to True: All instructions will be sent to the LLM for understanding.
+# Set to False: The program will first try to parse the user input as a direct command (e.g., "takeoff", "move forward 50").
+#              If parsing fails, it will then call the LLM. This can save time for simple commands.
 ALWAYS_USE_LLM = False

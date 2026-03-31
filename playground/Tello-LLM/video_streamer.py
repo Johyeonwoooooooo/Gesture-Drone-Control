@@ -7,7 +7,7 @@ import logging
 from config import SHOW_VIDEO_STREAM
 
 class VideoStreamer:
-    """在一个独立的线程中处理Tello视频流的显示。"""
+    """Processes the display of the Tello video stream in an independent thread."""
     
     def __init__(self, tello_instance: Tello):
         self.tello = tello_instance
@@ -35,25 +35,25 @@ class VideoStreamer:
 
                 key = cv2.waitKey(1) & 0xFF
                 if key == ord('q'):
-                    print("检测到 'q' 键按下，将停止程序...")
+                    print("'q' key detected, program will stop...")
                     self.running = False
                     break
         except Exception as e:
-            logging.error(f"视频线程出现错误: {e}", exc_info=True)
+            logging.error(f"Error in video thread: {e}", exc_info=True)
         finally:
             if SHOW_VIDEO_STREAM:
                 cv2.destroyAllWindows()
 
     def start(self):
-        """启动视频流线程。"""
+        """Starts the video stream thread."""
         if not self.running:
             self.running = True
             self.video_thread.start()
-            logging.info("视频流处理线程已启动。")
+            logging.info("Video stream processing thread started.")
 
     def stop(self):
-        """停止视频流线程。"""
+        """Stops the video stream thread."""
         if self.running:
             self.running = False
             self.video_thread.join(timeout=2)
-            logging.info("视频流处理线程已停止。")
+            logging.info("Video stream processing thread stopped.")

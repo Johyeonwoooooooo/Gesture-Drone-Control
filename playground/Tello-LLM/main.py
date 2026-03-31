@@ -11,7 +11,7 @@ from tello_tools import DroneTools
 from video_streamer import VideoStreamer
 from llm_tools import tools_definitions
 
-# --- 根据配置选择导入 Tello 或 MockTello ---
+# --- Choose between Tello or MockTello based on configuration ---
 if USE_REAL_DRONE:
     from djitellopy import Tello
 else:
@@ -19,7 +19,7 @@ else:
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# 清空代理
+# Clear proxies
 for proxy in ['http_proxy', 'https_proxy', 'all_proxy', 'ALL_PROXY']:
     if proxy in os.environ:
         os.environ[proxy] = ''
@@ -37,7 +37,7 @@ def try_direct_command_execution(prompt: str, drone_tools: DroneTools) -> Union[
                 tool_func = getattr(drone_tools, command)
                 return tool_func()
             else:
-                logging.warning(f"指令 '{command}' 不需要参数。")
+                logging.warning(f"Command '{command}' does not require parameters.")
                 return None
         elif command == "move":
             if len(parts) == 3:
@@ -45,7 +45,7 @@ def try_direct_command_execution(prompt: str, drone_tools: DroneTools) -> Union[
                 distance = int(parts[2])
                 return drone_tools.move(direction, distance)
             else:
-                logging.warning("Move 指令格式错误，应为: move <direction> <distance>")
+                logging.warning("Move command format error, should be: move <direction> <distance>")
                 return None
         elif command == "rotate":
             if len(parts) == 3:
@@ -53,17 +53,17 @@ def try_direct_command_execution(prompt: str, drone_tools: DroneTools) -> Union[
                 degrees = int(parts[2])
                 return drone_tools.rotate(direction, degrees)
             else:
-                logging.warning("Rotate 指令格式错误，应为: rotate <direction> <degrees>")
+                logging.warning("Rotate command format error, should be: rotate <direction> <degrees>")
                 return None
         else:
             return None
     except (ValueError, IndexError) as e:
-        logging.warning(f"直接指令解析失败: {e}. 将交由LLM处理。")
+        logging.warning(f"Direct command parsing failed: {e}. Passing to LLM.")
         return None
 
 
 def log_token_rate(response: dict, call_description: str):
-    """从Ollama响应中计算并记录token生成速率。"""
+    """Calculate and log token generation rate from Ollama response."""
     try:
         if 'eval_count' in response and 'eval_duration' in response and response['eval_duration'] > 0:
             eval_count = response['eval_count']
@@ -77,45 +77,45 @@ def log_token_rate(response: dict, call_description: str):
                          f"{eval_count} tokens in {duration_s:.2f}s "
                          f"-> {tokens_per_second:.2f} tokens/s{ENDC}")
         else:
-            logging.info(f"LLM 性能 ({call_description}): 无法获取速率统计。")
+            logging.info(f"LLM Performance ({call_description}): Cannot obtain rate statistics.")
             
     except Exception as e:
-        logging.warning(f"计算 token 速率时出错: {e}")
+        logging.warning(f"Error calculating token rate: {e}")
 
 
 def main():
     tello = Tello()
     video_streamer = None
     if USE_REAL_DRONE:
-        logging.info("--- 运行模式: 真实无人机 ---")
+        logging.info("--- Operation Mode: Real Drone ---")
     else:
-        logging.info("--- 运行模式: 模拟器调试 ---")
+        logging.info("--- Operation Mode: Simulator Debugging ---")
     if not ALWAYS_USE_LLM:
-        logging.info("--- 指令模式: 混合模式 (优先直接执行) ---")
+        logging.info("--- Command Mode: Hybrid Mode (Prioritize direct execution) ---")
     else:
-        logging.info("--- 指令模式: LLM模式 (所有指令经由大模型) ---")
+        logging.info("--- Command Mode: LLM Mode (All commands via large model) ---")
         
     try:
-        logging.info("正在连接到 Tello 无人机...")
+        logging.info("Connecting to Tello drone...")
         tello.connect()
         tello.set_speed(30)
         if USE_REAL_DRONE:
             tello.RESPONSE_TIMEOUT = TELLO_COMMAND_TIMEOUT
-        logging.info("连接成功！")
-        logging.info(f"无人机电量: {tello.get_battery()}%")
+        logging.info("Connection successful!")
+        logging.info(f"Drone battery: {tello.get_battery()}%")
         tello.streamon()
         video_streamer = VideoStreamer(tello)
         video_streamer.start()
         if SHOW_VIDEO_STREAM:
-            logging.info("视频流已启动。在弹出的窗口中按 'q' 键可随时退出程序。")
+            logging.info("Video stream started. Press 'q' in the popup window to exit the program anytime.")
         else:
-            logging.info("视频流处理已在后台启动（不显示画面）。")
+            logging.info("Video stream processing started in the background (no display).")
         drone_tools = DroneTools(tello)
-        messages = [{'role': 'system', 'content': '你是一个专业的无人机控制助手。根据用户的指令，调用合适的工具来精确控制无人机。你的回答应该简洁并确认执行的动作。'}]
+        messages = [{'role': 'system', 'content': 'You are a professional drone control assistant. Call appropriate tools based on user instructions to precisely control the drone. Your response should be concise and confirm the executed action.'}]
 
-        # --- 主交互循环 ---
+        # --- Main Interaction Loop ---
         while video_streamer.running:
-            prompt = input(">>> 请输入指令 (输入 'quit' 退出): ")
+            prompt = input(">>> Please enter a command (type 'quit' to exit): ")
             if prompt.lower() in ['quit', 'exit']:
                 break
             
@@ -124,10 +124,10 @@ def main():
                 direct_result = try_direct_command_execution(prompt, drone_tools)
             
             if direct_result:
-                logging.info(f"直接指令执行结果: {direct_result}")
+                logging.info(f"Direct command execution result: {direct_result}")
                 continue
             
-            logging.info("指令无法直接解析，转交LLM处理...")
+            logging.info("Command cannot be parsed directly, passing to LLM...")
             messages.append({'role': 'user', 'content': prompt})
 
             try:
@@ -137,7 +137,7 @@ def main():
                     messages=messages,
                     tools=tools_definitions
                 )
-                log_token_rate(response, "工具决策")
+                log_token_rate(response, "Tool Decision")
                 
                 response_message = response['message']
                 messages.append(response_message)
@@ -150,56 +150,56 @@ def main():
                 for tool_call in response_message['tool_calls']:
                     func_name = tool_call['function']['name']
                     args = tool_call['function']['arguments']
-                    logging.info(f"LLM 正在尝试调用工具: `{func_name}` 参数: {args}")
+                    logging.info(f"LLM is attempting to call tool: `{func_name}` Args: {args}")
                     if hasattr(drone_tools, func_name):
                         tool_func = getattr(drone_tools, func_name)
                         result = tool_func(**args)
-                        logging.info(f"工具执行结果: {result}")
+                        logging.info(f"Tool execution result: {result}")
                         messages.append({
                             'role': 'tool',
                             'content': result,
                             'tool_call_id': tool_call.get('id', '')
                         })
                     else:
-                        logging.error(f"错误: LLM 尝试调用一个不存在的工具 '{func_name}'")
+                        logging.error(f"Error: LLM tried to call a non-existent tool '{func_name}'")
                         messages.append({
                             'role': 'tool',
-                            'content': f"错误: 工具 '{func_name}' 不存在。",
+                            'content': f"Error: Tool '{func_name}' does not exist.",
                             'tool_call_id': tool_call.get('id', '')
                         })
                 
-                # 让LLM根据工具执行结果进行总结
+                # Let LLM summarize based on the tool execution result
                 final_response = ollama.chat(model=LLM_MODEL, messages=messages)
-                log_token_rate(final_response, "执行总结")
+                log_token_rate(final_response, "Execution Summary")
                 logging.info(f"LLM: {final_response['message']['content']}")
                 messages.append(final_response['message'])
 
             except Exception as e:
-                logging.error(f"与LLM交互或执行工具时出错: {e}")
+                logging.error(f"Error interacting with LLM or executing tool: {e}")
                 logging.error(traceback.format_exc())
 
     except (KeyboardInterrupt, SystemExit):
-        logging.info("程序被用户中断。")
+        logging.info("Program interrupted by user.")
     except Exception as e:
-        logging.critical(f"发生致命错误: {e}")
+        logging.critical(f"Fatal error occurred: {e}")
         logging.critical(traceback.format_exc())
     finally:
-        logging.info("开始执行清理程序...")
+        logging.info("Executing cleanup procedure...")
         if video_streamer and video_streamer.running:
             video_streamer.stop()
 
         if USE_REAL_DRONE and 'tello' in locals() and tello.is_flying:
-            logging.warning("无人机仍在空中，正在执行自动降落...")
+            logging.warning("Drone is still flying, performing automatic landing...")
             try:
                 tello.land()
             except Exception as e:
-                logging.error(f"自动降落失败，尝试紧急停止: {e}")
+                logging.error(f"Automatic landing failed, attempting emergency stop: {e}")
                 tello.emergency()
         
         if 'tello' in locals():
             tello.streamoff()
             
-        logging.info("程序已安全退出。")
+        logging.info("Program exited safely.")
 
 
 if __name__ == "__main__":
