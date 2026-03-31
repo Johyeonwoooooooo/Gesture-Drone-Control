@@ -6,19 +6,14 @@ import os
 import time
 from typing import Union 
 
-from config import LLM_MODEL, TELLO_COMMAND_TIMEOUT, SHOW_VIDEO_STREAM, USE_REAL_DRONE, ALWAYS_USE_LLM
+from config import LLM_MODEL, TELLO_COMMAND_TIMEOUT, SHOW_VIDEO_STREAM, USE_REAL_DRONE, USE_SIMULATOR, ALWAYS_USE_LLM
 from tello_tools import DroneTools
 from video_streamer import VideoStreamer
 from llm_tools import tools_definitions
 
 # --- Choose between Tello, Simulator or MockTello based on configuration ---
-if USE_REAL_DRONE:
+if USE_REAL_DRONE or USE_SIMULATOR:
     from djitellopy import Tello
-elif USE_SIMULATOR:
-    from djitellopy import Tello
-
-    Tello.CONTROL_UDP_PORT_CLIENT = 9000
-    tello = Tello("127.0.0.1")  
 
 else:
     from mock_tello import MockTello as Tello 
@@ -79,7 +74,7 @@ def log_token_rate(response: dict, call_description: str):
             GREEN = '\033[92m'
             ENDC = '\033[0m'
             
-            logging.info(f"{GREEN}LLM 性能 ({call_description}): "
+            logging.info(f"{GREEN}LLM Performance ({call_description}): "
                          f"{eval_count} tokens in {duration_s:.2f}s "
                          f"-> {tokens_per_second:.2f} tokens/s{ENDC}")
         else:
@@ -90,10 +85,16 @@ def log_token_rate(response: dict, call_description: str):
 
 
 def main():
-    tello = Tello()
+    if USE_SIMULATOR:
+        Tello.CONTROL_UDP_PORT_CLIENT = 9000
+        tello = Tello("127.0.0.1")  
+    else:
+        tello = Tello()
     video_streamer = None
     if USE_REAL_DRONE:
         logging.info("--- Operation Mode: Real Drone ---")
+    elif USE_SIMULATOR:
+        logging.info("--- Operation Mode: Simulator(unity) Debugging ---")
     else:
         logging.info("--- Operation Mode: Simulator Debugging ---")
     if not ALWAYS_USE_LLM:
@@ -137,7 +138,7 @@ def main():
             messages.append({'role': 'user', 'content': prompt})
 
             try:
-                # 调用Ollama LLM
+                # Call Ollama LLM
                 response = ollama.chat(
                     model=LLM_MODEL,
                     messages=messages,
@@ -152,7 +153,7 @@ def main():
                     logging.info(f"LLM: {response_message['content']}")
                     continue
 
-                # 执行工具调用
+                # Execute tool calls
                 for tool_call in response_message['tool_calls']:
                     func_name = tool_call['function']['name']
                     args = tool_call['function']['arguments']
