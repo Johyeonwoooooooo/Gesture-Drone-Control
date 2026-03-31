@@ -9,7 +9,7 @@ SHOW_VIDEO_STREAM = False
 
 # Whether to use a real Tello drone. Set to False to use the simulator for debugging,
 USE_REAL_DRONE = False
-
+USE_SIMULATOR = True
 # Set to True: All instructions will be sent to the LLM for understanding.
 # Set to False: The program will first try to parse the user input as a direct command (e.g., "takeoff", "move forward 50").
 #              If parsing fails, it will then call the LLM. This can save time for simple commands.
