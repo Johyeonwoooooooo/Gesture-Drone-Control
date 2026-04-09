@@ -136,7 +136,7 @@ def run_camera():
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             result = hands.process(rgb)
 
-            gesture_text = "손을 인식 중..."
+            gesture_text = "waiting gesture..."
             gesture_color = (200, 200, 200)
 
             if result.multi_hand_landmarks and result.multi_handedness:
@@ -164,7 +164,7 @@ def run_camera():
                         with gesture_lock:
                             current_gesture = gesture
                     else:
-                        gesture_text = "제스처 없음"
+                        gesture_text = "no gesture"
                         gesture_color = (100, 100, 255)
                         with gesture_lock:
                             current_gesture = None
