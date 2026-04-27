@@ -13,10 +13,12 @@ from llm_tools import tools_definitions
 
 # --- Choose between Tello, Simulator or MockTello based on configuration ---
 if USE_REAL_DRONE or USE_SIMULATOR:
-    from djitellopy import Tello
+    from djitellopy import Tello, TelloException
 
 else:
     from mock_tello import MockTello as Tello 
+    class TelloException(Exception):
+        pass
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -112,16 +114,31 @@ def main():
         logging.info(f"Drone battery: {tello.get_battery()}%")
         tello.streamon()
         video_streamer = VideoStreamer(tello)
-        video_streamer.start()
-        if SHOW_VIDEO_STREAM:
+        try:
+            # Force get_frame_read in the main thread to catch TelloException early
+            tello.get_frame_read()
+            video_streamer.start()
+        except TelloException as e:
+            logging.error(f"Failed to grab video frames: {e}. Continuing without video display.")
+            video_streamer.running = False
+        except Exception as e:
+            logging.error(f"Unexpected error initializing video: {e}")
+            video_streamer.running = False
+
+        if video_streamer.running and SHOW_VIDEO_STREAM:
             logging.info("Video stream started. Press 'q' in the popup window to exit the program anytime.")
-        else:
+        elif video_streamer.running:
             logging.info("Video stream processing started in the background (no display).")
+        else:
+            logging.warning("Video streamer is not running. Control loop will continue but video feedback is unavailable.")
         drone_tools = DroneTools(tello)
         messages = [{'role': 'system', 'content': 'You are a professional drone control assistant. Call appropriate tools based on user instructions to precisely control the drone. Your response should be concise and confirm the executed action.'}]
 
         # --- Main Interaction Loop ---
-        while video_streamer.running:
+        # The loop continues as long as 'quit' isn't entered. If video is running, 'q' also exits.
+        while True:
+            if video_streamer.video_thread.is_alive() and not video_streamer.running:
+                break
             prompt = input(">>> Please enter a command (type 'quit' to exit): ")
             if prompt.lower() in ['quit', 'exit']:
                 break
