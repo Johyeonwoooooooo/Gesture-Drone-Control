@@ -184,6 +184,7 @@ def upload_points(
     point_size: float,
     *,
     offset: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+    point_shape: str = "rounded",
 ) -> None:
     arr = np.asarray(rgb_uint8)
     if arr.ndim != 2 or arr.shape[1] not in (3, 4):
@@ -200,7 +201,19 @@ def upload_points(
         points=pts,
         colors=colors_f,
         point_size=point_size,
+        point_shape=point_shape,
     )
+
+
+def blend_with_rgb(
+    overlay_uint8: np.ndarray, base_uint8: np.ndarray, alpha: float
+) -> np.ndarray:
+    """alpha=1 -> pure overlay; alpha=0 -> pure base (RGB)."""
+    a = float(np.clip(alpha, 0.0, 1.0))
+    o = overlay_uint8.astype(np.float32)
+    b = base_uint8.astype(np.float32)
+    out = a * o + (1.0 - a) * b
+    return np.clip(out, 0, 255).astype(np.uint8)
 
 
 def main() -> None:
@@ -253,6 +266,9 @@ def main() -> None:
     )
     point_size_slider = server.gui.add_slider(
         "Point size", min=0.005, max=0.10, step=0.005, initial_value=0.02
+    )
+    overlay_alpha = server.gui.add_slider(
+        "Query opacity", min=0.0, max=1.0, step=0.05, initial_value=0.7
     )
     apply_btn = server.gui.add_button("Apply")
     status_md = server.gui.add_markdown("_status: ready_")
@@ -336,16 +352,20 @@ def main() -> None:
             status_md.content = "_query is empty_"
             return
 
+        rgb_base = rgb_for_asset(asset)
+
         if m == "single query":
             tf = text_encoder.encode([text])[0]
             scores = query_single(asset, tf)
             mask = scores >= threshold.value
-            base = np.full((asset.n_render_units, 3), 40, np.uint8)
+            overlay = rgb_base.copy()
             if mask.any():
-                base[mask] = heatmap_colors(scores[mask])
-            render_query_panel(asset, base)
+                overlay[mask] = heatmap_colors(scores[mask])
+            blended = blend_with_rgb(overlay, rgb_base, overlay_alpha.value)
+            render_query_panel(asset, blended)
             legend_md.content = (
-                f"left=RGB • right=`{text}` heatmap • thr={threshold.value:.3f}\n\n"
+                f"left=RGB • right=`{text}` heatmap • thr={threshold.value:.3f} • "
+                f"alpha={overlay_alpha.value:.2f}\n\n"
                 f"score range: [{scores.min():.3f}, {scores.max():.3f}], "
                 f"matched {int(mask.sum())}/{len(scores)} ({100*mask.mean():.1f}%)"
             )
@@ -360,10 +380,11 @@ def main() -> None:
             tf = text_encoder.encode(classes)
             labels, top_scores = query_classes(asset, tf)
             palette = class_colors(len(classes))
-            base = palette[labels]
+            overlay = palette[labels]
             low = top_scores < (top_scores.max() - 0.2)
-            base[low] = (base[low] * 0.4).astype(np.uint8)
-            render_query_panel(asset, base)
+            overlay[low] = (overlay[low] * 0.5).astype(np.uint8)
+            blended = blend_with_rgb(overlay, rgb_base, overlay_alpha.value)
+            render_query_panel(asset, blended)
 
             counts = np.bincount(labels, minlength=len(classes))
             legend_lines = [f"class mode • k={len(classes)}"]
@@ -391,8 +412,11 @@ def main() -> None:
 
     @point_size_slider.on_update
     def _(_):
-        # Re-upload both panels when the user changes the point size; otherwise
-        # the change does not take effect until the next Apply.
+        if state["asset"] is not None:
+            apply_query()
+
+    @overlay_alpha.on_update
+    def _(_):
         if state["asset"] is not None:
             apply_query()
 
