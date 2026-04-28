@@ -280,49 +280,24 @@ def main() -> None:
             return asset.vertex_colors
         return np.full((asset.n_render_units, 3), 200, np.uint8)
 
-    def split_offset(asset: RegionAssets) -> Tuple[float, float, float]:
-        """X-axis offset to push the query view next to the RGB view."""
-        ext = asset.coord.max(0) - asset.coord.min(0)
-        return (float(ext[0]) * 1.15, 0.0, 0.0)
-
     def reset_camera_to_asset(asset: RegionAssets) -> None:
         ext = asset.coord.max(0) - asset.coord.min(0)
-        # Camera frame must include both panels, so X extent doubles.
-        ext_full = np.array([ext[0] * 2.3, ext[1], ext[2]])
-        diag = float(np.linalg.norm(ext_full)) or 5.0
-        cx = split_offset(asset)[0] / 2  # midpoint between rgb & query views
+        diag = float(np.linalg.norm(ext)) or 5.0
         for client in server.get_clients().values():
-            client.camera.position = (cx + diag * 0.6, -diag * 0.9, diag * 0.6)
-            client.camera.look_at = (cx, 0.0, 0.0)
+            client.camera.position = (diag * 0.9, -diag * 0.9, diag * 0.6)
+            client.camera.look_at = (0.0, 0.0, 0.0)
 
     def current_point_size() -> float:
         return float(point_size_slider.value)
 
-    def render_rgb_panel(asset: RegionAssets) -> None:
-        upload_points(server, "/rgb", asset, rgb_for_asset(asset), current_point_size())
-
-    def render_query_panel(asset: RegionAssets, rgb: np.ndarray) -> None:
-        upload_points(
-            server,
-            "/query",
-            asset,
-            rgb,
-            current_point_size(),
-            offset=split_offset(asset),
-        )
-
-    def clear_query_panel() -> None:
-        try:
-            server.scene.remove_by_name("/query")
-        except Exception:
-            pass
+    def render_panel(asset: RegionAssets, rgb: np.ndarray) -> None:
+        upload_points(server, "/region", asset, rgb, current_point_size())
 
     def load_and_render(region_name: str) -> None:
         t0 = time.time()
         asset = load_region(region_name, feat_dir, match_dir, device)
         state["asset"] = asset
-        render_rgb_panel(asset)
-        clear_query_panel()
+        render_panel(asset, rgb_for_asset(asset))
         reset_camera_to_asset(asset)
         status_md.content = (
             f"_loaded **{region_name}**: "
@@ -338,21 +313,18 @@ def main() -> None:
         m = mode.value
         text = query_text.value.strip()
 
-        # Always keep the RGB panel up to date with current point size.
-        render_rgb_panel(asset)
+        rgb_base = rgb_for_asset(asset)
 
         if m == "rgb":
-            clear_query_panel()
+            render_panel(asset, rgb_base)
             legend_md.content = ""
             status_md.content = "_rendered RGB_"
             return
 
         if not text:
-            clear_query_panel()
+            render_panel(asset, rgb_base)
             status_md.content = "_query is empty_"
             return
-
-        rgb_base = rgb_for_asset(asset)
 
         if m == "single query":
             tf = text_encoder.encode([text])[0]
@@ -362,14 +334,13 @@ def main() -> None:
             if mask.any():
                 overlay[mask] = heatmap_colors(scores[mask])
             blended = blend_with_rgb(overlay, rgb_base, overlay_alpha.value)
-            render_query_panel(asset, blended)
+            render_panel(asset, blended)
             legend_md.content = (
-                f"left=RGB • right=`{text}` heatmap • thr={threshold.value:.3f} • "
-                f"alpha={overlay_alpha.value:.2f}\n\n"
+                f"prompt=`{text}` • thr={threshold.value:.3f} • alpha={overlay_alpha.value:.2f}\n\n"
                 f"score range: [{scores.min():.3f}, {scores.max():.3f}], "
                 f"matched {int(mask.sum())}/{len(scores)} ({100*mask.mean():.1f}%)"
             )
-            status_md.content = "_rendered single-query heatmap (split view)_"
+            status_md.content = "_rendered single-query heatmap_"
             return
 
         if m == "class list":
@@ -384,7 +355,7 @@ def main() -> None:
             low = top_scores < (top_scores.max() - 0.2)
             overlay[low] = (overlay[low] * 0.5).astype(np.uint8)
             blended = blend_with_rgb(overlay, rgb_base, overlay_alpha.value)
-            render_query_panel(asset, blended)
+            render_panel(asset, blended)
 
             counts = np.bincount(labels, minlength=len(classes))
             legend_lines = [f"class mode • k={len(classes)}"]
