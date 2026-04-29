@@ -17,7 +17,7 @@ cd "$SEG_ROOT"
 
 python inference/run_inference.py \
     --ckpt "$REPO_ROOT/data/spunet101.ckpt" \
-    --data-dir "$REPO_ROOT/data/matterport3d_compressed" \
+    --data-dir "$REPO_ROOT/data/hm3d/train" \
     --out-dir "$SEG_ROOT/cache/feat" \
     --house "$HOUSE" \
     --device "$DEVICE"

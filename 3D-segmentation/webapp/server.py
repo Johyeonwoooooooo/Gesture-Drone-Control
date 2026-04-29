@@ -81,7 +81,7 @@ def _find_point_colors(name: str, n_points: int, feat_dir: Path, match_dir: Path
     mp3d_color = (
         feat_dir.parent.parent.parent
         / "data"
-        / "matterport3d_compressed"
+        / "hm3d/train"
         / name
         / "color.npy"
     )
