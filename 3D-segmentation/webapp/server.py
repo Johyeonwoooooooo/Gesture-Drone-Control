@@ -19,6 +19,7 @@ Cache layout expected (created by inference/run_inference.py + matching/align_to
 from __future__ import annotations
 
 import argparse
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,6 +33,13 @@ import numpy as np
 import torch
 import viser
 from open_clip import create_model_and_transforms, get_tokenizer
+
+# Make the sibling `inference/` package importable when launching as a script.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from inference.cluster_candidates import (  # noqa: E402
+    ClusterParams,
+    candidates_from_heatmap,
+)
 
 CLIP_MODEL_ID = "hf-hub:UCSC-VLAA/ViT-L-16-HTxt-Recap-CLIP"
 DEFAULT_PROMPTS = [
@@ -157,6 +165,28 @@ def class_colors(num_classes: int) -> np.ndarray:
     return (cmap(np.linspace(0, 1, max(num_classes, 1)))[:, :3] * 255).astype(np.uint8)
 
 
+def cluster_palette(k: int) -> np.ndarray:
+    """Distinct, saturated colors for cluster rank markers."""
+    cmap = matplotlib.colormaps.get_cmap("Set1")
+    return (cmap(np.linspace(0, 1, max(k, 1)))[:, :3] * 255).astype(np.uint8)
+
+
+def _bbox_edge_segments(bb_min: np.ndarray, bb_max: np.ndarray) -> np.ndarray:
+    """Return (12, 2, 3) line segments tracing the 12 edges of an axis-aligned bbox."""
+    x0, y0, z0 = bb_min
+    x1, y1, z1 = bb_max
+    corners = np.array([
+        [x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0],
+        [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1],
+    ], dtype=np.float32)
+    edges = [
+        (0, 1), (1, 2), (2, 3), (3, 0),  # bottom
+        (4, 5), (5, 6), (6, 7), (7, 4),  # top
+        (0, 4), (1, 5), (2, 6), (3, 7),  # verticals
+    ]
+    return np.stack([np.stack([corners[a], corners[b]]) for a, b in edges], axis=0)
+
+
 def query_single(
     asset: RegionAssets, text_feat: torch.Tensor
 ) -> np.ndarray:
@@ -252,13 +282,15 @@ def main() -> None:
     server = viser.ViserServer(host=args.host, port=args.port)
     server.scene.world_axes.visible = True
 
-    state = {"asset": None}
+    state: Dict[str, object] = {"asset": None, "cluster_handles": []}
 
     region_dropdown = server.gui.add_dropdown(
         "Region", options=regions, initial_value=regions[0]
     )
     mode = server.gui.add_dropdown(
-        "Mode", options=["single query", "class list", "rgb"], initial_value="rgb"
+        "Mode",
+        options=["single query", "cluster", "class list", "rgb"],
+        initial_value="rgb",
     )
     query_text = server.gui.add_text("Query / classes (comma-separated)", initial_value="a chair")
     threshold = server.gui.add_slider(
@@ -270,10 +302,30 @@ def main() -> None:
     overlay_alpha = server.gui.add_slider(
         "Query opacity", min=0.0, max=1.0, step=0.05, initial_value=0.7
     )
+    cluster_top_pct = server.gui.add_slider(
+        "Cluster: top-percentile", min=80.0, max=99.5, step=0.5, initial_value=95.0
+    )
+    cluster_eps = server.gui.add_slider(
+        "Cluster: eps (m)", min=0.05, max=1.0, step=0.05, initial_value=0.25
+    )
+    cluster_top_k = server.gui.add_slider(
+        "Cluster: top-K", min=1, max=10, step=1, initial_value=5
+    )
+    cluster_marker_size = server.gui.add_slider(
+        "Cluster: marker radius (m)", min=0.05, max=0.5, step=0.01, initial_value=0.15
+    )
     apply_btn = server.gui.add_button("Apply")
     status_md = server.gui.add_markdown("_status: ready_")
 
     legend_md = server.gui.add_markdown("")
+
+    def clear_cluster_markers() -> None:
+        for h in state["cluster_handles"]:  # type: ignore[assignment]
+            try:
+                h.remove()
+            except Exception:
+                pass
+        state["cluster_handles"] = []
 
     def rgb_for_asset(asset: RegionAssets) -> np.ndarray:
         if asset.vertex_colors is not None:
@@ -297,6 +349,7 @@ def main() -> None:
         t0 = time.time()
         asset = load_region(region_name, feat_dir, match_dir, device)
         state["asset"] = asset
+        clear_cluster_markers()
         render_panel(asset, rgb_for_asset(asset))
         reset_camera_to_asset(asset)
         status_md.content = (
@@ -314,6 +367,10 @@ def main() -> None:
         text = query_text.value.strip()
 
         rgb_base = rgb_for_asset(asset)
+
+        # Markers only persist while we're in cluster mode.
+        if m != "cluster":
+            clear_cluster_markers()
 
         if m == "rgb":
             render_panel(asset, rgb_base)
@@ -341,6 +398,93 @@ def main() -> None:
                 f"matched {int(mask.sum())}/{len(scores)} ({100*mask.mean():.1f}%)"
             )
             status_md.content = "_rendered single-query heatmap_"
+            return
+
+        if m == "cluster":
+            tf = text_encoder.encode([text])[0]
+            scores = query_single(asset, tf)
+
+            # Heatmap base: same blend as single-query mode, using percentile cutoff
+            # so the colored points line up with what the clustering sees.
+            params = ClusterParams(
+                top_percentile=float(cluster_top_pct.value),
+                threshold=None,
+                eps=float(cluster_eps.value),
+                min_points=40,
+                top_k=int(cluster_top_k.value),
+            )
+            cutoff = float(np.percentile(scores, params.top_percentile))
+            mask = scores >= cutoff
+            overlay = rgb_base.copy()
+            if mask.any():
+                overlay[mask] = heatmap_colors(scores[mask])
+            blended = blend_with_rgb(overlay, rgb_base, overlay_alpha.value)
+            render_panel(asset, blended)
+
+            # Cluster on the centered display coords so marker positions line up.
+            result = candidates_from_heatmap(asset.coord, scores, params)
+            cands = result["candidates"]
+
+            clear_cluster_markers()
+            handles = []
+            radius = float(cluster_marker_size.value)
+            palette = cluster_palette(max(len(cands), 1))
+            for c in cands:
+                rank = c["rank"]
+                center = tuple(float(v) for v in c["center"])
+                color = tuple(int(v) for v in palette[rank])
+                handles.append(
+                    server.scene.add_icosphere(
+                        f"/cluster/sphere_{rank}",
+                        radius=radius,
+                        color=color,
+                        opacity=0.85,
+                        position=center,
+                    )
+                )
+                bb_min = np.asarray(c["bbox_min"], dtype=np.float32)
+                bb_max = np.asarray(c["bbox_max"], dtype=np.float32)
+                segs = _bbox_edge_segments(bb_min, bb_max)
+                handles.append(
+                    server.scene.add_line_segments(
+                        f"/cluster/bbox_{rank}",
+                        points=segs,
+                        colors=color,  # (3,) → single color across all 12 edges
+                        line_width=2.0,
+                    )
+                )
+                label_pos = (center[0], center[1], float(bb_max[2]) + 0.15)
+                handles.append(
+                    server.scene.add_label(
+                        f"/cluster/label_{rank}",
+                        text=f"#{rank} n={c['n_points']} s={c['mean_score']:.3f}",
+                        position=label_pos,
+                    )
+                )
+            state["cluster_handles"] = handles
+
+            legend_lines = [
+                f"prompt=`{text}` • top-pct={params.top_percentile:.1f} "
+                f"• eps={params.eps:.2f} • top-K={params.top_k}",
+                f"score range [{result['stats']['score_min']:.3f}, {result['stats']['score_max']:.3f}] • "
+                f"active {result['stats']['n_active_points']} pts • "
+                f"clusters={result['stats']['n_clusters']} (noise {result['stats']['n_noise_points']})",
+                "",
+            ]
+            if not cands:
+                legend_lines.append("_no candidates — try a lower top-percentile or smaller eps_")
+            for c in cands:
+                col = palette[c["rank"]]
+                legend_lines.append(
+                    f"- <span style='color: rgb({col[0]},{col[1]},{col[2]})'>●</span> "
+                    f"**#{c['rank']}** center=({c['center'][0]:.2f}, {c['center'][1]:.2f}, "
+                    f"{c['center'][2]:.2f}) • n={c['n_points']} • "
+                    f"mean={c['mean_score']:.3f} • max={c['max_score']:.3f}"
+                )
+            legend_md.content = "\n".join(legend_lines)
+            status_md.content = (
+                f"_clustered: {len(cands)} candidates in {result['stats']['elapsed_s']:.2f}s_"
+            )
             return
 
         if m == "class list":

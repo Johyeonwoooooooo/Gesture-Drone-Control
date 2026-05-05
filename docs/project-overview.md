@@ -40,7 +40,8 @@
 
 - 사전에 구축된 3D 씬(scene)에서 목표 객체의 위치를 식별
 - 현재 [3D-segmentation/](../3D-segmentation/) 모듈과 [Mosaic3D/](../Mosaic3D/) 기반으로 구현 중
-- 출력: 목표 객체의 3D 좌표 (x, y, z)
+- 점별 CLIP 히트맵 → 공간 클러스터링으로 **여러 후보**를 추출, 자세한 내용은 [clustering-candidates.md](clustering-candidates.md) 참고
+- 출력: 목표 객체의 3D 좌표 후보 리스트 (rank, center, bbox, score)
 
 ## 4. 경로 계획 (Path Planning)
 
