@@ -89,12 +89,23 @@ def _find_point_colors(name: str, n_points: int, feat_dir: Path, match_dir: Path
     mp3d_color = (
         feat_dir.parent.parent.parent
         / "data"
-        / "hm3d/train"
+        / "hm3d_compressed/train"
         / name
         / "color.npy"
     )
     if mp3d_color.exists():
         c = np.load(mp3d_color)
+        if len(c) == n_points:
+            return c.astype(np.uint8)[:, :3]
+    mp3d_compressed_color = (
+        feat_dir.parent.parent.parent
+        / "data"
+        / "matterport3d_compressed"
+        / name
+        / "color.npy"
+    )
+    if mp3d_compressed_color.exists():
+        c = np.load(mp3d_compressed_color)
         if len(c) == n_points:
             return c.astype(np.uint8)[:, :3]
     return None
