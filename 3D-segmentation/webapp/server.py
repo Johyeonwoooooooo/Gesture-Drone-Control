@@ -85,29 +85,25 @@ def _find_point_colors(name: str, n_points: int, feat_dir: Path, match_dir: Path
         vc = np.load(rmatch / "vertex_colors.npy")
         if len(vc) == n_points:
             return vc.astype(np.uint8)[:, :3]
-    # feat_dir = .../3D-segmentation/cache/feat -> repo root is 3 up
-    mp3d_color = (
-        feat_dir.parent.parent.parent
-        / "data"
-        / "hm3d_compressed/train"
-        / name
-        / "color.npy"
-    )
-    if mp3d_color.exists():
-        c = np.load(mp3d_color)
-        if len(c) == n_points:
-            return c.astype(np.uint8)[:, :3]
-    mp3d_compressed_color = (
-        feat_dir.parent.parent.parent
-        / "data"
-        / "matterport3d_compressed"
-        / name
-        / "color.npy"
-    )
+    # Walk up from feat_dir to find the repo root (contains a 'data/' directory).
+    repo_root = feat_dir
+    for _ in range(8):
+        if (repo_root / "data").is_dir():
+            break
+        repo_root = repo_root.parent
+    data_dir = repo_root / "data"
+    for split in ("train", "val"):
+        color_path = data_dir / "hm3d_compressed" / split / name / "color.npy"
+        if color_path.exists():
+            c = np.load(color_path)
+            if len(c) == n_points:
+                return c.astype(np.uint8)[:, :3]
+    mp3d_compressed_color = data_dir / "matterport3d_compressed" / name / "color.npy"
     if mp3d_compressed_color.exists():
         c = np.load(mp3d_compressed_color)
         if len(c) == n_points:
             return c.astype(np.uint8)[:, :3]
+
     return None
 
 
