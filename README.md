@@ -17,8 +17,10 @@
 
 ## 📂 파일 구조
 
-. ├── query_3d.py \# 콘솔 기반 3D 검색 테스트 ├── viser_app.py \# 웹
-기반 3D 시각화 앱 └── demo_files/ └── input_pc_hm3d.ply
+├── query_3d.py \# 콘솔 기반 3D 검색 테스트 
+├── viser_app.py \# 웹기반 3D 시각화 앱 
+└── demo_files/ 
+└── input_pc_hm3d.ply
 
 ------------------------------------------------------------------------
 
