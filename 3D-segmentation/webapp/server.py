@@ -72,6 +72,25 @@ def list_regions(feat_dir: Path) -> List[str]:
     return sorted(p.name for p in feat_dir.iterdir() if (p / "feat.npy").exists())
 
 
+def _building_id(region_name: str) -> str:
+    """Extract building ID from region name (first two underscore-separated parts)."""
+    parts = region_name.split("_")
+    return "_".join(parts[:2]) if len(parts) >= 2 else region_name
+
+
+def list_buildings(feat_dir: Path) -> List[str]:
+    regions = list_regions(feat_dir)
+    seen: dict = {}
+    for r in regions:
+        bid = _building_id(r)
+        seen.setdefault(bid, None)
+    return sorted(seen.keys())
+
+
+def regions_for_building(building_id: str, feat_dir: Path) -> List[str]:
+    return [r for r in list_regions(feat_dir) if _building_id(r) == building_id]
+
+
 def _find_point_colors(name: str, n_points: int, feat_dir: Path, match_dir: Path) -> Optional[np.ndarray]:
     """Locate per-point RGB color matching the feature/coord at `feat_dir/<name>`.
 
@@ -125,6 +144,50 @@ def load_region(name: str, feat_dir: Path, match_dir: Path, device: torch.device
         feat=feat_t,
         coord=coord,
         vertex_colors=rgb,
+        center=center,
+    )
+
+
+def load_building(building_id: str, feat_dir: Path, match_dir: Path, device: torch.device) -> RegionAssets:
+    """Load all regions of a building and merge into one RegionAssets."""
+    region_names = regions_for_building(building_id, feat_dir)
+    if not region_names:
+        raise ValueError(f"No regions found for building {building_id}")
+
+    all_feat: List[torch.Tensor] = []
+    all_coord: List[np.ndarray] = []
+    all_rgb: List[Optional[np.ndarray]] = []
+
+    for name in region_names:
+        rfeat = feat_dir / name
+        feat = np.load(rfeat / "feat.npy")  # float16 on disk
+        # Normalize on CPU to avoid OOM; keep as float16 to save RAM.
+        feat_t = torch.from_numpy(feat).float()
+        feat_t = torch.nn.functional.normalize(feat_t, dim=-1).half()
+        coord = np.load(rfeat / "coord.npy").astype(np.float32, copy=True)
+        rgb = _find_point_colors(name, len(coord), feat_dir, match_dir)
+        all_feat.append(feat_t)
+        all_coord.append(coord)
+        all_rgb.append(rgb)
+
+    merged_coord = np.concatenate(all_coord, axis=0)
+    merged_feat = torch.cat(all_feat, dim=0)  # CPU float16
+
+    has_rgb = all(r is not None for r in all_rgb)
+    if has_rgb:
+        merged_rgb: Optional[np.ndarray] = np.concatenate(all_rgb, axis=0)  # type: ignore[arg-type]
+    else:
+        merged_rgb = None
+
+    center = ((merged_coord.min(0) + merged_coord.max(0)) / 2).astype(np.float32)
+    merged_coord -= center
+
+    print(f"[building] {building_id}: {len(region_names)} regions, {len(merged_coord)} points")
+    return RegionAssets(
+        name=building_id,
+        feat=merged_feat,
+        coord=merged_coord,
+        vertex_colors=merged_rgb,
         center=center,
     )
 
@@ -194,13 +257,40 @@ def _bbox_edge_segments(bb_min: np.ndarray, bb_max: np.ndarray) -> np.ndarray:
     return np.stack([np.stack([corners[a], corners[b]]) for a, b in edges], axis=0)
 
 
+_CHUNK = 200_000  # points per GPU chunk to avoid OOM on large buildings
+
+
+def _sim_chunked(feat_cpu: torch.Tensor, text_feat_gpu: torch.Tensor) -> torch.Tensor:
+    """Compute cosine sim in chunks; feat_cpu may be CPU float16."""
+    device = text_feat_gpu.device
+    results = []
+    for i in range(0, len(feat_cpu), _CHUNK):
+        chunk = feat_cpu[i : i + _CHUNK].to(device, dtype=torch.float32)
+        results.append((chunk @ text_feat_gpu.unsqueeze(-1)).squeeze(-1).cpu())
+    return torch.cat(results, dim=0)
+
+
+def _sim_classes_chunked(feat_cpu: torch.Tensor, text_feats_gpu: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    device = text_feats_gpu.device
+    all_idx, all_score = [], []
+    for i in range(0, len(feat_cpu), _CHUNK):
+        chunk = feat_cpu[i : i + _CHUNK].to(device, dtype=torch.float32)
+        sim = chunk @ text_feats_gpu.t()
+        score, idx = sim.max(dim=1)
+        all_idx.append(idx.cpu())
+        all_score.append(score.cpu())
+    return torch.cat(all_idx), torch.cat(all_score)
+
+
 def query_single(
     asset: RegionAssets, text_feat: torch.Tensor
 ) -> np.ndarray:
     """Cosine sim with one prompt → per-render-unit score (NumPy)."""
     feat = asset.feat_for_render()
-    sim = (feat @ text_feat.unsqueeze(-1)).squeeze(-1)
-    return sim.detach().cpu().numpy()
+    if feat.device == text_feat.device:
+        sim = (feat @ text_feat.unsqueeze(-1)).squeeze(-1)
+        return sim.detach().cpu().numpy()
+    return _sim_chunked(feat, text_feat).numpy()
 
 
 def query_classes(
@@ -208,9 +298,12 @@ def query_classes(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Argmax over class prompts → (labels, top scores)."""
     feat = asset.feat_for_render()
-    sim = feat @ text_feats.t()  # (N, K)
-    top_score, top_idx = sim.max(dim=1)
-    return top_idx.detach().cpu().numpy(), top_score.detach().cpu().numpy()
+    if feat.device == text_feats.device:
+        sim = feat @ text_feats.t()  # (N, K)
+        top_score, top_idx = sim.max(dim=1)
+        return top_idx.detach().cpu().numpy(), top_score.detach().cpu().numpy()
+    top_idx, top_score = _sim_classes_chunked(feat, text_feats)
+    return top_idx.numpy(), top_score.numpy()
 
 
 def upload_points(
@@ -283,7 +376,10 @@ def main() -> None:
     if not regions:
         raise SystemExit(f"No regions found under {feat_dir}")
 
+    buildings = list_buildings(feat_dir)
+
     print(f"[viser] available regions: {regions}")
+    print(f"[viser] available buildings: {buildings}")
     text_encoder = TextEncoder(CLIP_MODEL_ID, device)
 
     server = viser.ViserServer(host=args.host, port=args.port)
@@ -291,9 +387,16 @@ def main() -> None:
 
     state: Dict[str, object] = {"asset": None, "cluster_handles": []}
 
-    region_dropdown = server.gui.add_dropdown(
-        "Region", options=regions, initial_value=regions[0]
+    view_level = server.gui.add_dropdown(
+        "View level", options=["building", "room"], initial_value="building"
     )
+    building_dropdown = server.gui.add_dropdown(
+        "Building", options=buildings, initial_value=buildings[0]
+    )
+    region_dropdown = server.gui.add_dropdown(
+        "Room", options=regions, initial_value=regions[0]
+    )
+    region_dropdown.visible = False
     mode = server.gui.add_dropdown(
         "Mode",
         options=["single query", "cluster", "class list", "rgb"],
@@ -363,6 +466,21 @@ def main() -> None:
             f"_loaded **{region_name}**: "
             f"{asset.n_render_units} points, "
             f"world-center=({asset.center[0]:.1f}, {asset.center[1]:.1f}, {asset.center[2]:.1f}) "
+            f"({time.time()-t0:.2f}s)_"
+        )
+
+    def load_and_render_building(building_id: str) -> None:
+        t0 = time.time()
+        status_md.content = f"_loading building **{building_id}** ..._"
+        asset = load_building(building_id, feat_dir, match_dir, device)
+        state["asset"] = asset
+        clear_cluster_markers()
+        render_panel(asset, rgb_for_asset(asset))
+        reset_camera_to_asset(asset)
+        n_rooms = len(regions_for_building(building_id, feat_dir))
+        status_md.content = (
+            f"_loaded **{building_id}**: {n_rooms} rooms, "
+            f"{asset.n_render_units} points "
             f"({time.time()-t0:.2f}s)_"
         )
 
@@ -520,9 +638,25 @@ def main() -> None:
             status_md.content = "_rendered class-argmax_"
             return
 
+    @view_level.on_update
+    def _(_):
+        is_building = view_level.value == "building"
+        building_dropdown.visible = is_building
+        region_dropdown.visible = not is_building
+        if is_building:
+            load_and_render_building(building_dropdown.value)
+        else:
+            load_and_render(region_dropdown.value)
+
+    @building_dropdown.on_update
+    def _(_):
+        if view_level.value == "building":
+            load_and_render_building(building_dropdown.value)
+
     @region_dropdown.on_update
     def _(_):
-        load_and_render(region_dropdown.value)
+        if view_level.value == "room":
+            load_and_render(region_dropdown.value)
 
     @apply_btn.on_click
     def _(_):
@@ -542,8 +676,8 @@ def main() -> None:
         if state["asset"] is not None:
             apply_query()
 
-    # initial load
-    load_and_render(regions[0])
+    # initial load — building view by default
+    load_and_render_building(buildings[0])
 
     print(f"[viser] running at http://{args.host}:{args.port}")
     print("[viser] Ctrl+C to exit")
