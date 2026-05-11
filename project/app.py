@@ -259,14 +259,17 @@ def main():
         'pt_colors': rgb.copy().astype(np.float32),
     }
 
-    def get_label_text(i, sim=None):
+    def get_label_text(i):
         label_idx = int(labels[i])
         label_name = classes[label_idx] if 0 <= label_idx < len(classes) else f'class_{label_idx}'
 
-        if sim is None:
-            return f'{label_idx}: {label_name} {float(scores[i]):.2f}'
+        cx, cy, cz = bboxes_vis[i][:3]
 
-        return f'{label_idx}: {label_name} sim={float(sim):.3f} score={float(scores[i]):.2f}'
+        return (
+            f'{label_idx}: {label_name} '
+            f'score={float(scores[i]):.2f} '
+            f'center=({cx:.2f}, {cy:.2f}, {cz:.2f})'
+        )
 
     def redraw_label(i, highlighted=False, sim=None):
         if not show_labels.value:
@@ -280,7 +283,7 @@ def main():
             server,
             i,
             bboxes_vis[i],
-            get_label_text(i, sim=sim),
+            get_label_text(i),
             highlighted=highlighted,
         )
 
@@ -357,14 +360,17 @@ def main():
             label_name = classes[label_idx] if 0 <= label_idx < len(classes) else f'class_{label_idx}'
             sim = float(sims[i])
 
+            cx, cy, cz = bboxes_vis[i][:3]
+
             lines.append(
                 f'#{rank + 1} box={i} label={label_idx} {label_name} '
-                f'(sim={sim:.3f}, score={float(scores[i]):.2f})'
+                f'score={float(scores[i]):.2f} '
+                f'center=({cx:.2f}, {cy:.2f}, {cz:.2f})'
             )
 
             # 쿼리에 해당하는 bbox는 빨강+두꺼운 선으로 변경
             redraw_box(i, highlighted=True)
-            redraw_label(i, highlighted=True, sim=sim)
+            redraw_label(i, highlighted=True)
 
             # 해당 bbox 안의 point도 노란색으로 강조
             if highlight_points.value:
