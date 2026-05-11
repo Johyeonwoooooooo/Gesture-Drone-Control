@@ -111,7 +111,11 @@ def main() -> None:
     server = viser.ViserServer(host=args.host, port=args.port)
     server.scene.world_axes.visible = True
 
-    state: Dict[str, object] = {"asset": None, "cluster_handles": []}
+    state: Dict[str, object] = {
+        "asset": None,
+        "cluster_handles": [],
+        "region_label_handles": [],
+    }
 
     # ---------------- GUI ----------------
     gui_md_title = server.gui.add_markdown(
@@ -154,12 +158,43 @@ def main() -> None:
     cluster_marker_size = server.gui.add_slider(
         "Marker radius (m)", min=0.05, max=0.5, step=0.01, initial_value=0.15
     )
+    show_region_labels = server.gui.add_checkbox(
+        "Show region IDs (building view)", initial_value=True
+    )
 
     status_md = server.gui.add_markdown("_status: ready_")
     intent_md = server.gui.add_markdown("")
     legend_md = server.gui.add_markdown("")
 
     # ---------------- helpers ----------------
+    def clear_region_labels() -> None:
+        for h in state["region_label_handles"]:  # type: ignore[assignment]
+            try:
+                h.remove()
+            except Exception:
+                pass
+        state["region_label_handles"] = []
+
+    def render_region_labels(building_id: str, world_center: np.ndarray) -> None:
+        """Place a 3D text label at each region's centroid (display coords)."""
+        clear_region_labels()
+        if not show_region_labels.value:
+            return
+        handles = []
+        for r in regions_for_building(building_id, feat_dir):
+            cpath = feat_dir / r / "coord.npy"
+            if not cpath.exists():
+                continue
+            coord = np.load(cpath).astype(np.float32)
+            centroid = coord.mean(axis=0) - world_center
+            top_z = float(coord[:, 2].max()) - float(world_center[2]) + 0.3
+            handles.append(server.scene.add_label(
+                f"/region_labels/{r}",
+                text=r,
+                position=(float(centroid[0]), float(centroid[1]), top_z),
+            ))
+        state["region_label_handles"] = handles
+
     def clear_cluster_markers() -> None:
         for h in state["cluster_handles"]:  # type: ignore[assignment]
             try:
@@ -194,6 +229,7 @@ def main() -> None:
         state["asset"] = asset
         clear_cluster_markers()
         render_rgb()
+        render_region_labels(building_id, asset.center)
         reset_camera_to_asset(asset)
         n_rooms = len(regions_for_building(building_id, feat_dir))
         status_md.content = (
@@ -207,6 +243,7 @@ def main() -> None:
         asset = load_region(region_name, feat_dir, match_dir, clip_device)
         state["asset"] = asset
         clear_cluster_markers()
+        clear_region_labels()
         render_rgb()
         reset_camera_to_asset(asset)
         status_md.content = (
@@ -352,6 +389,15 @@ def main() -> None:
     def _(_):
         if state["asset"] is not None:
             render_rgb()
+
+    @show_region_labels.on_update
+    def _(_):
+        if view_level.value == "building" and state["asset"] is not None:
+            asset: RegionAssets = state["asset"]  # type: ignore[assignment]
+            if show_region_labels.value:
+                render_region_labels(building_dropdown.value, asset.center)
+            else:
+                clear_region_labels()
 
     load_and_render_building(buildings[0])
 
