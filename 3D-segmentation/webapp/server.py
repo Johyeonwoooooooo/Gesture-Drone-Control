@@ -59,6 +59,9 @@ class RegionAssets:
     coord: np.ndarray  # (N, 3) point cloud, already centered to origin
     vertex_colors: Optional[np.ndarray] = None  # (N, 3) uint8 — per-point RGB
     center: np.ndarray = None  # (3,) world center subtracted from coord
+    # When this asset represents a whole building, region_slices maps each
+    # region name to (start, end) indices into coord/feat. None for single-region.
+    region_slices: Optional[Dict[str, Tuple[int, int]]] = None
 
     @property
     def n_render_units(self) -> int:
@@ -157,6 +160,8 @@ def load_building(building_id: str, feat_dir: Path, match_dir: Path, device: tor
     all_feat: List[torch.Tensor] = []
     all_coord: List[np.ndarray] = []
     all_rgb: List[Optional[np.ndarray]] = []
+    region_slices: Dict[str, Tuple[int, int]] = {}
+    cursor = 0
 
     for name in region_names:
         rfeat = feat_dir / name
@@ -169,6 +174,8 @@ def load_building(building_id: str, feat_dir: Path, match_dir: Path, device: tor
         all_feat.append(feat_t)
         all_coord.append(coord)
         all_rgb.append(rgb)
+        region_slices[name] = (cursor, cursor + len(coord))
+        cursor += len(coord)
 
     merged_coord = np.concatenate(all_coord, axis=0)
     merged_feat = torch.cat(all_feat, dim=0)  # CPU float16
@@ -189,6 +196,7 @@ def load_building(building_id: str, feat_dir: Path, match_dir: Path, device: tor
         coord=merged_coord,
         vertex_colors=merged_rgb,
         center=center,
+        region_slices=region_slices,
     )
 
 
@@ -385,7 +393,11 @@ def main() -> None:
     server = viser.ViserServer(host=args.host, port=args.port)
     server.scene.world_axes.visible = True
 
-    state: Dict[str, object] = {"asset": None, "cluster_handles": []}
+    state: Dict[str, object] = {
+        "asset": None,
+        "cluster_handles": [],
+        "region_label_handles": [],
+    }
 
     view_level = server.gui.add_dropdown(
         "View level", options=["building", "room"], initial_value="building"
@@ -397,6 +409,15 @@ def main() -> None:
         "Room", options=regions, initial_value=regions[0]
     )
     region_dropdown.visible = False
+    # In building view, select a room to highlight it within the whole house.
+    highlight_dropdown = server.gui.add_dropdown(
+        "Highlight room (in building)",
+        options=["(none)"] + regions,
+        initial_value="(none)",
+    )
+    show_region_labels = server.gui.add_checkbox(
+        "Show region IDs (building view)", initial_value=True
+    )
     mode = server.gui.add_dropdown(
         "Mode",
         options=["single query", "cluster", "class list", "rgb"],
@@ -429,6 +450,47 @@ def main() -> None:
 
     legend_md = server.gui.add_markdown("")
 
+    def clear_region_labels() -> None:
+        for h in state["region_label_handles"]:  # type: ignore[assignment]
+            try:
+                h.remove()
+            except Exception:
+                pass
+        state["region_label_handles"] = []
+
+    def render_region_labels(asset: RegionAssets) -> None:
+        clear_region_labels()
+        if not show_region_labels.value or asset.region_slices is None:
+            return
+        handles = []
+        for name, (s, e) in asset.region_slices.items():
+            pts = asset.coord[s:e]
+            if len(pts) == 0:
+                continue
+            centroid = pts.mean(axis=0)
+            top_z = float(pts[:, 2].max()) + 0.3
+            handles.append(server.scene.add_label(
+                f"/region_labels/{name}",
+                text=name,
+                position=(float(centroid[0]), float(centroid[1]), top_z),
+            ))
+        state["region_label_handles"] = handles
+
+    def apply_highlight(rgb: np.ndarray, asset: RegionAssets) -> np.ndarray:
+        """If a room is selected in the highlight dropdown, recolor that slice."""
+        if asset.region_slices is None:
+            return rgb
+        sel = highlight_dropdown.value
+        if sel == "(none)" or sel not in asset.region_slices:
+            return rgb
+        out = rgb.copy()
+        s, e = asset.region_slices[sel]
+        # Dim other points, paint selected region a saturated color.
+        dimmed = (out.astype(np.float32) * 0.35).clip(0, 255).astype(np.uint8)
+        out = dimmed
+        out[s:e] = np.array([255, 64, 64], dtype=np.uint8)  # red highlight
+        return out
+
     def clear_cluster_markers() -> None:
         for h in state["cluster_handles"]:  # type: ignore[assignment]
             try:
@@ -453,13 +515,15 @@ def main() -> None:
         return float(point_size_slider.value)
 
     def render_panel(asset: RegionAssets, rgb: np.ndarray) -> None:
-        upload_points(server, "/region", asset, rgb, current_point_size())
+        rgb_out = apply_highlight(rgb, asset)
+        upload_points(server, "/region", asset, rgb_out, current_point_size())
 
     def load_and_render(region_name: str) -> None:
         t0 = time.time()
         asset = load_region(region_name, feat_dir, match_dir, device)
         state["asset"] = asset
         clear_cluster_markers()
+        clear_region_labels()
         render_panel(asset, rgb_for_asset(asset))
         reset_camera_to_asset(asset)
         status_md.content = (
@@ -475,9 +539,14 @@ def main() -> None:
         asset = load_building(building_id, feat_dir, match_dir, device)
         state["asset"] = asset
         clear_cluster_markers()
+        # Restrict highlight dropdown choices to rooms in this building.
+        building_rooms = regions_for_building(building_id, feat_dir)
+        highlight_dropdown.options = ["(none)"] + building_rooms
+        highlight_dropdown.value = "(none)"
         render_panel(asset, rgb_for_asset(asset))
+        render_region_labels(asset)
         reset_camera_to_asset(asset)
-        n_rooms = len(regions_for_building(building_id, feat_dir))
+        n_rooms = len(building_rooms)
         status_md.content = (
             f"_loaded **{building_id}**: {n_rooms} rooms, "
             f"{asset.n_render_units} points "
@@ -643,10 +712,31 @@ def main() -> None:
         is_building = view_level.value == "building"
         building_dropdown.visible = is_building
         region_dropdown.visible = not is_building
+        highlight_dropdown.visible = is_building
+        show_region_labels.visible = is_building
         if is_building:
             load_and_render_building(building_dropdown.value)
         else:
             load_and_render(region_dropdown.value)
+
+    @highlight_dropdown.on_update
+    def _(_):
+        asset: RegionAssets = state["asset"]  # type: ignore[assignment]
+        if asset is None or asset.region_slices is None:
+            return
+        # Re-render with whatever query/mode is currently active so the highlight
+        # composes on top of (e.g.) heatmaps too.
+        apply_query()
+
+    @show_region_labels.on_update
+    def _(_):
+        asset: RegionAssets = state["asset"]  # type: ignore[assignment]
+        if asset is None:
+            return
+        if view_level.value == "building" and show_region_labels.value:
+            render_region_labels(asset)
+        else:
+            clear_region_labels()
 
     @building_dropdown.on_update
     def _(_):
