@@ -1,0 +1,142 @@
+{
+  "_schema": {
+    "label": "room-type label, free text (e.g. 'bedroom', 'kitchen', 'bathroom')",
+    "floor": "floor label, free text (e.g. '1F', '2F', 'basement')",
+    "aliases": "list of synonyms / Korean names — used by LLM location matching",
+    "notes": "any free-form note"
+  },
+  "rooms": {
+    "00809_Qpor2mEya8F_000_002": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_000_003": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_001_004": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_001_005": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_001_006": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_001_007": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_001_008": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_001_009": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_001_010": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_002_011": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_002_012": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_002_013": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_002_014": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_002_015": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_002_016": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_002_017": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_002_018": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_002_019": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_002_020": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_002_021": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_002_022": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    },
+    "00809_Qpor2mEya8F_002_023": {
+      "label": "",
+      "floor": "",
+      "aliases": [],
+      "notes": ""
+    }
+  }
+}
