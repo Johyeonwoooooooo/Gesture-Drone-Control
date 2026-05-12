@@ -9,12 +9,16 @@ UI flow:
        matching cache exists; otherwise raw compressed point cloud is shown.
 
 Cache layout expected (created by inference/run_inference.py + matching/align_to_mesh.py):
-    cache/feat/<region>/feat.npy           (N, D) float16
-    cache/feat/<region>/coord.npy          (N, 3) float32
-    cache/match/<region>/vertex2point.npy  (V,)   int32   (optional)
-    cache/match/<region>/vertices.npy      (V, 3) float32 (optional)
-    cache/match/<region>/faces.npy         (F, 3) int32   (optional)
-    cache/match/<region>/vertex_colors.npy (V, 3) uint8   (optional)
+    cache/<building_id>/feat/<region_id>/feat.npy           (N, D) float16
+    cache/<building_id>/feat/<region_id>/coord.npy          (N, 3) float32
+    cache/<building_id>/match/<region_id>/vertex_colors.npy (V, 3) uint8  (optional)
+    cache/<building_id>/match/<region_id>/vertex2point.npy  (V,)   int32  (optional)
+    cache/<building_id>/match/<region_id>/vertices.npy      (V, 3) float32(optional)
+    cache/<building_id>/match/<region_id>/faces.npy         (F, 3) int32  (optional)
+
+A `region_id` already encodes its building (e.g. ``00001_UVdNNRcVyV1_000_002`` →
+building ``00001_UVdNNRcVyV1``), so loaders walk the nested layout directly and
+no flat / symlinked ``cache/feat`` directory is needed.
 """
 from __future__ import annotations
 
@@ -71,44 +75,60 @@ class RegionAssets:
         return self.feat
 
 
-def list_regions(feat_dir: Path) -> List[str]:
-    return sorted(p.name for p in feat_dir.iterdir() if (p / "feat.npy").exists())
-
-
 def _building_id(region_name: str) -> str:
     """Extract building ID from region name (first two underscore-separated parts)."""
     parts = region_name.split("_")
     return "_".join(parts[:2]) if len(parts) >= 2 else region_name
 
 
-def list_buildings(feat_dir: Path) -> List[str]:
-    regions = list_regions(feat_dir)
-    seen: dict = {}
-    for r in regions:
-        bid = _building_id(r)
-        seen.setdefault(bid, None)
-    return sorted(seen.keys())
+def list_buildings(cache_dir: Path) -> List[str]:
+    """Buildings = subdirs of cache_dir that contain a `feat/` directory."""
+    if not cache_dir.is_dir():
+        return []
+    return sorted(
+        p.name for p in cache_dir.iterdir()
+        if p.is_dir() and (p / "feat").is_dir()
+    )
 
 
-def regions_for_building(building_id: str, feat_dir: Path) -> List[str]:
-    return [r for r in list_regions(feat_dir) if _building_id(r) == building_id]
+def regions_for_building(building_id: str, cache_dir: Path) -> List[str]:
+    bdir = cache_dir / building_id / "feat"
+    if not bdir.is_dir():
+        return []
+    return sorted(p.name for p in bdir.iterdir() if (p / "feat.npy").exists())
 
 
-def _find_point_colors(name: str, n_points: int, feat_dir: Path, match_dir: Path) -> Optional[np.ndarray]:
-    """Locate per-point RGB color matching the feature/coord at `feat_dir/<name>`.
+def list_regions(cache_dir: Path) -> List[str]:
+    out: List[str] = []
+    for b in list_buildings(cache_dir):
+        out.extend(regions_for_building(b, cache_dir))
+    return out
+
+
+def _feat_path(name: str, cache_dir: Path) -> Path:
+    return cache_dir / _building_id(name) / "feat" / name
+
+
+def _match_path(name: str, cache_dir: Path) -> Path:
+    return cache_dir / _building_id(name) / "match" / name
+
+
+def _find_point_colors(name: str, n_points: int, cache_dir: Path) -> Optional[np.ndarray]:
+    """Locate per-point RGB color matching the feature/coord for region `name`.
 
     Priority:
-        1. cache/match/<name>/vertex_colors.npy   (HM3D: same indexing as feat)
-        2. data/matterport3d_compressed/<name>/color.npy   (MP3D compressed)
+        1. cache/<building>/match/<name>/vertex_colors.npy
+        2. data/hm3d_compressed/{train,val}/<name>/color.npy
+        3. data/matterport3d_compressed/<name>/color.npy
     Returns (N, 3) uint8 or None.
     """
-    rmatch = match_dir / name
+    rmatch = _match_path(name, cache_dir)
     if (rmatch / "vertex_colors.npy").exists():
         vc = np.load(rmatch / "vertex_colors.npy")
         if len(vc) == n_points:
             return vc.astype(np.uint8)[:, :3]
-    # Walk up from feat_dir to find the repo root (contains a 'data/' directory).
-    repo_root = feat_dir
+    # Walk up to find a repo root containing a 'data/' directory.
+    repo_root = cache_dir
     for _ in range(8):
         if (repo_root / "data").is_dir():
             break
@@ -129,14 +149,14 @@ def _find_point_colors(name: str, n_points: int, feat_dir: Path, match_dir: Path
     return None
 
 
-def load_region(name: str, feat_dir: Path, match_dir: Path, device: torch.device) -> RegionAssets:
-    rfeat = feat_dir / name
+def load_region(name: str, cache_dir: Path, device: torch.device) -> RegionAssets:
+    rfeat = _feat_path(name, cache_dir)
     feat = np.load(rfeat / "feat.npy")  # fp16
     feat_t = torch.from_numpy(feat).to(device, dtype=torch.float32)
     feat_t = torch.nn.functional.normalize(feat_t, dim=-1)
     coord = np.load(rfeat / "coord.npy").astype(np.float32, copy=True)
 
-    rgb = _find_point_colors(name, len(coord), feat_dir, match_dir)
+    rgb = _find_point_colors(name, len(coord), cache_dir)
 
     # Center on bbox midpoint so the camera default frames the scene.
     center = ((coord.min(0) + coord.max(0)) / 2).astype(np.float32)
@@ -151,9 +171,9 @@ def load_region(name: str, feat_dir: Path, match_dir: Path, device: torch.device
     )
 
 
-def load_building(building_id: str, feat_dir: Path, match_dir: Path, device: torch.device) -> RegionAssets:
+def load_building(building_id: str, cache_dir: Path, device: torch.device) -> RegionAssets:
     """Load all regions of a building and merge into one RegionAssets."""
-    region_names = regions_for_building(building_id, feat_dir)
+    region_names = regions_for_building(building_id, cache_dir)
     if not region_names:
         raise ValueError(f"No regions found for building {building_id}")
 
@@ -164,13 +184,13 @@ def load_building(building_id: str, feat_dir: Path, match_dir: Path, device: tor
     cursor = 0
 
     for name in region_names:
-        rfeat = feat_dir / name
+        rfeat = _feat_path(name, cache_dir)
         feat = np.load(rfeat / "feat.npy")  # float16 on disk
         # Normalize on CPU to avoid OOM; keep as float16 to save RAM.
         feat_t = torch.from_numpy(feat).float()
         feat_t = torch.nn.functional.normalize(feat_t, dim=-1).half()
         coord = np.load(rfeat / "coord.npy").astype(np.float32, copy=True)
-        rgb = _find_point_colors(name, len(coord), feat_dir, match_dir)
+        rgb = _find_point_colors(name, len(coord), cache_dir)
         all_feat.append(feat_t)
         all_coord.append(coord)
         all_rgb.append(rgb)
@@ -357,34 +377,30 @@ def blend_with_rgb(
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument(
-        "--feat-dir",
-        default=str(
-            Path(__file__).resolve().parents[1] / "cache" / "feat"
-        ),
-    )
-    ap.add_argument(
-        "--match-dir",
-        default=str(
-            Path(__file__).resolve().parents[1] / "cache" / "match"
-        ),
+        "--cache-dir",
+        default=str(Path(__file__).resolve().parents[1] / "cache"),
+        help="Root cache dir. Expected layout: "
+             "<cache>/<building_id>/feat/<region_id>/{feat,coord}.npy",
     )
     ap.add_argument("--port", type=int, default=8080)
     ap.add_argument("--host", default="0.0.0.0")
     ap.add_argument("--device", default="cuda:0")
     args = ap.parse_args()
 
-    feat_dir = Path(args.feat_dir)
-    match_dir = Path(args.match_dir)
-    if not feat_dir.exists():
-        raise SystemExit(f"No feat dir: {feat_dir} (run inference first)")
+    cache_dir = Path(args.cache_dir)
+    if not cache_dir.exists():
+        raise SystemExit(f"No cache dir: {cache_dir} (run inference first)")
 
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
-    regions = list_regions(feat_dir)
+    regions = list_regions(cache_dir)
     if not regions:
-        raise SystemExit(f"No regions found under {feat_dir}")
+        raise SystemExit(
+            f"No regions found under {cache_dir} — expected "
+            f"<cache>/<building>/feat/<region>/feat.npy"
+        )
 
-    buildings = list_buildings(feat_dir)
+    buildings = list_buildings(cache_dir)
 
     print(f"[viser] available regions: {regions}")
     print(f"[viser] available buildings: {buildings}")
@@ -520,7 +536,7 @@ def main() -> None:
 
     def load_and_render(region_name: str) -> None:
         t0 = time.time()
-        asset = load_region(region_name, feat_dir, match_dir, device)
+        asset = load_region(region_name, cache_dir, device)
         state["asset"] = asset
         clear_cluster_markers()
         clear_region_labels()
@@ -536,11 +552,11 @@ def main() -> None:
     def load_and_render_building(building_id: str) -> None:
         t0 = time.time()
         status_md.content = f"_loading building **{building_id}** ..._"
-        asset = load_building(building_id, feat_dir, match_dir, device)
+        asset = load_building(building_id, cache_dir, device)
         state["asset"] = asset
         clear_cluster_markers()
         # Restrict highlight dropdown choices to rooms in this building.
-        building_rooms = regions_for_building(building_id, feat_dir)
+        building_rooms = regions_for_building(building_id, cache_dir)
         highlight_dropdown.options = ["(none)"] + building_rooms
         highlight_dropdown.value = "(none)"
         render_panel(asset, rgb_for_asset(asset))

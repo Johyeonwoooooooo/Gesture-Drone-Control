@@ -41,6 +41,7 @@ from webapp.server import (  # noqa: E402
     RegionAssets,
     TextEncoder,
     _bbox_edge_segments,
+    _feat_path,
     blend_with_rgb,
     cluster_palette,
     heatmap_colors,
@@ -59,12 +60,9 @@ from webapp_llm.llm_parser import LocalLLMParser, ParsedIntent  # noqa: E402
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument(
-        "--feat-dir",
-        default=str(_THIS.parents[1] / "cache" / "feat"),
-    )
-    ap.add_argument(
-        "--match-dir",
-        default=str(_THIS.parents[1] / "cache" / "match"),
+        "--cache-dir",
+        default=str(_THIS.parents[1] / "cache"),
+        help="Root cache dir. Layout: <cache>/<building>/feat/<region>/...",
     )
     ap.add_argument("--port", type=int, default=8090)
     ap.add_argument("--host", default="0.0.0.0")
@@ -81,10 +79,9 @@ def main() -> None:
     )
     args = ap.parse_args()
 
-    feat_dir = Path(args.feat_dir)
-    match_dir = Path(args.match_dir)
-    if not feat_dir.exists():
-        raise SystemExit(f"No feat dir: {feat_dir} (run inference first)")
+    cache_dir = Path(args.cache_dir)
+    if not cache_dir.exists():
+        raise SystemExit(f"No cache dir: {cache_dir} (run inference first)")
 
     clip_device = torch.device(
         args.clip_device if torch.cuda.is_available() else "cpu"
@@ -94,10 +91,10 @@ def main() -> None:
         else "cuda:0"
     )
 
-    regions = list_regions(feat_dir)
-    buildings = list_buildings(feat_dir)
+    regions = list_regions(cache_dir)
+    buildings = list_buildings(cache_dir)
     if not regions:
-        raise SystemExit(f"No regions found under {feat_dir}")
+        raise SystemExit(f"No regions found under {cache_dir}")
 
     print(f"[webapp_llm] buildings={len(buildings)} regions={len(regions)}")
     text_encoder = TextEncoder(CLIP_MODEL_ID, clip_device)
@@ -181,8 +178,8 @@ def main() -> None:
         if not show_region_labels.value:
             return
         handles = []
-        for r in regions_for_building(building_id, feat_dir):
-            cpath = feat_dir / r / "coord.npy"
+        for r in regions_for_building(building_id, cache_dir):
+            cpath = _feat_path(r, cache_dir) / "coord.npy"
             if not cpath.exists():
                 continue
             coord = np.load(cpath).astype(np.float32)
@@ -225,13 +222,13 @@ def main() -> None:
     def load_and_render_building(building_id: str) -> None:
         t0 = time.time()
         status_md.content = f"_loading building **{building_id}** ..._"
-        asset = load_building(building_id, feat_dir, match_dir, clip_device)
+        asset = load_building(building_id, cache_dir, clip_device)
         state["asset"] = asset
         clear_cluster_markers()
         render_rgb()
         render_region_labels(building_id, asset.center)
         reset_camera_to_asset(asset)
-        n_rooms = len(regions_for_building(building_id, feat_dir))
+        n_rooms = len(regions_for_building(building_id, cache_dir))
         status_md.content = (
             f"_loaded **{building_id}**: {n_rooms} rooms, "
             f"{asset.n_render_units} points "
@@ -240,7 +237,7 @@ def main() -> None:
 
     def load_and_render_region(region_name: str) -> None:
         t0 = time.time()
-        asset = load_region(region_name, feat_dir, match_dir, clip_device)
+        asset = load_region(region_name, cache_dir, clip_device)
         state["asset"] = asset
         clear_cluster_markers()
         clear_region_labels()
@@ -266,13 +263,18 @@ def main() -> None:
         status_md.content = "_parsing with LLM ..._"
         intent: ParsedIntent = llm.parse(user_text)
         t_llm = time.time() - t0
+        raw_preview = intent.raw_text.strip()
+        if len(raw_preview) > 1200:
+            raw_preview = raw_preview[:1200] + "  …(truncated)"
         intent_md.content = (
             f"### Parsed intent ({t_llm:.2f}s)\n"
             f"- target_object: `{intent.target_object}`\n"
             f"- clip_prompt:   `{intent.clip_prompt}`\n"
             f"- location_hint: `{intent.location_hint}`\n"
             f"- action:        `{intent.action}`\n"
-            f"- return_home:   `{intent.return_home}`"
+            f"- return_home:   `{intent.return_home}`\n\n"
+            f"**LLM raw output**\n"
+            f"```\n{raw_preview}\n```"
         )
 
         # 2. CLIP heatmap

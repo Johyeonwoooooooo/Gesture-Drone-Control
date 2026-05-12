@@ -62,6 +62,7 @@ class ParsedIntent:
     action: str
     return_home: bool
     raw: dict
+    raw_text: str = ""  # full LLM generation before JSON parsing
 
 
 class LocalLLMParser:
@@ -116,6 +117,7 @@ class LocalLLMParser:
             action=str(data.get("action", "goto")).strip(),
             return_home=bool(data.get("return_home", False)),
             raw=data,
+            raw_text=gen,
         )
 
 
