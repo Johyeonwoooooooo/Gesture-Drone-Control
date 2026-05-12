@@ -1,0 +1,100 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 3D map file 
+*.ply
+*.npy 
+*.glb
+
+# virtual environment
+venv/
+.env/
+.venv/
+
+# environment variables
+.env
+
+# =========================
+# VSCode
+# =========================
+.vscode/
+
+# =========================
+# Jupyter Notebook
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# Python build / packaging
+# =========================
+build/
+dist/
+*.egg-info/
+.eggs/
+playground/simulator/
+# =========================
+# logs
+# =========================
+*.log
+
+# =========================
+# cache
+# =========================
+.cache/
+
+# =========================
+# test files
+# =========================
+/test
+test.py
+
+# =========================
+# Unity
+# =========================
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]serSettings/
+MemoryCaptures/
+Recorded/
+ASSET_METADATA
+ExportedObj/
+.plastic/
+
+# Unity generated meta files
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# Unity generated project files
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.obj
+
+# Unity crash reports
+sysinfo.txt
+
+# Unity Assembly-CSharp
+Assembly-CSharp.csproj
+Assembly-CSharp-Editor.csproj
+Assembly-CSharp-firstpass.csproj
+Assembly-CSharp-Editor-firstpass.csproj
