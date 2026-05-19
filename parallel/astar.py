@@ -20,7 +20,7 @@ from typing import Optional
 
 import numpy as np
 
-from voxel_io import GridMeta
+from parallel.voxel_io import GridMeta
 
 
 # ---------------------------------------------------------------------------

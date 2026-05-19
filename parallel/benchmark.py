@@ -16,7 +16,6 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
-from typing import Optional
 
 os.environ.setdefault("MPLCONFIGDIR", str(Path.cwd() / ".matplotlib-cache"))
 os.environ.setdefault("XDG_CACHE_HOME", str(Path.cwd() / ".cache"))
@@ -27,8 +26,8 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
 
-from config import PALETTE, PLOT_DPI
-from parallel_planner import aggregate_stats, build_tasks, run_parallel, run_sequential
+from parallel.config import PALETTE, PLOT_DPI
+from parallel.parallel_planner import aggregate_stats, run_parallel, run_sequential
 
 
 # ---------------------------------------------------------------------------

@@ -20,24 +20,21 @@ python main.py --start sub002 --goal sub005 \\
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 import time
 from pathlib import Path
 
 import numpy as np
 
-import config as cfg
+from parallel import config as cfg
 from benchmark import plot_benchmark, print_summary, run_benchmark
 from graph import bfs_path, build_graph, describe_path, dfs_path
 from parallel_planner import (
     build_tasks,
-    run_parallel,
-    run_sequential,
     run_adaptive,
     stitch_paths,
 )
-from voxel_io import GridMeta, load_all_rooms, voxelize
+from voxel_io import GridMeta, load_all_rooms
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +118,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # --- Benchmark ---
     p.add_argument("--runs",   type=int,  default=cfg.BENCHMARK_RUNS)
-    p.add_argument("--output-dir", type=Path, default=Path("results"))
+    p.add_argument("--output-dir", type=Path, default=Path("../results"))
     p.add_argument("--show",   action="store_true",
                    help="Open chart window (requires display).")
     p.add_argument("--no-benchmark", action="store_true",

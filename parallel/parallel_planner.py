@@ -29,8 +29,8 @@ from typing import Optional
 
 import numpy as np
 
-from astar import _find_nearest_free, _worker_payload, path_length
-from config import DOOR_WAYPOINTS, WORKER_COUNT
+from astar import _worker_payload
+from parallel.config import DOOR_WAYPOINTS
 from voxel_io import GridMeta
 
 # parallel_planner.py 상단에
