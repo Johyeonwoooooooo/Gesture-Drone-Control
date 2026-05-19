@@ -170,8 +170,10 @@ class UniDet3DDetector:
         (x, y, z, r, g, b, nx, ny, nz). Coordinates are not modified.
         """
         self._ensure_loaded()
-        if pts.ndim != 2 or pts.shape[1] != 9:
-            raise ValueError(f'expected (N, 9), got {pts.shape}')
+        if pts.ndim != 2 or pts.shape[1] not in (6, 9):
+            raise ValueError(f'expected (N, 6) xyz+rgb or (N, 9) xyz+rgb+normal, got {pts.shape}')
+        if pts.shape[1] == 9:
+            pts = pts[:, :6]  # UniDet3D only uses xyz+rgb (see configs: use_dim=[0..5])
 
         coords_original = pts[:, :3]
         pts_s, sampled_idx = random_sample_points(pts, max_points=max_points)

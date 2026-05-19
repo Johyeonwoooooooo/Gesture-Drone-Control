@@ -21,12 +21,11 @@ import numpy as np
 def load_region(d: str) -> np.ndarray:
     coord = np.load(os.path.join(d, "coord.npy")).astype(np.float32)
     color = np.load(os.path.join(d, "color.npy")).astype(np.float32)
-    normal = np.load(os.path.join(d, "normal.npy")).astype(np.float32)
-    assert coord.shape == normal.shape and coord.shape[0] == color.shape[0], \
-        f"shape mismatch in {d}: {coord.shape} {color.shape} {normal.shape}"
+    assert coord.shape[0] == color.shape[0], \
+        f"shape mismatch in {d}: {coord.shape} {color.shape}"
     if color.max() > 1.5:
         color = color / 255.0
-    return np.concatenate([coord, color, normal], axis=1).astype(np.float32)
+    return np.concatenate([coord, color], axis=1).astype(np.float32)
 
 
 def main() -> None:
@@ -55,7 +54,6 @@ def main() -> None:
     print(f"[hm3d->bin] total points: {pts.shape}, dtype={pts.dtype}")
     print(f"  xyz range: {pts[:,:3].min(0)} .. {pts[:,:3].max(0)}")
     print(f"  rgb range: {pts[:,3:6].min():.3f} .. {pts[:,3:6].max():.3f}")
-    print(f"  |n| mean: {np.linalg.norm(pts[:,6:9], axis=1).mean():.3f}")
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     pts.tofile(args.out)
