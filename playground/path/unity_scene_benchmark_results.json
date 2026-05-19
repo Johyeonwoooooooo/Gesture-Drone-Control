@@ -1,0 +1,2042 @@
+[
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 0,
+    "success": true,
+    "start_grid": [
+      75,
+      49
+    ],
+    "goal_grid": [
+      22,
+      17
+    ],
+    "start_world": [
+      57.173199999999994,
+      32.465500000000006
+    ],
+    "goal_world": [
+      -48.826800000000006,
+      -31.534499999999994
+    ],
+    "plan_time_sec": 0.01594660000409931,
+    "path_length_world": 138.08352430580274,
+    "smoothness_deg": 174.29994602454144,
+    "waypoint_count": 6,
+    "optimal_ratio": 1.1151735437401298,
+    "compute_time": 0.01594660000409931,
+    "num_waypoints": 6,
+    "min_clearance": 2.0,
+    "smoothness": 174.29994602454144,
+    "start_goal_dist": 123.82245353731285
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 0,
+    "success": true,
+    "start_grid": [
+      75,
+      49
+    ],
+    "goal_grid": [
+      22,
+      17
+    ],
+    "start_world": [
+      57.173199999999994,
+      32.465500000000006
+    ],
+    "goal_world": [
+      -48.826800000000006,
+      -31.534499999999994
+    ],
+    "plan_time_sec": 0.02198969997698441,
+    "path_length_world": 140.75071458519025,
+    "smoothness_deg": 219.37927453261938,
+    "waypoint_count": 6,
+    "optimal_ratio": 1.1367139849379273,
+    "compute_time": 0.02198969997698441,
+    "num_waypoints": 6,
+    "min_clearance": 2.0,
+    "smoothness": 219.37927453261938,
+    "start_goal_dist": 123.82245353731285
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 0,
+    "success": true,
+    "start_grid": [
+      75,
+      49
+    ],
+    "goal_grid": [
+      22,
+      17
+    ],
+    "start_world": [
+      57.173199999999994,
+      32.465500000000006
+    ],
+    "goal_world": [
+      -48.826800000000006,
+      -31.534499999999994
+    ],
+    "plan_time_sec": 0.03508539998438209,
+    "path_length_world": 141.57096944092874,
+    "smoothness_deg": 227.05996259766513,
+    "waypoint_count": 7,
+    "optimal_ratio": 1.1433384285045485,
+    "compute_time": 0.03508539998438209,
+    "num_waypoints": 7,
+    "min_clearance": 2.0,
+    "smoothness": 227.05996259766513,
+    "start_goal_dist": 123.82245353731285
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 1,
+    "success": true,
+    "start_grid": [
+      46,
+      15
+    ],
+    "goal_grid": [
+      52,
+      43
+    ],
+    "start_world": [
+      -0.8268000000000058,
+      -35.534499999999994
+    ],
+    "goal_world": [
+      11.173199999999994,
+      20.465500000000006
+    ],
+    "plan_time_sec": 0.02191269997274503,
+    "path_length_world": 129.31296608652704,
+    "smoothness_deg": 269.5904530676446,
+    "waypoint_count": 6,
+    "optimal_ratio": 2.257902328766363,
+    "compute_time": 0.02191269997274503,
+    "num_waypoints": 6,
+    "min_clearance": 2.0,
+    "smoothness": 269.5904530676446,
+    "start_goal_dist": 57.271284253105414
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 1,
+    "success": true,
+    "start_grid": [
+      46,
+      15
+    ],
+    "goal_grid": [
+      52,
+      43
+    ],
+    "start_world": [
+      -0.8268000000000058,
+      -35.534499999999994
+    ],
+    "goal_world": [
+      11.173199999999994,
+      20.465500000000006
+    ],
+    "plan_time_sec": 0.7301612999872304,
+    "path_length_world": 136.8896552997833,
+    "smoothness_deg": 343.62177028983945,
+    "waypoint_count": 8,
+    "optimal_ratio": 2.3901970609705816,
+    "compute_time": 0.7301612999872304,
+    "num_waypoints": 8,
+    "min_clearance": 2.0,
+    "smoothness": 343.62177028983945,
+    "start_goal_dist": 57.271284253105414
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 1,
+    "success": true,
+    "start_grid": [
+      46,
+      15
+    ],
+    "goal_grid": [
+      52,
+      43
+    ],
+    "start_world": [
+      -0.8268000000000058,
+      -35.534499999999994
+    ],
+    "goal_world": [
+      11.173199999999994,
+      20.465500000000006
+    ],
+    "plan_time_sec": 0.033070000004954636,
+    "path_length_world": 129.4243887448312,
+    "smoothness_deg": 310.32243551914854,
+    "waypoint_count": 8,
+    "optimal_ratio": 2.259847852771233,
+    "compute_time": 0.033070000004954636,
+    "num_waypoints": 8,
+    "min_clearance": 2.0,
+    "smoothness": 310.32243551914854,
+    "start_goal_dist": 57.271284253105414
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 2,
+    "success": false,
+    "start_grid": [
+      28,
+      60
+    ],
+    "goal_grid": [
+      58,
+      65
+    ],
+    "start_world": [
+      -36.826800000000006,
+      54.465500000000006
+    ],
+    "goal_world": [
+      23.173199999999994,
+      64.4655
+    ],
+    "plan_time_sec": 0.07219610002357513,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.07219610002357513,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 60.8276253029822
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 2,
+    "success": false,
+    "start_grid": [
+      28,
+      60
+    ],
+    "goal_grid": [
+      58,
+      65
+    ],
+    "start_world": [
+      -36.826800000000006,
+      54.465500000000006
+    ],
+    "goal_world": [
+      23.173199999999994,
+      64.4655
+    ],
+    "plan_time_sec": 4.239166999992449,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 4.239166999992449,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 60.8276253029822
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 2,
+    "success": false,
+    "start_grid": [
+      28,
+      60
+    ],
+    "goal_grid": [
+      58,
+      65
+    ],
+    "start_world": [
+      -36.826800000000006,
+      54.465500000000006
+    ],
+    "goal_world": [
+      23.173199999999994,
+      64.4655
+    ],
+    "plan_time_sec": 0.0900275000021793,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.0900275000021793,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 60.8276253029822
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 3,
+    "success": false,
+    "start_grid": [
+      3,
+      4
+    ],
+    "goal_grid": [
+      40,
+      34
+    ],
+    "start_world": [
+      -86.8268,
+      -57.534499999999994
+    ],
+    "goal_world": [
+      -12.826800000000006,
+      2.465500000000006
+    ],
+    "plan_time_sec": 0.07632779999403283,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.07632779999403283,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 95.26804291051643
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 3,
+    "success": false,
+    "start_grid": [
+      3,
+      4
+    ],
+    "goal_grid": [
+      40,
+      34
+    ],
+    "start_world": [
+      -86.8268,
+      -57.534499999999994
+    ],
+    "goal_world": [
+      -12.826800000000006,
+      2.465500000000006
+    ],
+    "plan_time_sec": 3.059983099985402,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 3.059983099985402,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 95.26804291051643
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 3,
+    "success": false,
+    "start_grid": [
+      3,
+      4
+    ],
+    "goal_grid": [
+      40,
+      34
+    ],
+    "start_world": [
+      -86.8268,
+      -57.534499999999994
+    ],
+    "goal_world": [
+      -12.826800000000006,
+      2.465500000000006
+    ],
+    "plan_time_sec": 0.07872270001098514,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.07872270001098514,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 95.26804291051643
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 4,
+    "success": false,
+    "start_grid": [
+      28,
+      45
+    ],
+    "goal_grid": [
+      51,
+      3
+    ],
+    "start_world": [
+      -36.826800000000006,
+      24.465500000000006
+    ],
+    "goal_world": [
+      9.173199999999994,
+      -59.534499999999994
+    ],
+    "plan_time_sec": 0.0007408999954350293,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.0007408999954350293,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 95.77055915050303
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 4,
+    "success": true,
+    "start_grid": [
+      28,
+      45
+    ],
+    "goal_grid": [
+      51,
+      3
+    ],
+    "start_world": [
+      -36.826800000000006,
+      24.465500000000006
+    ],
+    "goal_world": [
+      9.173199999999994,
+      -59.534499999999994
+    ],
+    "plan_time_sec": 0.2293855000170879,
+    "path_length_world": 135.90703642611135,
+    "smoothness_deg": 376.64626849941453,
+    "waypoint_count": 9,
+    "optimal_ratio": 1.4190899336040632,
+    "compute_time": 0.2293855000170879,
+    "num_waypoints": 9,
+    "min_clearance": 2.0,
+    "smoothness": 376.64626849941453,
+    "start_goal_dist": 95.77055915050303
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 4,
+    "success": false,
+    "start_grid": [
+      28,
+      45
+    ],
+    "goal_grid": [
+      51,
+      3
+    ],
+    "start_world": [
+      -36.826800000000006,
+      24.465500000000006
+    ],
+    "goal_world": [
+      9.173199999999994,
+      -59.534499999999994
+    ],
+    "plan_time_sec": 0.0011362999794073403,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.0011362999794073403,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 95.77055915050303
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 5,
+    "success": true,
+    "start_grid": [
+      25,
+      20
+    ],
+    "goal_grid": [
+      69,
+      3
+    ],
+    "start_world": [
+      -42.826800000000006,
+      -25.534499999999994
+    ],
+    "goal_world": [
+      45.173199999999994,
+      -59.534499999999994
+    ],
+    "plan_time_sec": 0.005908799997996539,
+    "path_length_world": 101.10779618683459,
+    "smoothness_deg": 155.1228247344741,
+    "waypoint_count": 6,
+    "optimal_ratio": 1.071740496101598,
+    "compute_time": 0.005908799997996539,
+    "num_waypoints": 6,
+    "min_clearance": 2.0,
+    "smoothness": 155.1228247344741,
+    "start_goal_dist": 94.33981132056604
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 5,
+    "success": true,
+    "start_grid": [
+      25,
+      20
+    ],
+    "goal_grid": [
+      69,
+      3
+    ],
+    "start_world": [
+      -42.826800000000006,
+      -25.534499999999994
+    ],
+    "goal_world": [
+      45.173199999999994,
+      -59.534499999999994
+    ],
+    "plan_time_sec": 0.21500869997544214,
+    "path_length_world": 102.18304052207873,
+    "smoothness_deg": 165.56842140560133,
+    "waypoint_count": 6,
+    "optimal_ratio": 1.0831380632600742,
+    "compute_time": 0.21500869997544214,
+    "num_waypoints": 6,
+    "min_clearance": 2.0,
+    "smoothness": 165.56842140560133,
+    "start_goal_dist": 94.33981132056604
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 5,
+    "success": true,
+    "start_grid": [
+      25,
+      20
+    ],
+    "goal_grid": [
+      69,
+      3
+    ],
+    "start_world": [
+      -42.826800000000006,
+      -25.534499999999994
+    ],
+    "goal_world": [
+      45.173199999999994,
+      -59.534499999999994
+    ],
+    "plan_time_sec": 0.016216699965298176,
+    "path_length_world": 107.28790124811825,
+    "smoothness_deg": 248.11870414413798,
+    "waypoint_count": 7,
+    "optimal_ratio": 1.1372494787333705,
+    "compute_time": 0.016216699965298176,
+    "num_waypoints": 7,
+    "min_clearance": 2.0,
+    "smoothness": 248.11870414413798,
+    "start_goal_dist": 94.33981132056604
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 6,
+    "success": false,
+    "start_grid": [
+      91,
+      9
+    ],
+    "goal_grid": [
+      16,
+      56
+    ],
+    "start_world": [
+      89.1732,
+      -47.534499999999994
+    ],
+    "goal_world": [
+      -60.826800000000006,
+      46.465500000000006
+    ],
+    "plan_time_sec": 0.07618380000349134,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.07618380000349134,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 177.0197729068705
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 6,
+    "success": false,
+    "start_grid": [
+      91,
+      9
+    ],
+    "goal_grid": [
+      16,
+      56
+    ],
+    "start_world": [
+      89.1732,
+      -47.534499999999994
+    ],
+    "goal_world": [
+      -60.826800000000006,
+      46.465500000000006
+    ],
+    "plan_time_sec": 4.8188796999747865,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 4.8188796999747865,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 177.0197729068705
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 6,
+    "success": false,
+    "start_grid": [
+      91,
+      9
+    ],
+    "goal_grid": [
+      16,
+      56
+    ],
+    "start_world": [
+      89.1732,
+      -47.534499999999994
+    ],
+    "goal_world": [
+      -60.826800000000006,
+      46.465500000000006
+    ],
+    "plan_time_sec": 0.0777395999757573,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.0777395999757573,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 177.0197729068705
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 7,
+    "success": true,
+    "start_grid": [
+      81,
+      5
+    ],
+    "goal_grid": [
+      6,
+      13
+    ],
+    "start_world": [
+      69.1732,
+      -55.534499999999994
+    ],
+    "goal_world": [
+      -80.8268,
+      -39.534499999999994
+    ],
+    "plan_time_sec": 0.03451639995910227,
+    "path_length_world": 179.02950249321842,
+    "smoothness_deg": 236.2151906405267,
+    "waypoint_count": 8,
+    "optimal_ratio": 1.1867975531624415,
+    "compute_time": 0.03451639995910227,
+    "num_waypoints": 8,
+    "min_clearance": 2.0,
+    "smoothness": 236.2151906405267,
+    "start_goal_dist": 150.8509197850646
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 7,
+    "success": true,
+    "start_grid": [
+      81,
+      5
+    ],
+    "goal_grid": [
+      6,
+      13
+    ],
+    "start_world": [
+      69.1732,
+      -55.534499999999994
+    ],
+    "goal_world": [
+      -80.8268,
+      -39.534499999999994
+    ],
+    "plan_time_sec": 2.241632000019308,
+    "path_length_world": 185.71698021528826,
+    "smoothness_deg": 360.2575283941909,
+    "waypoint_count": 9,
+    "optimal_ratio": 1.2311292531719495,
+    "compute_time": 2.241632000019308,
+    "num_waypoints": 9,
+    "min_clearance": 2.0,
+    "smoothness": 360.2575283941909,
+    "start_goal_dist": 150.8509197850646
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 7,
+    "success": true,
+    "start_grid": [
+      81,
+      5
+    ],
+    "goal_grid": [
+      6,
+      13
+    ],
+    "start_world": [
+      69.1732,
+      -55.534499999999994
+    ],
+    "goal_world": [
+      -80.8268,
+      -39.534499999999994
+    ],
+    "plan_time_sec": 0.11986299999989569,
+    "path_length_world": 183.04971035026145,
+    "smoothness_deg": 337.85574114427055,
+    "waypoint_count": 10,
+    "optimal_ratio": 1.2134477576343208,
+    "compute_time": 0.11986299999989569,
+    "num_waypoints": 10,
+    "min_clearance": 2.0,
+    "smoothness": 337.85574114427055,
+    "start_goal_dist": 150.8509197850646
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 8,
+    "success": true,
+    "start_grid": [
+      66,
+      42
+    ],
+    "goal_grid": [
+      15,
+      6
+    ],
+    "start_world": [
+      39.173199999999994,
+      18.465500000000006
+    ],
+    "goal_world": [
+      -62.826800000000006,
+      -53.534499999999994
+    ],
+    "plan_time_sec": 0.033519199991133064,
+    "path_length_world": 197.4162958666557,
+    "smoothness_deg": 444.2709138700137,
+    "waypoint_count": 9,
+    "optimal_ratio": 1.5812036216453502,
+    "compute_time": 0.033519199991133064,
+    "num_waypoints": 9,
+    "min_clearance": 2.0,
+    "smoothness": 444.2709138700137,
+    "start_goal_dist": 124.85191228010886
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 8,
+    "success": true,
+    "start_grid": [
+      66,
+      42
+    ],
+    "goal_grid": [
+      15,
+      6
+    ],
+    "start_world": [
+      39.173199999999994,
+      18.465500000000006
+    ],
+    "goal_world": [
+      -62.826800000000006,
+      -53.534499999999994
+    ],
+    "plan_time_sec": 1.570208300021477,
+    "path_length_world": 228.52008412760034,
+    "smoothness_deg": 459.67019493846965,
+    "waypoint_count": 9,
+    "optimal_ratio": 1.830329067086365,
+    "compute_time": 1.570208300021477,
+    "num_waypoints": 9,
+    "min_clearance": 2.0,
+    "smoothness": 459.67019493846965,
+    "start_goal_dist": 124.85191228010886
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 8,
+    "success": true,
+    "start_grid": [
+      66,
+      42
+    ],
+    "goal_grid": [
+      15,
+      6
+    ],
+    "start_world": [
+      39.173199999999994,
+      18.465500000000006
+    ],
+    "goal_world": [
+      -62.826800000000006,
+      -53.534499999999994
+    ],
+    "plan_time_sec": 0.14993549999780953,
+    "path_length_world": 198.2546630293511,
+    "smoothness_deg": 443.2861154748746,
+    "waypoint_count": 12,
+    "optimal_ratio": 1.587918514091807,
+    "compute_time": 0.14993549999780953,
+    "num_waypoints": 12,
+    "min_clearance": 2.0,
+    "smoothness": 443.2861154748746,
+    "start_goal_dist": 124.85191228010886
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 9,
+    "success": true,
+    "start_grid": [
+      52,
+      11
+    ],
+    "goal_grid": [
+      20,
+      21
+    ],
+    "start_world": [
+      11.173199999999994,
+      -43.534499999999994
+    ],
+    "goal_world": [
+      -52.826800000000006,
+      -23.534499999999994
+    ],
+    "plan_time_sec": 0.003970299963839352,
+    "path_length_world": 68.82941172420499,
+    "smoothness_deg": 55.02963313497315,
+    "waypoint_count": 4,
+    "optimal_ratio": 1.0265046154794248,
+    "compute_time": 0.003970299963839352,
+    "num_waypoints": 4,
+    "min_clearance": 2.0,
+    "smoothness": 55.02963313497315,
+    "start_goal_dist": 67.05221845696084
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 9,
+    "success": true,
+    "start_grid": [
+      52,
+      11
+    ],
+    "goal_grid": [
+      20,
+      21
+    ],
+    "start_world": [
+      11.173199999999994,
+      -43.534499999999994
+    ],
+    "goal_world": [
+      -52.826800000000006,
+      -23.534499999999994
+    ],
+    "plan_time_sec": 0.0028756000101566315,
+    "path_length_world": 69.24739767883379,
+    "smoothness_deg": 58.82925332443279,
+    "waypoint_count": 4,
+    "optimal_ratio": 1.0327383533668164,
+    "compute_time": 0.0028756000101566315,
+    "num_waypoints": 4,
+    "min_clearance": 2.0,
+    "smoothness": 58.82925332443279,
+    "start_goal_dist": 67.05221845696084
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 9,
+    "success": true,
+    "start_grid": [
+      52,
+      11
+    ],
+    "goal_grid": [
+      20,
+      21
+    ],
+    "start_world": [
+      11.173199999999994,
+      -43.534499999999994
+    ],
+    "goal_world": [
+      -52.826800000000006,
+      -23.534499999999994
+    ],
+    "plan_time_sec": 0.009528699971269816,
+    "path_length_world": 69.01534963772355,
+    "smoothness_deg": 58.775244209381405,
+    "waypoint_count": 5,
+    "optimal_ratio": 1.029277646973348,
+    "compute_time": 0.009528699971269816,
+    "num_waypoints": 5,
+    "min_clearance": 2.0,
+    "smoothness": 58.775244209381405,
+    "start_goal_dist": 67.05221845696084
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 10,
+    "success": true,
+    "start_grid": [
+      68,
+      15
+    ],
+    "goal_grid": [
+      56,
+      42
+    ],
+    "start_world": [
+      43.173199999999994,
+      -35.534499999999994
+    ],
+    "goal_world": [
+      19.173199999999994,
+      18.465500000000006
+    ],
+    "plan_time_sec": 0.04540970001835376,
+    "path_length_world": 187.68927573909735,
+    "smoothness_deg": 444.2323012754482,
+    "waypoint_count": 9,
+    "optimal_ratio": 3.1761597726399815,
+    "compute_time": 0.04540970001835376,
+    "num_waypoints": 9,
+    "min_clearance": 2.0,
+    "smoothness": 444.2323012754482,
+    "start_goal_dist": 59.09314681077663
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 10,
+    "success": true,
+    "start_grid": [
+      68,
+      15
+    ],
+    "goal_grid": [
+      56,
+      42
+    ],
+    "start_world": [
+      43.173199999999994,
+      -35.534499999999994
+    ],
+    "goal_world": [
+      19.173199999999994,
+      18.465500000000006
+    ],
+    "plan_time_sec": 0.11453570000594482,
+    "path_length_world": 196.86796264986322,
+    "smoothness_deg": 433.3233435688325,
+    "waypoint_count": 10,
+    "optimal_ratio": 3.331485515236786,
+    "compute_time": 0.11453570000594482,
+    "num_waypoints": 10,
+    "min_clearance": 2.0,
+    "smoothness": 433.3233435688325,
+    "start_goal_dist": 59.09314681077663
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 10,
+    "success": true,
+    "start_grid": [
+      68,
+      15
+    ],
+    "goal_grid": [
+      56,
+      42
+    ],
+    "start_world": [
+      43.173199999999994,
+      -35.534499999999994
+    ],
+    "goal_world": [
+      19.173199999999994,
+      18.465500000000006
+    ],
+    "plan_time_sec": 0.1030390000087209,
+    "path_length_world": 194.17789693954157,
+    "smoothness_deg": 479.7962801813816,
+    "waypoint_count": 9,
+    "optimal_ratio": 3.2859630501879105,
+    "compute_time": 0.1030390000087209,
+    "num_waypoints": 9,
+    "min_clearance": 2.0,
+    "smoothness": 479.7962801813816,
+    "start_goal_dist": 59.09314681077663
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 11,
+    "success": true,
+    "start_grid": [
+      49,
+      40
+    ],
+    "goal_grid": [
+      23,
+      55
+    ],
+    "start_world": [
+      5.173199999999994,
+      14.465500000000006
+    ],
+    "goal_world": [
+      -46.826800000000006,
+      44.465500000000006
+    ],
+    "plan_time_sec": 0.0040262999827973545,
+    "path_length_world": 61.01135593997323,
+    "smoothness_deg": 34.611142184530365,
+    "waypoint_count": 4,
+    "optimal_ratio": 1.0162914827016436,
+    "compute_time": 0.0040262999827973545,
+    "num_waypoints": 4,
+    "min_clearance": 2.0,
+    "smoothness": 34.611142184530365,
+    "start_goal_dist": 60.03332407921454
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 11,
+    "success": true,
+    "start_grid": [
+      49,
+      40
+    ],
+    "goal_grid": [
+      23,
+      55
+    ],
+    "start_world": [
+      5.173199999999994,
+      14.465500000000006
+    ],
+    "goal_world": [
+      -46.826800000000006,
+      44.465500000000006
+    ],
+    "plan_time_sec": 0.002227499964646995,
+    "path_length_world": 61.525157576555245,
+    "smoothness_deg": 35.861102555988424,
+    "waypoint_count": 4,
+    "optimal_ratio": 1.0248500898496344,
+    "compute_time": 0.002227499964646995,
+    "num_waypoints": 4,
+    "min_clearance": 2.0,
+    "smoothness": 35.861102555988424,
+    "start_goal_dist": 60.03332407921454
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 11,
+    "success": true,
+    "start_grid": [
+      49,
+      40
+    ],
+    "goal_grid": [
+      23,
+      55
+    ],
+    "start_world": [
+      5.173199999999994,
+      14.465500000000006
+    ],
+    "goal_world": [
+      -46.826800000000006,
+      44.465500000000006
+    ],
+    "plan_time_sec": 0.0038663999876007438,
+    "path_length_world": 61.5324522335111,
+    "smoothness_deg": 56.002063561135756,
+    "waypoint_count": 4,
+    "optimal_ratio": 1.0249715999786793,
+    "compute_time": 0.0038663999876007438,
+    "num_waypoints": 4,
+    "min_clearance": 2.0,
+    "smoothness": 56.002063561135756,
+    "start_goal_dist": 60.03332407921454
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 12,
+    "success": false,
+    "start_grid": [
+      90,
+      62
+    ],
+    "goal_grid": [
+      96,
+      33
+    ],
+    "start_world": [
+      87.1732,
+      58.465500000000006
+    ],
+    "goal_world": [
+      99.1732,
+      0.4655000000000058
+    ],
+    "plan_time_sec": 0.00027899997076019645,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.00027899997076019645,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 59.22837157984339
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 12,
+    "success": false,
+    "start_grid": [
+      90,
+      62
+    ],
+    "goal_grid": [
+      96,
+      33
+    ],
+    "start_world": [
+      87.1732,
+      58.465500000000006
+    ],
+    "goal_world": [
+      99.1732,
+      0.4655000000000058
+    ],
+    "plan_time_sec": 0.09238990000449121,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.09238990000449121,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 59.22837157984339
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 12,
+    "success": false,
+    "start_grid": [
+      90,
+      62
+    ],
+    "goal_grid": [
+      96,
+      33
+    ],
+    "start_world": [
+      87.1732,
+      58.465500000000006
+    ],
+    "goal_world": [
+      99.1732,
+      0.4655000000000058
+    ],
+    "plan_time_sec": 0.0002840000088326633,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.0002840000088326633,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 59.22837157984339
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 13,
+    "success": true,
+    "start_grid": [
+      52,
+      57
+    ],
+    "goal_grid": [
+      83,
+      45
+    ],
+    "start_world": [
+      11.173199999999994,
+      48.465500000000006
+    ],
+    "goal_world": [
+      73.1732,
+      24.465500000000006
+    ],
+    "plan_time_sec": 0.0037161000072956085,
+    "path_length_world": 66.48308055437865,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 2,
+    "optimal_ratio": 1.0,
+    "compute_time": 0.0037161000072956085,
+    "num_waypoints": 2,
+    "min_clearance": 2.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 66.48308055437865
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 13,
+    "success": true,
+    "start_grid": [
+      52,
+      57
+    ],
+    "goal_grid": [
+      83,
+      45
+    ],
+    "start_world": [
+      11.173199999999994,
+      48.465500000000006
+    ],
+    "goal_world": [
+      73.1732,
+      24.465500000000006
+    ],
+    "plan_time_sec": 0.0016120999935083091,
+    "path_length_world": 66.48308055437865,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 2,
+    "optimal_ratio": 1.0,
+    "compute_time": 0.0016120999935083091,
+    "num_waypoints": 2,
+    "min_clearance": 2.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 66.48308055437865
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 13,
+    "success": true,
+    "start_grid": [
+      52,
+      57
+    ],
+    "goal_grid": [
+      83,
+      45
+    ],
+    "start_world": [
+      11.173199999999994,
+      48.465500000000006
+    ],
+    "goal_world": [
+      73.1732,
+      24.465500000000006
+    ],
+    "plan_time_sec": 0.005751900025643408,
+    "path_length_world": 66.48308055437865,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 2,
+    "optimal_ratio": 1.0,
+    "compute_time": 0.005751900025643408,
+    "num_waypoints": 2,
+    "min_clearance": 2.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 66.48308055437865
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 14,
+    "success": true,
+    "start_grid": [
+      69,
+      49
+    ],
+    "goal_grid": [
+      96,
+      23
+    ],
+    "start_world": [
+      45.173199999999994,
+      32.465500000000006
+    ],
+    "goal_world": [
+      99.1732,
+      -19.534499999999994
+    ],
+    "plan_time_sec": 0.03967999998712912,
+    "path_length_world": 272.03084998169135,
+    "smoothness_deg": 446.51204259578185,
+    "waypoint_count": 9,
+    "optimal_ratio": 3.6286911099089063,
+    "compute_time": 0.03967999998712912,
+    "num_waypoints": 9,
+    "min_clearance": 2.0,
+    "smoothness": 446.51204259578185,
+    "start_goal_dist": 74.96665925596525
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 14,
+    "success": true,
+    "start_grid": [
+      69,
+      49
+    ],
+    "goal_grid": [
+      96,
+      23
+    ],
+    "start_world": [
+      45.173199999999994,
+      32.465500000000006
+    ],
+    "goal_world": [
+      99.1732,
+      -19.534499999999994
+    ],
+    "plan_time_sec": 1.6963641000329517,
+    "path_length_world": 281.0231809007123,
+    "smoothness_deg": 336.03651923905335,
+    "waypoint_count": 8,
+    "optimal_ratio": 3.7486421789343733,
+    "compute_time": 1.6963641000329517,
+    "num_waypoints": 8,
+    "min_clearance": 2.0,
+    "smoothness": 336.03651923905335,
+    "start_goal_dist": 74.96665925596525
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 14,
+    "success": true,
+    "start_grid": [
+      69,
+      49
+    ],
+    "goal_grid": [
+      96,
+      23
+    ],
+    "start_world": [
+      45.173199999999994,
+      32.465500000000006
+    ],
+    "goal_world": [
+      99.1732,
+      -19.534499999999994
+    ],
+    "plan_time_sec": 0.23626010003499687,
+    "path_length_world": 274.98775065935894,
+    "smoothness_deg": 480.8691815931297,
+    "waypoint_count": 12,
+    "optimal_ratio": 3.6681339863424363,
+    "compute_time": 0.23626010003499687,
+    "num_waypoints": 12,
+    "min_clearance": 2.0,
+    "smoothness": 480.8691815931297,
+    "start_goal_dist": 74.96665925596525
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 15,
+    "success": true,
+    "start_grid": [
+      86,
+      3
+    ],
+    "goal_grid": [
+      48,
+      42
+    ],
+    "start_world": [
+      79.1732,
+      -59.534499999999994
+    ],
+    "goal_world": [
+      3.1731999999999942,
+      18.465500000000006
+    ],
+    "plan_time_sec": 0.049037299992050976,
+    "path_length_world": 209.88378496186036,
+    "smoothness_deg": 364.2276610785087,
+    "waypoint_count": 9,
+    "optimal_ratio": 1.927243293096524,
+    "compute_time": 0.049037299992050976,
+    "num_waypoints": 9,
+    "min_clearance": 2.0,
+    "smoothness": 364.2276610785087,
+    "start_goal_dist": 108.90362712049586
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 15,
+    "success": true,
+    "start_grid": [
+      86,
+      3
+    ],
+    "goal_grid": [
+      48,
+      42
+    ],
+    "start_world": [
+      79.1732,
+      -59.534499999999994
+    ],
+    "goal_world": [
+      3.1731999999999942,
+      18.465500000000006
+    ],
+    "plan_time_sec": 0.17578210000647232,
+    "path_length_world": 229.81238041984741,
+    "smoothness_deg": 604.470828484235,
+    "waypoint_count": 11,
+    "optimal_ratio": 2.110236238188584,
+    "compute_time": 0.17578210000647232,
+    "num_waypoints": 11,
+    "min_clearance": 2.0,
+    "smoothness": 604.470828484235,
+    "start_goal_dist": 108.90362712049586
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 15,
+    "success": true,
+    "start_grid": [
+      86,
+      3
+    ],
+    "goal_grid": [
+      48,
+      42
+    ],
+    "start_world": [
+      79.1732,
+      -59.534499999999994
+    ],
+    "goal_world": [
+      3.1731999999999942,
+      18.465500000000006
+    ],
+    "plan_time_sec": 0.0945567999733612,
+    "path_length_world": 217.5061557856853,
+    "smoothness_deg": 432.4065003790224,
+    "waypoint_count": 9,
+    "optimal_ratio": 1.99723518432519,
+    "compute_time": 0.0945567999733612,
+    "num_waypoints": 9,
+    "min_clearance": 2.0,
+    "smoothness": 432.4065003790224,
+    "start_goal_dist": 108.90362712049586
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 16,
+    "success": false,
+    "start_grid": [
+      90,
+      1
+    ],
+    "goal_grid": [
+      7,
+      36
+    ],
+    "start_world": [
+      87.1732,
+      -63.534499999999994
+    ],
+    "goal_world": [
+      -78.8268,
+      6.465500000000006
+    ],
+    "plan_time_sec": 0.08207269996637478,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.08207269996637478,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 180.15548839821673
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 16,
+    "success": false,
+    "start_grid": [
+      90,
+      1
+    ],
+    "goal_grid": [
+      7,
+      36
+    ],
+    "start_world": [
+      87.1732,
+      -63.534499999999994
+    ],
+    "goal_world": [
+      -78.8268,
+      6.465500000000006
+    ],
+    "plan_time_sec": 4.2692691999836825,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 4.2692691999836825,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 180.15548839821673
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 16,
+    "success": false,
+    "start_grid": [
+      90,
+      1
+    ],
+    "goal_grid": [
+      7,
+      36
+    ],
+    "start_world": [
+      87.1732,
+      -63.534499999999994
+    ],
+    "goal_world": [
+      -78.8268,
+      6.465500000000006
+    ],
+    "plan_time_sec": 0.07830910000484437,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.07830910000484437,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 180.15548839821673
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 17,
+    "success": false,
+    "start_grid": [
+      11,
+      63
+    ],
+    "goal_grid": [
+      91,
+      45
+    ],
+    "start_world": [
+      -70.8268,
+      60.465500000000006
+    ],
+    "goal_world": [
+      89.1732,
+      24.465500000000006
+    ],
+    "plan_time_sec": 0.011631399975158274,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.011631399975158274,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 164.0
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 17,
+    "success": false,
+    "start_grid": [
+      11,
+      63
+    ],
+    "goal_grid": [
+      91,
+      45
+    ],
+    "start_world": [
+      -70.8268,
+      60.465500000000006
+    ],
+    "goal_world": [
+      89.1732,
+      24.465500000000006
+    ],
+    "plan_time_sec": 0.8054451000061817,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.8054451000061817,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 164.0
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 17,
+    "success": false,
+    "start_grid": [
+      11,
+      63
+    ],
+    "goal_grid": [
+      91,
+      45
+    ],
+    "start_world": [
+      -70.8268,
+      60.465500000000006
+    ],
+    "goal_world": [
+      89.1732,
+      24.465500000000006
+    ],
+    "plan_time_sec": 0.01287520001642406,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.01287520001642406,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 164.0
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 18,
+    "success": true,
+    "start_grid": [
+      32,
+      34
+    ],
+    "goal_grid": [
+      76,
+      7
+    ],
+    "start_world": [
+      -28.826800000000006,
+      2.465500000000006
+    ],
+    "goal_world": [
+      59.173199999999994,
+      -51.534499999999994
+    ],
+    "plan_time_sec": 0.018902799987699836,
+    "path_length_world": 150.1375235457196,
+    "smoothness_deg": 334.04004373154834,
+    "waypoint_count": 9,
+    "optimal_ratio": 1.4541548152391024,
+    "compute_time": 0.018902799987699836,
+    "num_waypoints": 9,
+    "min_clearance": 2.0,
+    "smoothness": 334.04004373154834,
+    "start_goal_dist": 103.24727599312246
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 18,
+    "success": true,
+    "start_grid": [
+      32,
+      34
+    ],
+    "goal_grid": [
+      76,
+      7
+    ],
+    "start_world": [
+      -28.826800000000006,
+      2.465500000000006
+    ],
+    "goal_world": [
+      59.173199999999994,
+      -51.534499999999994
+    ],
+    "plan_time_sec": 0.16730450000613928,
+    "path_length_world": 166.71094841946817,
+    "smoothness_deg": 423.9307730337778,
+    "waypoint_count": 9,
+    "optimal_ratio": 1.614676482414637,
+    "compute_time": 0.16730450000613928,
+    "num_waypoints": 9,
+    "min_clearance": 2.0,
+    "smoothness": 423.9307730337778,
+    "start_goal_dist": 103.24727599312246
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 18,
+    "success": true,
+    "start_grid": [
+      32,
+      34
+    ],
+    "goal_grid": [
+      76,
+      7
+    ],
+    "start_world": [
+      -28.826800000000006,
+      2.465500000000006
+    ],
+    "goal_world": [
+      59.173199999999994,
+      -51.534499999999994
+    ],
+    "plan_time_sec": 0.044804700009990484,
+    "path_length_world": 152.05016815778197,
+    "smoothness_deg": 358.03456536676765,
+    "waypoint_count": 11,
+    "optimal_ratio": 1.4726797069969224,
+    "compute_time": 0.044804700009990484,
+    "num_waypoints": 11,
+    "min_clearance": 2.0,
+    "smoothness": 358.03456536676765,
+    "start_goal_dist": 103.24727599312246
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "A*",
+    "planner": "A*",
+    "trial": 19,
+    "success": false,
+    "start_grid": [
+      59,
+      57
+    ],
+    "goal_grid": [
+      20,
+      61
+    ],
+    "start_world": [
+      25.173199999999994,
+      48.465500000000006
+    ],
+    "goal_world": [
+      -52.826800000000006,
+      56.465500000000006
+    ],
+    "plan_time_sec": 0.07598759996471927,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.07598759996471927,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 78.40918313565064
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "RRT*",
+    "planner": "RRT*",
+    "trial": 19,
+    "success": false,
+    "start_grid": [
+      59,
+      57
+    ],
+    "goal_grid": [
+      20,
+      61
+    ],
+    "start_world": [
+      25.173199999999994,
+      48.465500000000006
+    ],
+    "goal_world": [
+      -52.826800000000006,
+      56.465500000000006
+    ],
+    "plan_time_sec": 3.175604799995199,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 3.175604799995199,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 78.40918313565064
+  },
+  {
+    "map_type": "unity_scene",
+    "obstacle_density": 0.3055295220243674,
+    "algorithm": "Hybrid",
+    "planner": "Hybrid",
+    "trial": 19,
+    "success": false,
+    "start_grid": [
+      59,
+      57
+    ],
+    "goal_grid": [
+      20,
+      61
+    ],
+    "start_world": [
+      25.173199999999994,
+      48.465500000000006
+    ],
+    "goal_world": [
+      -52.826800000000006,
+      56.465500000000006
+    ],
+    "plan_time_sec": 0.07626700005494058,
+    "path_length_world": 0.0,
+    "smoothness_deg": 0.0,
+    "waypoint_count": 0,
+    "optimal_ratio": 0.0,
+    "compute_time": 0.07626700005494058,
+    "num_waypoints": 0,
+    "min_clearance": 0.0,
+    "smoothness": 0.0,
+    "start_goal_dist": 78.40918313565064
+  }
+]
