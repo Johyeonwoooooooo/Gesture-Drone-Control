@@ -80,19 +80,74 @@ CLIP은 1장(`--clip-device cuda:0`)에 두고 LLM은 별도 GPU(`cuda:1`)에 �
   Top-K bbox (★ 강조 + label) viser 시각화
 ```
 
-실행 예:
+### 1) 환경 셋업 (한 번만)
+
+UniDet3D는 mmdetection3d 1.4.0 + MinkowskiEngine + spconv를 요구해서
+기존 `mosaic3d` 환경과는 충돌하기 쉬워. 별도 conda env 권장.
+기반 가이드는 [`docs/mmdet_get_started.md`](../../docs/mmdet_get_started.md),
+정확한 버전 조합은 [`unidet3d/Dockerfile`](../../unidet3d/Dockerfile)을 따른다.
 
 ```bash
+# (a) base env — PyTorch 2.1 + CUDA 12.1 (UniDet3D Dockerfile과 동일)
+conda create -n unidet3d python=3.10 -y
+conda activate unidet3d
+pip install torch==2.1.2 torchvision --index-url https://download.pytorch.org/whl/cu121
+
+# (b) OpenMMLab stack — 버전 핀이 중요
+pip install --no-deps \
+    mmengine==0.9.0 mmdet==3.3.0 mmsegmentation==1.2.0 \
+    mmdet3d==1.4.0 mmpretrain==1.2.0
+
+# mmcv는 빌드 필요 (Dockerfile과 동일한 커밋 권장)
+pip install -U openmim
+mim install "mmcv==2.1.0"   # 안 되면 Dockerfile의 source-build 절차로 fallback
+
+# (c) sparse-conv 백엔드들
+pip install spconv-cu120==2.3.6 cumm-cu120==0.5.1
+pip install torch-scatter==2.1.2 -f https://data.pyg.org/whl/torch-2.1.0+cu121.html
+TORCH_CUDA_ARCH_LIST="8.6" pip install --no-deps \
+    git+https://github.com/daizhirui/MinkowskiEngine.git \
+    --global-option="--blas=openblas" --global-option="--force_cuda"
+
+# (d) 보조 패키지
+pip install open3d==0.17.0 plyfile==1.0.2 trimesh==3.21.6 \
+            scikit-learn scipy numba==0.57.0 numpy==1.24.1
+
+# (e) webapp_llm용
+pip install viser open_clip_torch "transformers>=4.45" accelerate
+```
+
+> 8GB 카드에서 OOM 나면 LLM은 다른 env(`--llm-device-map auto`) 또는 작은 모델로.
+
+### 2) 체크포인트 + 데모 데이터 받기
+
+```bash
+# pretrained UniDet3D 가중치 (~1GB)
+mkdir -p unidet3d/work_dirs
+curl -L -o unidet3d/work_dirs/unidet3d.pth \
+    https://github.com/filapro/unidet3d/releases/download/v1.0/unidet3d.pth
+
+# 데모 .bin이 없다면 ScanNet++ 씬에서 변환해 unidet3d/data/my_scene.bin 으로 저장
+# 포맷: (N, 9) float32 = x, y, z, r, g, b, nx, ny, nz
+# 변환 예시는 docs/mmdet_get_started.md의 convert_ply 헬퍼 참고.
+```
+
+### 3) 실행
+
+서브모듈이 repo 루트의 `unidet3d/`에 있으면 기본 경로가 자동으로 잡혀서
+플래그 없이 `--enable-unidet3d` 만으로 충분:
+
+```bash
+conda activate unidet3d
 python 3D-segmentation/webapp_llm/server.py \
     --port 8090 \
     --enable-unidet3d \
-    --unidet3d-root /shareHost/minyoy/unidet3d \
-    --unidet3d-cfg  /shareHost/minyoy/unidet3d/configs/unidet3d_1xb8_scannet_s3dis_multiscan_3rscan_scannetpp_arkitscenes.py \
-    --unidet3d-ckpt /shareHost/minyoy/unidet3d/work_dirs/unidet3d.pth \
-    --unidet3d-bin  /shareHost/minyoy/unidet3d/data/my_scene.bin \
     --unidet3d-dataset scannetpp \
     --unidet3d-device cuda:0
 ```
+
+경로를 바꾸고 싶으면 `--unidet3d-root`, `--unidet3d-cfg`, `--unidet3d-ckpt`,
+`--unidet3d-bin` 으로 override 할 수 있어.
 
 웹앱 우측 패널의 `UniDet3D` 폴더에서
 

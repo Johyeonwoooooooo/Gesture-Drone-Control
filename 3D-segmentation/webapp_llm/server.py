@@ -293,18 +293,22 @@ def main() -> None:
              "(useful for >7B models on 8GB cards).",
     )
     # --- UniDet3D 3D detection mode (optional alternative to heatmap path) ---
+    # Defaults assume the `unidet3d` git submodule is checked out at repo root.
+    _repo_root = _THIS.parents[2]
+    _unidet_root = _repo_root / "unidet3d"
     ap.add_argument("--enable-unidet3d", action="store_true",
                     help="Enable UniDet3D-based bbox detection + CLIP matching.")
-    ap.add_argument("--unidet3d-root", default="/shareHost/minyoy/unidet3d",
+    ap.add_argument("--unidet3d-root", default=str(_unidet_root),
                     help="Path to the UniDet3D research repo (added to sys.path).")
     ap.add_argument("--unidet3d-cfg",
-                    default="/shareHost/minyoy/unidet3d/configs/"
-                            "unidet3d_1xb8_scannet_s3dis_multiscan_3rscan_"
-                            "scannetpp_arkitscenes.py")
+                    default=str(_unidet_root / "configs" /
+                                "unidet3d_1xb8_scannet_s3dis_multiscan_3rscan_"
+                                "scannetpp_arkitscenes.py"))
     ap.add_argument("--unidet3d-ckpt",
-                    default="/shareHost/minyoy/unidet3d/work_dirs/unidet3d.pth")
+                    default=str(_unidet_root / "work_dirs" / "unidet3d.pth"),
+                    help="Pretrained weights (see README to download).")
     ap.add_argument("--unidet3d-bin",
-                    default="/shareHost/minyoy/unidet3d/data/my_scene.bin",
+                    default=str(_unidet_root / "data" / "my_scene.bin"),
                     help="(N,9) float32 .bin (x,y,z,r,g,b,nx,ny,nz) for the scene.")
     ap.add_argument("--unidet3d-dataset", default="scannetpp",
                     help="Decoder head: scannet/s3dis/multiscan/3rscan/scannetpp/arkitscenes.")
