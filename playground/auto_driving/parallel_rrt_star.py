@@ -1,16 +1,8 @@
 """
 Parallel 3D RRT* Path Planning for Multiple Rooms (Wall Penetration Fixed)
-Author: AI Research Assistant
-Date: 2026-05-19
 
 This script loads room data from compressed_npy folder and executes
 RRT* path planning algorithm in parallel using multiprocessing.
-
-FIXED: Enhanced collision detection to prevent wall penetration
-
-Requirements:
-- numpy
-- scipy
 
 Directory structure:
 ./compressed_npy/
@@ -34,20 +26,7 @@ class RRTStar3D:
     def __init__(self, start, goal, obstacle_cloud, bounds, 
                  max_iter=3000, step_size=0.2, goal_sample_rate=0.1,
                  search_radius=0.6, collision_radius=0.35):
-        """
-        Initialize RRT* planner
-
-        Args:
-            start: [x, y, z] start position
-            goal: [x, y, z] goal position
-            obstacle_cloud: Nx3 array of obstacle points
-            bounds: [[xmin, xmax], [ymin, ymax], [zmin, zmax]]
-            max_iter: Maximum iterations
-            step_size: Maximum extension distance per step (meters) - REDUCED for safety
-            goal_sample_rate: Probability of sampling goal
-            search_radius: Radius for finding nearby nodes (RRT* rewiring)
-            collision_radius: Safety margin from obstacles (meters) - INCREASED
-        """
+        
         self.start = np.array(start)
         self.goal = np.array(goal)
         self.bounds = bounds
