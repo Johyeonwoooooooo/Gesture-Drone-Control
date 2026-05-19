@@ -25,7 +25,7 @@ import numpy as np
 import viser
 
 _THIS = Path(__file__).resolve()
-sys.path.insert(0, str(_THIS.parents[1] / "webapp_llm"))  # reuse detector
+sys.path.insert(0, str(_THIS.parent))
 from unidet3d_detector import UniDet3DDetector, DetectionResult  # noqa: E402
 
 
