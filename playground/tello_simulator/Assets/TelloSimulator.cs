@@ -20,7 +20,6 @@ public class TelloSimulator : MonoBehaviour
     [Tooltip("드론이 내려갈 수 없는 최소 Y 높이. Plane의 Y 위치 + 드론 높이 절반으로 설정.")]
     public float minHeight = 0.5f;
 
-    // 메인 스레드에서 처리할 명령 큐 (스레드 안전)
     private ConcurrentQueue<string> commandQueue = new ConcurrentQueue<string>();
 
     private UdpClient udpServer;
@@ -32,19 +31,15 @@ public class TelloSimulator : MonoBehaviour
 
     private bool isFlying = false;
     private bool shouldQuit = false;
-
     private string lastCommand = "";
+
+    private CharacterController cc; // ← 추가
 
     void Start()
     {
-        Application.runInBackground = true; // 백그라운드 실행 활성화
-        Rigidbody rb = GetComponent<Rigidbody>();
-        if (rb != null)
-        {
-            rb.useGravity = false;
-            rb.isKinematic = true;
-            Debug.Log("<color=green>[Tello] Rigidbody isKinematic = true 설정 완료</color>");
-        }
+        Application.runInBackground = true;
+
+        cc = GetComponent<CharacterController>(); // ← Rigidbody 대신
 
         StartUDPServer();
     }
@@ -54,7 +49,7 @@ public class TelloSimulator : MonoBehaviour
         try
         {
             udpServer = new UdpClient(port);
-            udpServer.Client.ReceiveTimeout = 100; // 블로킹 방지
+            udpServer.Client.ReceiveTimeout = 100;
 
             receiveThread = new Thread(ReceiveLoop);
             receiveThread.IsBackground = true;
@@ -68,7 +63,6 @@ public class TelloSimulator : MonoBehaviour
         }
     }
 
-    // ─── 수신 스레드 (메인 스레드와 완전 분리) ───────────────────────────────
     void ReceiveLoop()
     {
         IPEndPoint remote = new IPEndPoint(IPAddress.Any, 0);
@@ -80,17 +74,12 @@ public class TelloSimulator : MonoBehaviour
                 byte[] data = udpServer.Receive(ref remote);
                 string msg = Encoding.ASCII.GetString(data).Trim().ToLower();
 
-                // 즉시 "ok" 응답 (파이썬 타임아웃 방지)
                 byte[] ok = Encoding.ASCII.GetBytes("ok");
                 udpServer.Send(ok, ok.Length, remote);
 
-                // 명령을 큐에 추가 → 메인 스레드(Update)에서 처리
                 commandQueue.Enqueue(msg);
             }
-            catch (SocketException)
-            {
-                // ReceiveTimeout 정상 타임아웃 — 무시
-            }
+            catch (SocketException) { }
             catch (Exception e)
             {
                 if (!shouldQuit)
@@ -99,10 +88,8 @@ public class TelloSimulator : MonoBehaviour
         }
     }
 
-    // ─── 메인 스레드 Update ──────────────────────────────────────────────────
     void Update()
     {
-        // 1. 큐에서 명령 처리 (메인 스레드에서 안전하게 실행)
         while (commandQueue.TryDequeue(out string cmd))
         {
             ProcessCommand(cmd);
@@ -110,17 +97,17 @@ public class TelloSimulator : MonoBehaviour
 
         if (!isFlying) return;
 
-        // 2. RC 값 부드럽게 보간
         currentLR  = Mathf.SmoothDamp(currentLR,  targetLR,  ref velLR,  smoothTime);
         currentFB  = Mathf.SmoothDamp(currentFB,  targetFB,  ref velFB,  smoothTime);
         currentUD  = Mathf.SmoothDamp(currentUD,  targetUD,  ref velUD,  smoothTime);
         currentYaw = Mathf.SmoothDamp(currentYaw, targetYaw, ref velYaw, smoothTime);
 
-        // 3. 이동 적용 (로컬 좌표계)
-        Vector3 move = new Vector3(currentLR, currentUD, currentFB) * moveSpeed * Time.deltaTime;
-        transform.Translate(move, Space.Self);
+        // ✅ CharacterController.Move로 충돌 감지하며 이동
+        Vector3 localMove = new Vector3(currentLR, currentUD, currentFB) * moveSpeed * Time.deltaTime;
+        Vector3 worldMove = transform.TransformDirection(localMove);
+        cc.Move(worldMove);
 
-        // 4. 바닥 뚫기 방지
+        // 최소 높이 보정
         Vector3 pos = transform.position;
         if (pos.y < minHeight)
         {
@@ -129,10 +116,10 @@ public class TelloSimulator : MonoBehaviour
             if (targetUD < 0f) { targetUD = 0f; currentUD = 0f; }
         }
 
-        // 5. 회전 (Yaw)
+        // Yaw 회전
         transform.Rotate(Vector3.up, currentYaw * rotationSpeed * Time.deltaTime, Space.World);
     }
-    // ─── 명령 처리 ───────────────────────────────────────────────────────────
+
     void ProcessCommand(string cmd)
     {
         lastCommand = cmd;
@@ -146,8 +133,7 @@ public class TelloSimulator : MonoBehaviour
         if (cmd == "takeoff")
         {
             isFlying = true;
-            // 이륙 시 즉시 1미터 상승하여 바닥과 분리
-            transform.position += Vector3.up * 1.0f; 
+            transform.position += Vector3.up * 1.0f;
             Debug.Log("<color=cyan>[Tello] ✈ 이륙! (1m 상승 완료)</color>");
             return;
         }
@@ -161,7 +147,6 @@ public class TelloSimulator : MonoBehaviour
             return;
         }
 
-        // "rc lr fb ud yaw" 파싱
         if (cmd.StartsWith("rc "))
         {
             string[] parts = cmd.Split(' ');
@@ -188,7 +173,6 @@ public class TelloSimulator : MonoBehaviour
         Debug.Log($"<color=grey>[Tello] 알 수 없는 명령: '{cmd}'</color>");
     }
 
-    // ─── 실시간 상태 오버레이 (Game 뷰에서 확인 가능) ───────────────────────
     void OnGUI()
     {
         GUIStyle style = new GUIStyle(GUI.skin.label);
