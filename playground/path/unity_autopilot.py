@@ -11,6 +11,7 @@ Usage example:
 from __future__ import annotations
 
 import argparse
+import collections
 import json
 import math
 import sys
@@ -56,6 +57,8 @@ class AutopilotResult:
     mean_tracking_error: float
     max_tracking_error: float
     final_position_error: float
+    had_collision: bool
+    collision_count: int
     rc_commands_sent: int
     goal_world: Tuple[float, float, float]
     start_world: Tuple[float, float, float]
@@ -91,6 +94,60 @@ def grid_path_to_world_waypoints(
     return waypoints
 
 
+def find_indoor_goal_grid(
+    scene_grid: UnitySceneGrid,
+    start_grid: Tuple[int, int],
+    min_grid_distance: float = 12.0,
+    max_grid_distance: float = 45.0,
+    obstacle_radius: int = 4,
+    min_obstacle_hits: int = 20,
+) -> Tuple[int, int]:
+    queue = collections.deque([start_grid])
+    visited = {start_grid}
+
+    while queue:
+        x, y = queue.popleft()
+        for neighbor in scene_grid.map_.get_neighbors((x, y)):
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append(neighbor)
+
+    width = scene_grid.map_.width
+    height = scene_grid.map_.height
+    candidates: List[Tuple[float, Tuple[int, int]]] = []
+
+    for x, y in visited:
+        edge_margin = min(x, y, width - 1 - x, height - 1 - y)
+        if edge_margin < 5:
+            continue
+
+        dist = math.dist(start_grid, (x, y))
+        if dist < min_grid_distance or dist > max_grid_distance:
+            continue
+
+        obstacle_hits = 0
+        for dx in range(-obstacle_radius, obstacle_radius + 1):
+            for dy in range(-obstacle_radius, obstacle_radius + 1):
+                cx, cy = x + dx, y + dy
+                if 0 <= cx < width and 0 <= cy < height and not scene_grid.map_.is_free((cx, cy)):
+                    obstacle_hits += 1
+
+        if obstacle_hits < min_obstacle_hits:
+            continue
+
+        # Favor cells that are sufficiently deep inside the map and near obstacle structure,
+        # but avoid selecting something too far from the current position.
+        score = edge_margin * 1.5 + obstacle_hits * 0.6 - dist * 0.15
+        candidates.append((score, (x, y)))
+
+    if candidates:
+        candidates.sort(key=lambda item: item[0], reverse=True)
+        return candidates[0][1]
+
+    # Fallback to the farthest reachable free cell if the map is too open.
+    return max(visited, key=lambda point: math.dist(start_grid, point))
+
+
 def world_velocity_to_rc(state: DroneState, velocity_world: np.ndarray, max_speed: float) -> Tuple[int, int, int, int]:
     yaw_rad = math.radians(state.yaw)
     world_x = float(velocity_world[0])
@@ -110,8 +167,8 @@ def world_velocity_to_rc(state: DroneState, velocity_world: np.ndarray, max_spee
 def run_autopilot(
     scene_grid: UnitySceneGrid,
     planner_name: str,
-    goal_x: float,
-    goal_z: float,
+    goal_x: float | None,
+    goal_z: float | None,
     bridge: UnityTelloBridge,
     takeoff_height_offset: float = 1.0,
     max_speed: float = 4.0,
@@ -139,7 +196,11 @@ def run_autopilot(
     start_world = (state.x, state.y, state.z)
     flight_height = max(scene_grid.flight_height, state.y + takeoff_height_offset)
     start_grid = scene_grid.clamp_grid_point(scene_grid.world_to_grid(state.x, state.z))
-    goal_grid = scene_grid.clamp_grid_point(scene_grid.world_to_grid(goal_x, goal_z))
+    if goal_x is None or goal_z is None:
+        goal_grid = find_indoor_goal_grid(scene_grid, start_grid)
+        goal_x, goal_z = scene_grid.grid_to_world(*goal_grid)
+    else:
+        goal_grid = scene_grid.clamp_grid_point(scene_grid.world_to_grid(goal_x, goal_z))
 
     planner = planner_from_name(planner_name)
     t0 = time.perf_counter()
@@ -166,11 +227,16 @@ def run_autopilot(
     rc_count = 0
     execute_start = time.perf_counter()
     success = False
+    had_collision = False
+    collision_count = 0
 
     while time.perf_counter() - execute_start < timeout_sec:
         state = bridge.wait_for_state(timeout=1.0)
         if state is None:
             continue
+
+        had_collision = had_collision or state.had_collision
+        collision_count = max(collision_count, state.collision_count)
 
         current_pos = np.array([state.x, state.y, state.z], dtype=float)
         velocity = controller.compute(tuple(current_pos), dt=dt)
@@ -202,6 +268,8 @@ def run_autopilot(
             - np.array(world_waypoints[-1], dtype=float)
         )
     )
+    had_collision = had_collision or final_state.had_collision
+    collision_count = max(collision_count, final_state.collision_count)
 
     return AutopilotResult(
         planner=planner_name,
@@ -214,6 +282,8 @@ def run_autopilot(
         mean_tracking_error=float(np.mean(tracking_errors)) if tracking_errors else float("inf"),
         max_tracking_error=float(np.max(tracking_errors)) if tracking_errors else float("inf"),
         final_position_error=final_position_error,
+        had_collision=had_collision,
+        collision_count=collision_count,
         rc_commands_sent=rc_count,
         goal_world=world_waypoints[-1],
         start_world=start_world,
@@ -224,8 +294,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--map-json", required=True, help="Path to the exported occupancy grid JSON.")
     parser.add_argument("--planner", default="hybrid", choices=["astar", "rrt", "hybrid"])
-    parser.add_argument("--goal-x", type=float, required=True)
-    parser.add_argument("--goal-z", type=float, required=True)
+    parser.add_argument("--goal-x", type=float)
+    parser.add_argument("--goal-z", type=float)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--command-port", type=int, default=9000)
     parser.add_argument("--local-command-port", type=int, default=9001)

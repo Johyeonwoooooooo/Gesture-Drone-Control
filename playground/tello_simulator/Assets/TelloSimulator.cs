@@ -43,10 +43,13 @@ public class TelloSimulator : MonoBehaviour
     private float velUD;
     private float velYaw;
     private float nextStateSendTime;
+    private float lastCollisionRecordTime = -10f;
 
     private bool isFlying = false;
     private bool shouldQuit = false;
+    private bool hadCollision = false;
     private string lastCommand = "";
+    private int collisionCount = 0;
 
     private CharacterController cc;
 
@@ -165,6 +168,9 @@ public class TelloSimulator : MonoBehaviour
         if (cmd == "takeoff")
         {
             isFlying = true;
+            hadCollision = false;
+            collisionCount = 0;
+            lastCollisionRecordTime = -10f;
             transform.position += Vector3.up * 1.0f;
             SendState();
             return;
@@ -214,16 +220,17 @@ public class TelloSimulator : MonoBehaviour
         {
             Vector3 pos = transform.position;
             float yaw = transform.eulerAngles.y;
-            string payload = string.Format(
-                CultureInfo.InvariantCulture,
-                "{{\"x\":{0:F4},\"y\":{1:F4},\"z\":{2:F4},\"yaw\":{3:F4},\"flying\":{4},\"time\":{5:F4}}}",
-                pos.x,
-                pos.y,
-                pos.z,
-                yaw,
-                isFlying ? "true" : "false",
-                Time.time
-            );
+            string payload =
+                "{"
+                + "\"x\":" + pos.x.ToString("F4", CultureInfo.InvariantCulture) + ","
+                + "\"y\":" + pos.y.ToString("F4", CultureInfo.InvariantCulture) + ","
+                + "\"z\":" + pos.z.ToString("F4", CultureInfo.InvariantCulture) + ","
+                + "\"yaw\":" + yaw.ToString("F4", CultureInfo.InvariantCulture) + ","
+                + "\"flying\":" + (isFlying ? "true" : "false") + ","
+                + "\"had_collision\":" + (hadCollision ? "true" : "false") + ","
+                + "\"collision_count\":" + collisionCount.ToString(CultureInfo.InvariantCulture) + ","
+                + "\"time\":" + Time.time.ToString("F4", CultureInfo.InvariantCulture)
+                + "}";
 
             byte[] bytes = Encoding.ASCII.GetBytes(payload);
             IPEndPoint stateEndpoint = new IPEndPoint(lastRemoteEndPoint.Address, statePort);
@@ -233,6 +240,23 @@ public class TelloSimulator : MonoBehaviour
         {
             Debug.LogWarning($"[Tello] Failed to send state: {e.Message}");
         }
+    }
+
+    void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        if (!isFlying || hit.collider == null)
+        {
+            return;
+        }
+
+        if (Time.time - lastCollisionRecordTime < 0.2f)
+        {
+            return;
+        }
+
+        hadCollision = true;
+        collisionCount += 1;
+        lastCollisionRecordTime = Time.time;
     }
 
     void OnGUI()
@@ -247,6 +271,7 @@ public class TelloSimulator : MonoBehaviour
         GUI.Label(new Rect(10, 60, 520, 25), $"RC LR:{targetLR:F2} FB:{targetFB:F2} UD:{targetUD:F2} Yaw:{targetYaw:F2}", style);
         GUI.Label(new Rect(10, 85, 520, 25), $"Position: {transform.position}", style);
         GUI.Label(new Rect(10, 110, 520, 25), $"State stream: {statePort} @ {stateSendHz:F0}Hz", style);
+        GUI.Label(new Rect(10, 135, 520, 25), $"Collision: {(hadCollision ? "yes" : "no")} ({collisionCount})", style);
     }
 
     void OnApplicationQuit()

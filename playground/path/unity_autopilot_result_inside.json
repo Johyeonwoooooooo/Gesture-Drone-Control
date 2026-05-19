@@ -1,0 +1,23 @@
+{
+  "planner": "astar",
+  "success": true,
+  "plan_time_sec": 0.017399600008502603,
+  "execute_time_sec": 10.978181799990125,
+  "path_length": 131.99316776508564,
+  "smoothness_deg": 298.34476661323924,
+  "waypoint_count": 6,
+  "mean_tracking_error": 15.140519858832429,
+  "max_tracking_error": 52.386119280874404,
+  "final_position_error": 0.8944909446159853,
+  "rc_commands_sent": 211,
+  "goal_world": [
+    -80.8268,
+    13.9795,
+    -43.5345
+  ],
+  "start_world": [
+    -0.8591,
+    12.9795,
+    -0.8011
+  ]
+}

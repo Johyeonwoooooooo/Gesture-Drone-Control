@@ -19,6 +19,8 @@ class DroneState:
     z: float
     yaw: float
     flying: bool
+    had_collision: bool
+    collision_count: int
     time: float
 
 
@@ -123,6 +125,8 @@ class UnityTelloBridge:
                     z=float(parsed["z"]),
                     yaw=float(parsed.get("yaw", 0.0)),
                     flying=bool(parsed.get("flying", False)),
+                    had_collision=bool(parsed.get("had_collision", False)),
+                    collision_count=int(parsed.get("collision_count", 0)),
                     time=float(parsed.get("time", 0.0)),
                 )
                 with self._state_lock:
