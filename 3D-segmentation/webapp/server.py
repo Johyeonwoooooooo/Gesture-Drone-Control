@@ -23,9 +23,10 @@ no flat / symlinked ``cache/feat`` directory is needed.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -269,6 +270,25 @@ def cluster_palette(k: int) -> np.ndarray:
     return (cmap(np.linspace(0, 1, max(k, 1)))[:, :3] * 255).astype(np.uint8)
 
 
+@dataclass
+class DoorGraph:
+    nodes: Dict[str, np.ndarray]   # node_id -> (3,) world xyz
+    edges: List[Tuple[str, str]]   # list of (node_a_id, node_b_id)
+
+
+def load_door_graph(building_id: str, cache_dir: Path) -> Optional[DoorGraph]:
+    """Load door_graph_dfs.json from cache/<building_id>/door_graph_dfs.json."""
+    path = cache_dir / building_id / "door_graph_dfs.json"
+    if not path.exists():
+        return None
+    with open(path) as f:
+        data = json.load(f)
+    nodes = {n["id"]: np.array(n["center"], dtype=np.float32) for n in data.get("nodes", [])}
+    edges = [(e["node_a"], e["node_b"]) for e in data.get("edges", [])]
+    print(f"[door_graph] {building_id}: {len(nodes)} nodes, {len(edges)} edges")
+    return DoorGraph(nodes=nodes, edges=edges)
+
+
 def _bbox_edge_segments(bb_min: np.ndarray, bb_max: np.ndarray) -> np.ndarray:
     """Return (12, 2, 3) line segments tracing the 12 edges of an axis-aligned bbox."""
     x0, y0, z0 = bb_min
@@ -413,6 +433,8 @@ def main() -> None:
         "asset": None,
         "cluster_handles": [],
         "region_label_handles": [],
+        "door_graph": None,
+        "door_graph_handles": [],
     }
 
     view_level = server.gui.add_dropdown(
@@ -461,10 +483,77 @@ def main() -> None:
     cluster_marker_size = server.gui.add_slider(
         "Cluster: marker radius (m)", min=0.05, max=0.5, step=0.01, initial_value=0.15
     )
+    show_door_graph = server.gui.add_checkbox(
+        "Show door graph", initial_value=True
+    )
+    door_node_size = server.gui.add_slider(
+        "Door node radius (m)", min=0.05, max=0.5, step=0.01, initial_value=0.15
+    )
     apply_btn = server.gui.add_button("Apply")
     status_md = server.gui.add_markdown("_status: ready_")
 
     legend_md = server.gui.add_markdown("")
+
+    def clear_door_graph_handles() -> None:
+        for h in state["door_graph_handles"]:  # type: ignore[union-attr]
+            try:
+                h.remove()
+            except Exception:
+                pass
+        state["door_graph_handles"] = []
+
+    def render_door_graph(graph: DoorGraph, center: np.ndarray) -> None:
+        """Draw door nodes as spheres and edges as line segments, offset by asset center."""
+        clear_door_graph_handles()
+        if not show_door_graph.value:
+            return
+        handles = []
+        radius = float(door_node_size.value)
+        # Cyan nodes, yellow edges
+        node_color = (0, 220, 220)
+        edge_color = (255, 220, 0)
+
+        for node_id, world_pos in graph.nodes.items():
+            pos = world_pos - center  # shift to display space
+            handles.append(
+                server.scene.add_icosphere(
+                    f"/door_graph/node/{node_id}",
+                    radius=radius,
+                    color=node_color,
+                    opacity=0.9,
+                    position=tuple(float(v) for v in pos),
+                )
+            )
+            handles.append(
+                server.scene.add_label(
+                    f"/door_graph/label/{node_id}",
+                    text=node_id,
+                    position=(float(pos[0]), float(pos[1]), float(pos[2]) + radius + 0.1),
+                )
+            )
+
+        if graph.edges:
+            pts_a = []
+            pts_b = []
+            for node_a, node_b in graph.edges:
+                if node_a in graph.nodes and node_b in graph.nodes:
+                    pts_a.append(graph.nodes[node_a] - center)
+                    pts_b.append(graph.nodes[node_b] - center)
+            if pts_a:
+                segments = np.stack(
+                    [np.array(pts_a, dtype=np.float32), np.array(pts_b, dtype=np.float32)],
+                    axis=1,
+                )  # (E, 2, 3)
+                handles.append(
+                    server.scene.add_line_segments(
+                        "/door_graph/edges",
+                        points=segments,
+                        colors=edge_color,
+                        line_width=3.0,
+                    )
+                )
+
+        state["door_graph_handles"] = handles
 
     def clear_region_labels() -> None:
         for h in state["region_label_handles"]:  # type: ignore[assignment]
@@ -562,6 +651,13 @@ def main() -> None:
         render_panel(asset, rgb_for_asset(asset))
         render_region_labels(asset)
         reset_camera_to_asset(asset)
+        # Load and render door graph if available.
+        graph = load_door_graph(building_id, cache_dir)
+        state["door_graph"] = graph
+        if graph is not None:
+            render_door_graph(graph, asset.center)
+        else:
+            clear_door_graph_handles()
         n_rooms = len(building_rooms)
         status_md.content = (
             f"_loaded **{building_id}**: {n_rooms} rooms, "
@@ -781,6 +877,24 @@ def main() -> None:
     def _(_):
         if state["asset"] is not None:
             apply_query()
+
+    @show_door_graph.on_update
+    def _(_):
+        asset: RegionAssets = state["asset"]  # type: ignore[assignment]
+        graph: DoorGraph = state["door_graph"]  # type: ignore[assignment]
+        if asset is None or graph is None:
+            return
+        if show_door_graph.value:
+            render_door_graph(graph, asset.center)
+        else:
+            clear_door_graph_handles()
+
+    @door_node_size.on_update
+    def _(_):
+        asset: RegionAssets = state["asset"]  # type: ignore[assignment]
+        graph: DoorGraph = state["door_graph"]  # type: ignore[assignment]
+        if asset is not None and graph is not None and show_door_graph.value:
+            render_door_graph(graph, asset.center)
 
     # initial load — building view by default
     load_and_render_building(buildings[0])
