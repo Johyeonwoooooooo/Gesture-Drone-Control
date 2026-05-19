@@ -2,10 +2,10 @@
 import numpy as np
 import pickle
 import torch
-import open_clip
+import clip
 
-DET_FILE = '/data1/workspaces/jgshin22/Gesture-Drone-Control/unidet3d/data/detections.pkl'
-OUT_FILE = '/data1/workspaces/jgshin22/Gesture-Drone-Control/unidet3d/data/clip_index.pkl'
+DET_FILE = '/shareHost/minyoy/project/data/detections.pkl'
+OUT_FILE = '/shareHost/minyoy/project/data/clip_index.pkl'
 
 def main():
     det = pickle.load(open(DET_FILE, 'rb'))
@@ -15,12 +15,10 @@ def main():
     bboxes     = det['bboxes']
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model, _, _ = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai', device=device)
-    tokenizer = open_clip.get_tokenizer('ViT-B-32')
-    model.eval()
+    model, _ = clip.load('ViT-B/32', device=device)
 
     # 클래스 이름 → CLIP 텍스트 임베딩
-    class_tokens = tokenizer(
+    class_tokens = clip.tokenize(
         [f'a photo of a {c}' for c in classes]
     ).to(device)
 

@@ -2,13 +2,11 @@
 import numpy as np
 import pickle
 import torch
-import open_clip
+import clip
 import viser
-
-_TOKENIZER = open_clip.get_tokenizer('ViT-B-32')
 import time
 
-INDEX_FILE = '/data1/workspaces/jgshin22/Gesture-Drone-Control/unidet3d/data/clip_index.pkl'
+INDEX_FILE = '/shareHost/minyoy/project/data/clip_index.pkl'
 TOPK = 3
 
 # ── 색상 팔레트 ──────────────────────────────
@@ -18,13 +16,13 @@ COLOR_OTHERS = np.array([0.3, 0.6, 1.0], dtype=np.float32)  # 일반 bbox: 파�
 
 
 def load_clip(device):
-    model, _, _ = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai', device=device)
+    model, _ = clip.load('ViT-B/32', device=device)
     model.eval()
     return model
 
 
 def query_clip(model, device, box_embeds_t, text, topk):
-    tokens = _TOKENIZER([text]).to(device)
+    tokens = clip.tokenize([text]).to(device)
 
     with torch.no_grad():
         text_emb = model.encode_text(tokens)

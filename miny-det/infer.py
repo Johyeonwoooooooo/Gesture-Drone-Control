@@ -1,6 +1,6 @@
 # infer.py
 import sys
-sys.path.insert(0, '/data1/workspaces/jgshin22/Gesture-Drone-Control/unidet3d')
+sys.path.insert(0, '/shareHost/minyoy/unidet3d')
 
 # mmdet3d보다 먼저 unidet3d 등록
 from unidet3d.data_preprocessor import Det3DDataPreprocessor_
@@ -14,10 +14,10 @@ from mmengine.runner import load_checkpoint
 from mmdet3d.registry import MODELS
 
 
-CFG = '/data1/workspaces/jgshin22/Gesture-Drone-Control/unidet3d/configs/unidet3d_1xb8_scannet_s3dis_multiscan_3rscan_scannetpp_arkitscenes.py'
-CKPT = '/data1/workspaces/jgshin22/Gesture-Drone-Control/unidet3d/work_dirs/unidet3d.pth'
-INPUT = '/data1/workspaces/jgshin22/Gesture-Drone-Control/unidet3d/data/my_scene.bin'
-OUT = '/data1/workspaces/jgshin22/Gesture-Drone-Control/unidet3d/data/detections.pkl'
+CFG = '/shareHost/minyoy/unidet3d/configs/unidet3d_1xb8_scannet_s3dis_multiscan_3rscan_scannetpp_arkitscenes.py'
+CKPT = '/shareHost/minyoy/unidet3d/work_dirs/unidet3d.pth'
+INPUT = '/shareHost/minyoy/project/data/my_scene.bin'
+OUT = '/shareHost/minyoy/project/data/detections.pkl'
 
 # 여기만 바꾸면 다른 dataset head로도 실험 가능
 # candidates: scannet, s3dis, multiscan, 3rscan, scannetpp, arkitscenes
@@ -210,14 +210,7 @@ def main():
     # =========================
     # 1. point cloud 로드
     # =========================
-    _raw = np.fromfile(INPUT, dtype=np.float32)
-    if _raw.size % 6 == 0:
-        pts_original = _raw.reshape(-1, 6)
-    elif _raw.size % 9 == 0:
-        pts_original = _raw.reshape(-1, 9)[:, :6]
-        print('[INFO] 9-channel bin detected, dropping normals (model expects 6 ch)')
-    else:
-        raise ValueError(f'cannot reshape {_raw.size} into (-1, 6) or (-1, 9)')
+    pts_original = np.fromfile(INPUT, dtype=np.float32).reshape(-1, 9)
     coords_original = pts_original[:, :3]
 
     print(f'원본 point 수: {len(pts_original)}')
