@@ -1,0 +1,3 @@
+[submodule "unidet3d"]
+	path = unidet3d
+	url = https://github.com/filaPro/unidet3d.git

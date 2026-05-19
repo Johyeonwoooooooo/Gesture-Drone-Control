@@ -1,4 +1,0 @@
-# @package model
-clip_encoder:
-  model_id: hf-hub:timm/ViT-B-16-SigLIP
-  text_dim: 768
