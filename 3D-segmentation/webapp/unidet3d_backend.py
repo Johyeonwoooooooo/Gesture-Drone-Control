@@ -82,19 +82,33 @@ def add_unidet3d_args(ap) -> None:
 
 
 def make_detector(args) -> Optional[UniDet3DDetector]:
-    """Construct a lazy `UniDet3DDetector`, or `None` if the flag is off.
+    """Construct a `UniDet3DDetector` and warm it up, or `None` if disabled/failed.
 
-    Construction is cheap — the model/mmdet3d are only loaded on first detect().
+    The model is loaded HERE, in the caller's (main) thread, on purpose:
+    `mmengine.Config.fromfile` walks `pkg_resources.working_set`, which is `None`
+    when first touched from a viser GUI callback *worker thread* (the crash seen
+    when detection was triggered lazily). Loading on the main thread — exactly
+    like `miny-det/infer.py` — initialises that global once for all threads, so
+    the worker-thread `detect()` only runs the cached forward pass. It also makes
+    a bad env / missing checkpoint fail loudly at startup, and lets the caller
+    drop the `unidet3d` dropdown option when the model can't load.
     """
     if not getattr(args, "enable_unidet3d", False):
         return None
-    return UniDet3DDetector(
+    det = UniDet3DDetector(
         cfg_path=args.unidet3d_cfg,
         ckpt_path=args.unidet3d_ckpt,
         unidet3d_root=args.unidet3d_root,
         device=args.unidet3d_device,
         dataset_name=args.unidet3d_dataset,
     )
+    try:
+        det._ensure_loaded()  # main-thread warmup (see docstring)
+    except Exception as e:  # noqa: BLE001 — surface any load failure, then disable
+        print(f"[unidet3d] backend disabled — model load failed: "
+              f"{type(e).__name__}: {e}")
+        return None
+    return det
 
 
 # --------------------------------------------------------------------------- #
