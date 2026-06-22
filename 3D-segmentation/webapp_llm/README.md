@@ -61,24 +61,36 @@ CLIP은 1장(`--clip-device cuda:0`)에 두고 LLM은 별도 GPU(`cuda:1`)에 �
 패널의 `world=(x,y,z)` 가 원본 월드 좌표 (= `asset.center + display_center`)
 이며, 이 값을 path planner에 그대로 넘기면 됩니다.
 
-## UniDet3D 통합 모드 (옵션)
+## UniDet3D 백엔드 모드 (옵션)
 
-기본 heatmap+DBSCAN 경로 외에, **UniDet3D 3D object detection → CLIP bbox 매칭** 파이프라인을
-같은 viser 서버 안의 별도 패널로 함께 띄울 수 있습니다 (minyeong-3d 브랜치의 `project/` 데모를
-모듈화하여 통합).
+기본 heatmap+DBSCAN 경로 외에, **UniDet3D 3D object detection → CLIP bbox 매칭**
+경로를 GUI 상단의 **`Backend` 드롭다운**(`mosaic3d` ↔ `unidet3d`)으로 골라 쓸 수 있습니다.
+별도 `.bin` 을 받지 않고 **현재 로드된 cache 씬**(`asset.coord` + `vertex_colors`)을
+그대로 detector 에 넣습니다 — 즉 mosaic3d 와 UniDet3D 가 같은 점군 위에서 동작합니다.
+이 백엔드는 base `webapp/server.py` 에도 동일하게 들어가 있습니다 (공유 모듈
+[`webapp/unidet3d_backend.py`](../webapp/unidet3d_backend.py)).
 
 ```
-(N,9) point cloud .bin
+현재 로드된 cache 씬 (xyz + rgb)
         │
         ▼
   UniDet3D (multi-head: ScanNet++/ScanNet/S3DIS/...)
         │  → bboxes / labels / scores
         ▼
-  CLIP 클래스 임베딩 (webapp TextEncoder 공유) →  텍스트 쿼리와 cosine sim
+  CLIP 클래스 임베딩 (webapp TextEncoder 공유) →  (LLM이 뽑은) clip_prompt 와 cosine sim
         │
         ▼
-  Top-K bbox (★ 강조 + label) viser 시각화
+  Top-K bbox (★ 강조 + label) viser 시각화 + world 좌표
 ```
+
+> **환경 주의 (중요).** mosaic3d(torch 2.2.2)와 unidet3d(torch 2.1.2 + mmdet3d +
+> MinkowskiEngine)는 한 env 에 같이 설치할 수 없다. **두 백엔드를 한 서버에서 같이
+> 쓰려면 `unidet3d` env 에서 서버를 띄워야 한다** — webapp 의 mosaic3d 경로는 서빙 시
+> 미리 만들어둔 `feat.npy` 캐시 위에서 open_clip + DBSCAN 만 돌리므로(spconv/SpUNet101
+> 불필요) `unidet3d` env 에서도 잘 돈다. 단 `pip install open_clip_torch viser
+> scikit-learn transformers accelerate` 가 그 env 에 추가로 필요하다. 반대로 `mosaic3d`
+> env 에서 띄우면 UniDet3D import 가 실패하므로 `Backend` 드롭다운에 `unidet3d` 옵션이
+> 아예 안 뜨고(`--enable-unidet3d` 없이) mosaic3d 만 동작한다.
 
 ### 1) 환경 셋업 (한 번만)
 
@@ -135,10 +147,11 @@ curl -L -o unidet3d/work_dirs/unidet3d.pth \
 ### 3) 실행
 
 서브모듈이 repo 루트의 `unidet3d/`에 있으면 기본 경로가 자동으로 잡혀서
-플래그 없이 `--enable-unidet3d` 만으로 충분:
+플래그 없이 `--enable-unidet3d` 만으로 충분 (LLM 모드):
 
 ```bash
 conda activate unidet3d
+# open_clip / viser / sklearn / transformers / accelerate 가 이 env 에 있어야 함
 python 3D-segmentation/webapp_llm/server.py \
     --port 8090 \
     --enable-unidet3d \
@@ -146,19 +159,35 @@ python 3D-segmentation/webapp_llm/server.py \
     --unidet3d-device cuda:0
 ```
 
-경로를 바꾸고 싶으면 `--unidet3d-root`, `--unidet3d-cfg`, `--unidet3d-ckpt`,
-`--unidet3d-bin` 으로 override 할 수 있어.
+base(비-LLM) 웹앱도 같은 플래그를 받는다:
 
-웹앱 우측 패널의 `UniDet3D` 폴더에서
+```bash
+conda activate unidet3d
+python 3D-segmentation/webapp/server.py \
+    --port 8080 --enable-unidet3d --unidet3d-dataset scannetpp --unidet3d-device cuda:0
+```
 
-1. **Run UniDet3D detection** — `.bin` 한 번 detection (모델 weight 최초 1회 로드)
-2. 텍스트박스에 자연어 명령 입력 → **Parse + Match (UniDet3D)**
-3. LLM이 `clip_prompt` 추출 → CLIP으로 bbox 클래스 임베딩과 매칭 → Top-K 박스가 빨간 wireframe로 강조
+경로를 바꾸고 싶으면 `--unidet3d-root`, `--unidet3d-cfg`, `--unidet3d-ckpt`
+로 override 할 수 있다. (`.bin` 입력은 더 이상 쓰지 않는다 — 로드된 cache 씬을 직접 detection.)
 
-입력 `.bin` 포맷은 `(N, 9) = x, y, z, r, g, b, nx, ny, nz` (float32) 입니다.
+웹앱 사용법:
+
+1. 상단 `Backend` 드롭다운에서 `unidet3d` 선택 → UniDet3D 슬라이더(score-thr / top-K /
+   show-all / re-run) 가 나타난다.
+2. (LLM 웹앱) 자연어 명령 입력 후 **Parse + Localize**, 또는 **UniDet3D: (re)run detection**.
+   (base 웹앱) `Query` 에 텍스트 입력 후 **Apply**.
+3. 모델 weight 는 최초 1회만 로드되고, 같은 씬에서는 detection 결과를 캐시해 재매칭만 한다.
+   LLM이 (LLM 웹앱) 또는 입력 텍스트가 (base 웹앱) → CLIP 으로 bbox 클래스 임베딩과 매칭 →
+   Top-K 박스가 빨간 wireframe(★ label)로 강조되고 패널에 world 좌표가 출력된다.
+
+> detector 입력 색상은 `miny-det/convert.py` 와 동일하게 `color/127.5-1` 로 정규화된다.
+> 씬에 색이 없으면(gray fallback) detection 품질이 떨어질 수 있다.
 
 ## 파일
 
 - [`llm_parser.py`](llm_parser.py) — 로컬 LLM + JSON 추출
-- [`server.py`](server.py) — viser UI + LLM → CLIP → 클러스터링 글루 + UniDet3D 패널
-- [`unidet3d_detector.py`](unidet3d_detector.py) — UniDet3D wrapper + CLIP class-embed 빌더
+- [`server.py`](server.py) — viser UI + LLM → (CLIP 클러스터링 | UniDet3D) 백엔드 글루
+- [`../webapp/unidet3d_backend.py`](../webapp/unidet3d_backend.py) — 두 웹앱이 공유하는
+  UniDet3D 백엔드(인자/detector/매칭/박스 렌더)
+- [`../unidet3d_only/unidet3d_detector.py`](../unidet3d_only/unidet3d_detector.py) —
+  UniDet3D wrapper + CLIP class-embed 빌더

@@ -125,12 +125,16 @@ tmux new -s mosaic-web -d \
 20초 정도 후 `http://<host>:8080` 접속 (CLIP 모델 로딩에 시간 걸림).
 
 GUI 컨트롤:
+- **Backend**: `mosaic3d`(heatmap+DBSCAN) / `unidet3d`(3D detection+CLIP 매칭).
+  `unidet3d` 옵션은 `--enable-unidet3d` 로 켜고 `unidet3d` env 에서 서버를 띄울 때만 보임
+  (자세한 건 [`webapp_llm/README.md`](webapp_llm/README.md) "UniDet3D 백엔드 모드").
 - **Region**: 추론 캐시가 있는 scene 드롭다운
-- **Mode**: `rgb` / `single query` / `class list`
+- **Mode**: `rgb` / `single query` / `class list` (mosaic3d 백엔드)
 - **Query / classes**: 단일 프롬프트 또는 콤마 구분 클래스 리스트
 - **Threshold**: single query에서 cosine sim 컷오프
 - **Point size**: 점 크기
 - **Query opacity**: heatmap을 RGB와 블렌드 (1=쿼리만, 0=RGB만, 0.7 권장)
+- **UniDet3D: score thr / top-K / show all / (re)run**: unidet3d 백엔드 컨트롤
 - **Apply**: 적용
 
 마우스:

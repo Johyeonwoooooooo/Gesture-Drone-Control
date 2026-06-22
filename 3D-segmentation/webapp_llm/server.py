@@ -53,6 +53,7 @@ from webapp.server import (  # noqa: E402
     regions_for_building,
     upload_points,
 )
+from webapp import unidet3d_backend as u3d  # noqa: E402  (alt detection backend)
 
 from webapp_llm.llm_parser import LocalLLMParser, ParsedIntent  # noqa: E402
 
@@ -77,6 +78,7 @@ def main() -> None:
         help="Pass 'auto' to shard the LLM across all visible GPUs "
              "(useful for >7B models on 8GB cards).",
     )
+    u3d.add_unidet3d_args(ap)
     args = ap.parse_args()
 
     cache_dir = Path(args.cache_dir)
@@ -105,6 +107,13 @@ def main() -> None:
         device_map=args.llm_device_map,
     )
 
+    # Optional UniDet3D detection backend (lazy; mmdet3d only loads on detect()).
+    detector = u3d.make_detector(args)
+    u3d_session = u3d.UniDet3DSession()
+    if detector is not None:
+        print(f"[webapp_llm] UniDet3D backend enabled (head={args.unidet3d_dataset}); "
+              f"select it via the 'Backend' dropdown.")
+
     server = viser.ViserServer(host=args.host, port=args.port)
     server.scene.world_axes.visible = True
 
@@ -131,6 +140,11 @@ def main() -> None:
     )
     region_dropdown.visible = False
 
+    backend = server.gui.add_dropdown(
+        "Backend",
+        options=["mosaic3d"] + (["unidet3d"] if detector is not None else []),
+        initial_value="mosaic3d",
+    )
     nl_text = server.gui.add_text(
         "Drone command (natural language)",
         initial_value="위층 방의 화장실 사진 촬영해줘",
@@ -155,6 +169,20 @@ def main() -> None:
     cluster_marker_size = server.gui.add_slider(
         "Marker radius (m)", min=0.05, max=0.5, step=0.01, initial_value=0.15
     )
+    # --- UniDet3D backend controls (hidden unless Backend == unidet3d) ---
+    u_score_thr = server.gui.add_slider(
+        "UniDet3D: score thr", min=0.05, max=0.9, step=0.05,
+        initial_value=float(getattr(args, "unidet3d_score_thr", 0.30)),
+    )
+    u_topk = server.gui.add_slider(
+        "UniDet3D: top-K match", min=1, max=10, step=1, initial_value=3
+    )
+    u_show_all = server.gui.add_checkbox(
+        "UniDet3D: show all boxes", initial_value=True
+    )
+    u_detect_btn = server.gui.add_button("UniDet3D: (re)run detection")
+    for _w in (u_score_thr, u_topk, u_show_all, u_detect_btn):
+        _w.visible = False
     show_region_labels = server.gui.add_checkbox(
         "Show region IDs (building view)", initial_value=True
     )
@@ -200,6 +228,12 @@ def main() -> None:
                 pass
         state["cluster_handles"] = []
 
+    def invalidate_unidet() -> None:
+        """Drop cached UniDet3D boxes when the loaded scene changes."""
+        u3d.clear_boxes(u3d_session)
+        u3d_session.det = None
+        u3d_session.scene_key = None
+
     def rgb_for_asset(asset: RegionAssets) -> np.ndarray:
         if asset.vertex_colors is not None:
             return asset.vertex_colors
@@ -225,6 +259,7 @@ def main() -> None:
         asset = load_building(building_id, cache_dir, clip_device)
         state["asset"] = asset
         clear_cluster_markers()
+        invalidate_unidet()
         render_rgb()
         render_region_labels(building_id, asset.center)
         reset_camera_to_asset(asset)
@@ -240,12 +275,77 @@ def main() -> None:
         asset = load_region(region_name, cache_dir, clip_device)
         state["asset"] = asset
         clear_cluster_markers()
+        invalidate_unidet()
         clear_region_labels()
         render_rgb()
         reset_camera_to_asset(asset)
         status_md.content = (
             f"_loaded **{region_name}**: {asset.n_render_units} points "
             f"({time.time()-t0:.2f}s)_"
+        )
+
+    def update_backend_visibility() -> None:
+        is_uni = detector is not None and backend.value == "unidet3d"
+        for w in (cluster_top_pct, cluster_eps, cluster_top_k, cluster_marker_size):
+            w.visible = not is_uni
+        for w in (u_score_thr, u_topk, u_show_all, u_detect_btn):
+            w.visible = is_uni
+
+    def run_unidet3d_match(intent: ParsedIntent, t_llm: float,
+                           force_detect: bool = False) -> None:
+        """UniDet3D backend: detect on the loaded scene, CLIP-match clip_prompt."""
+        asset: RegionAssets = state["asset"]  # type: ignore[assignment]
+        clear_cluster_markers()
+        render_rgb()
+
+        scene_key = getattr(asset, "name", None)
+        need = (force_detect or u3d_session.det is None
+                or u3d_session.scene_key != scene_key)
+        if need:
+            status_md.content = "_UniDet3D: detecting (first run loads the model) ..._"
+            try:
+                det, emb = u3d.detect_scene(
+                    detector, text_encoder, asset, u_score_thr.value)
+            except RuntimeError as e:
+                u3d.clear_boxes(u3d_session)
+                u3d_session.det = None
+                legend_md.content = ""
+                status_md.content = f"_{e}_"
+                return
+            u3d_session.det = det
+            u3d_session.box_class_embeds = emb
+            u3d_session.scene_key = scene_key
+
+        det = u3d_session.det
+        t1 = time.time()
+        top_idx, sims = u3d.match_boxes(
+            det, u3d_session.box_class_embeds, text_encoder,
+            intent.clip_prompt, int(u_topk.value))
+        u3d.render_boxes(server, u3d_session, det,
+                         show_all=u_show_all.value, highlight_idx=top_idx)
+        t_seg = time.time() - t1
+
+        lines = [
+            f"### Target `{intent.clip_prompt}` via **unidet3d** "
+            f"({args.unidet3d_dataset}) (LLM {t_llm:.2f}s • match {t_seg:.2f}s)",
+            f"{len(det.bboxes)} boxes • score-thr={u_score_thr.value:.2f}",
+            "",
+        ]
+        for rank, i in enumerate(top_idx):
+            i = int(i)
+            li = int(det.labels[i])
+            cls = det.classes[li] if 0 <= li < len(det.classes) else f"class_{li}"
+            wc = u3d.world_center(det.bboxes[i], asset.center)
+            sim = float(sims[i]) if sims is not None else 0.0
+            lines.append(
+                f"- **#{rank+1}** `{cls}` sim={sim:.3f} • "
+                f"world=({wc[0]:.2f}, {wc[1]:.2f}, {wc[2]:.2f})"
+            )
+        if len(top_idx) == 0:
+            lines.append("_no boxes detected — lower score thr or pick another head_")
+        legend_md.content = "\n".join(lines)
+        status_md.content = (
+            f"_UniDet3D: {len(det.bboxes)} boxes, {len(top_idx)} matched_"
         )
 
     def run_pipeline() -> None:
@@ -276,6 +376,11 @@ def main() -> None:
             f"**LLM raw output**\n"
             f"```\n{raw_preview}\n```"
         )
+
+        # UniDet3D backend: detect + CLIP-match instead of the heatmap path.
+        if detector is not None and backend.value == "unidet3d":
+            run_unidet3d_match(intent, t_llm)
+            return
 
         # 2. CLIP heatmap
         t1 = time.time()
@@ -387,6 +492,23 @@ def main() -> None:
             status_md.content = f"_error: {e}_"
             raise
 
+    @backend.on_update
+    def _(_):
+        update_backend_visibility()
+        if backend.value != "unidet3d":
+            u3d.clear_boxes(u3d_session)
+            if state["asset"] is not None:
+                render_rgb()
+
+    @u_detect_btn.on_click
+    def _(_):
+        invalidate_unidet()
+        try:
+            run_pipeline()
+        except Exception as e:
+            status_md.content = f"_error: {e}_"
+            raise
+
     @point_size_slider.on_update
     def _(_):
         if state["asset"] is not None:
@@ -401,6 +523,7 @@ def main() -> None:
             else:
                 clear_region_labels()
 
+    update_backend_visibility()
     load_and_render_building(buildings[0])
 
     print(f"[webapp_llm] running at http://{args.host}:{args.port}")
