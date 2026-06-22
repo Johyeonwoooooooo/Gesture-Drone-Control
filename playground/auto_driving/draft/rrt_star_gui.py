@@ -21,10 +21,11 @@ import matplotlib.patheffects as pe
 # rrt_star_drone 모듈 import
 # ──────────────────────────────────────────
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, _SCRIPT_DIR)
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(_SCRIPT_DIR))  # auto_driving → playground → 프로젝트 루트
+sys.path.insert(0, _PROJECT_ROOT)
 
 try:
-    from rrt_star_drone import (
+    from playground.auto_driving.draft.rrt_star_drone import (
         load_pointcloud, build_obstacle_tree,
         plan_path, RRTStar, smooth_path, interpolate_path,
         find_nearest_free, OBSTACLE_RADIUS,
