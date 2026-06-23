@@ -6,7 +6,7 @@ import clip
 import viser
 import time
 
-INDEX_FILE = '/shareHost/minyoy/project/data/clip_index.pkl'
+INDEX_FILE = '/shareHost/minyoy/project/data/00809_Qpor2mEya8F_000_002/clip_index.pkl'
 TOPK = 3
 
 # ── 색상 팔레트 ──────────────────────────────

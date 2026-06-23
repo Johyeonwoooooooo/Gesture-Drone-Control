@@ -1,0 +1,26 @@
+# 데이터
+project/data/
+
+# 빌드된 외부 라이브러리 (소스에서 빌드, 용량 큼)
+MinkowskiEngine/
+cumm/
+spconv/
+mmcv/
+unidet3d/
+litept_indoor/LitePT/
+
+# HuggingFace 모델 캐시
+hf_cache/
+
+# Python 의존성/캐시
+project/pydeps/
+project/__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.so
+*.bin
+
+# 기타
+.DS_Store

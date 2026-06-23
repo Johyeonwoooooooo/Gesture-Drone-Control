@@ -16,8 +16,8 @@ from mmdet3d.registry import MODELS
 
 CFG = '/shareHost/minyoy/unidet3d/configs/unidet3d_1xb8_scannet_s3dis_multiscan_3rscan_scannetpp_arkitscenes.py'
 CKPT = '/shareHost/minyoy/unidet3d/work_dirs/unidet3d.pth'
-INPUT = '/shareHost/minyoy/project/data/my_scene.bin'
-OUT = '/shareHost/minyoy/project/data/detections.pkl'
+INPUT = '/shareHost/minyoy/project/data/00809_Qpor2mEya8F_002_014/my_scene.bin'
+OUT = '/shareHost/minyoy/project/data/00809_Qpor2mEya8F_002_014/detections.pkl'
 
 # 여기만 바꾸면 다른 dataset head로도 실험 가능
 # candidates: scannet, s3dis, multiscan, 3rscan, scannetpp, arkitscenes

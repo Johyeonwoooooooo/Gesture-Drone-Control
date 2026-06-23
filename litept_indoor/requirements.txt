@@ -1,0 +1,27 @@
+# LitePT indoor center detection requirements
+# Base: /opt/conda (Python 3.9, PyTorch 2.8.0+cu128)
+
+# LitePT deps
+einops
+addict
+yapf
+scipy
+plyfile
+termcolor
+timm
+colorhash
+torchmetrics
+torch-geometric==2.5.3
+
+# torch-geometric 연관 (PyG wheel에서 별도 설치 필요 시)
+# /opt/conda/bin/pip install torch-cluster torch-scatter torch-sparse \
+#   -f https://data.pyg.org/whl/torch-2.8.0+cu128.html
+
+# HuggingFace (사전학습 가중치 다운로드)
+huggingface_hub
+
+# 클러스터링 (인스턴스 중심점 추정)
+scikit-learn
+
+# 시각화 (선택)
+open3d

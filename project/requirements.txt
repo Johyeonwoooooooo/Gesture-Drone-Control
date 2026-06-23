@@ -1,0 +1,89 @@
+# Base: pytorch/pytorch:2.1.2-cuda12.1-cudnn8-devel
+
+# OpenMMLab
+mmengine==0.9.0
+mmdet==3.3.0
+mmsegmentation==1.2.0
+mmdet3d==1.4.0
+mmpretrain==1.2.0
+
+# mmcv: build from source (commit 780ffed9f3736fedadf18b51266ecbf521e64cf6)
+# git clone https://github.com/open-mmlab/mmcv.git
+# cd mmcv && git reset --hard 780ffed9f3736fedadf18b51266ecbf521e64cf6
+# pip install -v -e . --no-deps
+
+# MinkowskiEngine: build from source
+# pip install git+https://github.com/daizhirui/MinkowskiEngine.git@ce930eeb403a8e3f99693662ec5ce329a0ab3528 --no-deps \
+#   --global-option="--blas=openblas" --global-option="--force_cuda"
+
+# torch-scatter (torch 2.1.0 + cu121)
+# pip install torch-scatter==2.1.2 -f https://data.pyg.org/whl/torch-2.1.0+cu121.html --no-deps
+
+# segmentator: build from source
+# https://github.com/Karbo123/segmentator
+
+# spconv
+spconv-cu120==2.3.6
+
+# Core
+numpy==1.24.1
+scipy==1.10.1
+scikit-learn==1.2.2
+
+# mmlab utilities
+addict==2.4.0
+yapf==0.33.0
+termcolor==2.3.0
+packaging==23.1
+rich==13.3.5
+pycocotools==2.0.6
+Shapely==1.8.5
+terminaltables==3.1.10
+numba==0.57.0
+llvmlite==0.40.0
+pccm==0.4.7
+ccimport==0.4.2
+pybind11==2.10.4
+ninja==1.11.1
+lark==1.1.5
+pyquaternion==0.9.9
+
+# Dataset SDKs
+nuscenes-devkit==1.1.10
+lyft-dataset-sdk==0.0.8
+pandas==2.0.1
+python-dateutil==2.8.2
+
+# 3D / vision
+open3d==0.17.0
+trimesh==3.21.6
+plyfile==1.0.2
+imageio==2.34.0
+opencv-python==4.7.0.72
+
+# Visualization
+matplotlib==3.5.2
+pyparsing==3.0.9
+cycler==0.11.0
+kiwisolver==1.4.4
+plotly==5.18.0
+dash==2.14.2
+
+# Misc
+timm==0.9.16
+ftfy==6.2.0
+regex==2024.4.16
+natsort==8.4.0
+portalocker==2.8.2
+cachetools==5.3.0
+joblib==1.2.0
+threadpoolctl==3.1.0
+
+# Web
+flask==3.0.0
+werkzeug==3.0.1
+click==8.1.7
+blinker==1.7.0
+itsdangerous==2.1.2
+importlib_metadata>=3.6.0
+zipp==3.17.0

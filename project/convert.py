@@ -1,12 +1,12 @@
 # convert.py 수정
 import numpy as np
 
-COORD  = '/shareHost/minyoy/project/data/coord.npy'
-COLOR  = '/shareHost/minyoy/project/data/color.npy'
-NORMAL = '/shareHost/minyoy/project/data/normal.npy'
-OUT    = '/shareHost/minyoy/project/data/my_scene.bin'
+COORD  = '/shareHost/minyoy/project/data/00809_Qpor2mEya8F_000_002/coord.npy'
+COLOR  = '/shareHost/minyoy/project/data/00809_Qpor2mEya8F_000_002/color.npy'
+NORMAL = '/shareHost/minyoy/project/data/00809_Qpor2mEya8F_000_002/normal.npy'
+OUT    = '/shareHost/minyoy/project/data/00809_Qpor2mEya8F_000_002/my_scene.bin'
 
-VOXEL_SIZE = 0.05  # 5cm voxel — 너무 많으면 0.1로 키우세요
+VOXEL_SIZE = 0.02 # 5cm voxel — 너무 많으면 0.1로 키우세요
 
 def main():
     coord  = np.load(COORD).astype(np.float32)

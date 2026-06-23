@@ -4,8 +4,8 @@ import pickle
 import torch
 import clip
 
-DET_FILE = '/shareHost/minyoy/project/data/detections.pkl'
-OUT_FILE = '/shareHost/minyoy/project/data/clip_index.pkl'
+DET_FILE = '/shareHost/minyoy/project/data/00809_Qpor2mEya8F_000_002/detections.pkl'
+OUT_FILE = '/shareHost/minyoy/project/data/00809_Qpor2mEya8F_000_002/clip_index.pkl'
 
 def main():
     det = pickle.load(open(DET_FILE, 'rb'))
