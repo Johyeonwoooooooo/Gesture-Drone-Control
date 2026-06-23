@@ -109,7 +109,7 @@ class UniDet3DDetector:
         from unidet3d.unidet3d import UniDet3D  # noqa: F401
 
         from mmengine.config import Config
-        from mmengine.runner import load_checkpoint
+        from mmengine.runner.checkpoint import _load_checkpoint
         from mmengine.registry import MODELS as MMENGINE_MODELS
         from mmdet3d.registry import MODELS
 
@@ -119,7 +119,7 @@ class UniDet3DDetector:
             MMENGINE_MODELS.register_module(module=Det3DDataPreprocessor_)
 
         model = MODELS.build(cfg.model)
-        load_checkpoint(model, self.ckpt_path, map_location='cpu')
+        self._load_clean_checkpoint(model, _load_checkpoint)
         model = model.to(self.device).eval()
 
         if self.dataset_name not in model.decoder.datasets:
@@ -137,6 +137,31 @@ class UniDet3DDetector:
         self._classes = classes
         print(f'[unidet3d] loaded {self.dataset_name} head '
               f'({len(classes)} classes) on {self.device}')
+
+    def _load_clean_checkpoint(self, model, _load_checkpoint) -> None:
+        """Load the checkpoint after stripping vestigial positional-encoding keys.
+
+        The released ``unidet3d.pth`` carries 12 unused
+        ``decoder.self_attn_layers.*.pe.1.*`` tensors from an earlier training
+        architecture. Upstream's published ``encoder.py`` has no ``pe`` module,
+        so a plain ``load_checkpoint`` succeeds but prints a noisy
+        "model and loaded state dict do not match exactly / unexpected key ...
+        pe.1 ..." warning. Those keys load nothing and change no behaviour
+        (``missing_keys`` is empty); we drop them so the load is clean and a
+        *real* future mismatch isn't lost in the noise.
+        """
+        ckpt = _load_checkpoint(self.ckpt_path, map_location='cpu')
+        state = ckpt.get('state_dict', ckpt)
+        dropped = [k for k in state if '.pe.' in k]
+        if dropped:
+            for k in dropped:
+                del state[k]
+            print(f'[unidet3d] dropped {len(dropped)} vestigial pe.* '
+                  f'checkpoint keys before load')
+        missing, unexpected = model.load_state_dict(state, strict=False)
+        if missing or unexpected:
+            print(f'[unidet3d] WARNING state_dict still mismatched after pe strip '
+                  f'— missing={list(missing)} unexpected={list(unexpected)}')
 
     def _resolve_classes(self, cfg) -> List[str]:
         datasets = cfg.test_dataloader.dataset.datasets
