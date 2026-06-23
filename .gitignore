@@ -132,3 +132,5 @@ dmypy.json
 
 data/
 *.npy
+# UniDet3D precomputed detection cache (regenerate via precompute_unidet3d.py)
+3D-segmentation/cache/*/unidet3d/

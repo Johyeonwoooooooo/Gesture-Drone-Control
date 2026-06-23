@@ -22,7 +22,9 @@ Design notes
 """
 from __future__ import annotations
 
+import pickle
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 import numpy as np
@@ -31,6 +33,7 @@ import torch
 # `unidet3d_only` is a sibling namespace package under 3D-segmentation; the
 # servers put that dir on sys.path before importing this module.
 from unidet3d_only.unidet3d_detector import (  # noqa: E402
+    DetectionResult,
     UniDet3DDetector,
     build_class_embeds,
     topk_boxes_for_query,
@@ -139,27 +142,120 @@ def scene_points6(asset) -> np.ndarray:
     return np.concatenate([coord, rgb], axis=1).astype(np.float32)
 
 
+# OOM-safe sampling params (match miny-det/infer.py — superpoint voxel 0.50,
+# not the detector default 0.10 which over-produces superpoints and blows up
+# decoder-attention VRAM on big rooms).
+SAFE_MAX_POINTS = 80000
+SAFE_VOXEL_SIZE = 0.50
+
+
+def embeds_for_det(det, text_encoder):
+    """Build per-box CLIP class embeds (M, D) from a DetectionResult.
+
+    Shared by the live and cached paths — embeds are cheap to recompute from
+    `det.labels`, so they are never cached on disk.
+    """
+    class_embeds = build_class_embeds(det.classes, text_encoder)  # (C, D)
+    if len(det.labels) > 0:
+        return class_embeds[np.asarray(det.labels)]               # (M, D)
+    return class_embeds.new_zeros((0, class_embeds.shape[1]))
+
+
 def detect_scene(detector, text_encoder, asset, score_thr: float):
-    """Run UniDet3D on the loaded scene and build per-box CLIP class embeds.
+    """Run UniDet3D LIVE on the loaded scene and build per-box CLIP class embeds.
 
     Returns (DetectionResult, box_class_embeds[(M, D)]).
     Raises RuntimeError (friendly message) if the env lacks the mmdet3d stack.
     """
     pts = scene_points6(asset)
     try:
-        det = detector.detect(pts, score_thr=float(score_thr))
+        det = detector.detect(
+            pts, score_thr=float(score_thr),
+            max_points=SAFE_MAX_POINTS, voxel_size=SAFE_VOXEL_SIZE)
     except (ImportError, ModuleNotFoundError, OSError) as e:
         raise RuntimeError(
             "UniDet3D unavailable in this environment — launch the server from "
             f"the `unidet3d` conda env. ({type(e).__name__}: {e})"
         ) from e
 
-    class_embeds = build_class_embeds(det.classes, text_encoder)  # (C, D)
-    if len(det.labels) > 0:
-        box_class_embeds = class_embeds[np.asarray(det.labels)]   # (M, D)
-    else:
-        box_class_embeds = class_embeds.new_zeros((0, class_embeds.shape[1]))
-    return det, box_class_embeds
+    return det, embeds_for_det(det, text_encoder)
+
+
+# --------------------------------------------------------------------------- #
+# On-disk detection cache (precompute once, load at serve time → no GPU)
+# --------------------------------------------------------------------------- #
+def _building_id(region_name: str) -> str:
+    """Building ID = first two underscore-separated parts of a region name."""
+    parts = region_name.split("_")
+    return "_".join(parts[:2]) if len(parts) >= 2 else region_name
+
+
+def unidet3d_cache_path(region: str, cache_dir) -> Path:
+    """Where a region's precomputed (WORLD-frame) detection pkl lives."""
+    return Path(cache_dir) / _building_id(region) / "unidet3d" / f"{region}.pkl"
+
+
+def save_detection_world(path: Path, det: DetectionResult) -> None:
+    """Persist a DetectionResult whose bboxes are in RAW WORLD frame.
+
+    `box_pts` is dropped (unused by the webapp render path) to keep pkls small.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = dict(
+        bboxes=np.asarray(det.bboxes, dtype=np.float32),
+        scores=np.asarray(det.scores, dtype=np.float32),
+        labels=np.asarray(det.labels),
+        classes=list(det.classes),
+    )
+    with open(path, "wb") as f:
+        pickle.dump(payload, f)
+
+
+def _load_world_payload(path: Path) -> Optional[dict]:
+    if not path.exists():
+        return None
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+
+def assemble_cached_detection(asset, cache_dir) -> Optional[DetectionResult]:
+    """Build a DISPLAY-frame DetectionResult for `asset` from cached world pkls.
+
+    - region load (`asset.region_slices is None`) → load that one region's pkl.
+    - building load → concatenate every member region's pkl (keys from
+      `asset.region_slices`); all are world-frame so they merge directly.
+
+    Boxes are shifted into the current display frame by subtracting
+    `asset.center`. Returns None if any required pkl is missing (caller then
+    falls back / shows a "precompute needed" status).
+    """
+    slices = getattr(asset, "region_slices", None)
+    regions = list(slices.keys()) if slices else [asset.name]
+
+    payloads = []
+    for r in regions:
+        p = _load_world_payload(unidet3d_cache_path(r, cache_dir))
+        if p is None:
+            return None
+        payloads.append(p)
+
+    bboxes = np.concatenate([p["bboxes"] for p in payloads], axis=0) \
+        if payloads else np.zeros((0, 7), dtype=np.float32)
+    scores = np.concatenate([p["scores"] for p in payloads], axis=0) \
+        if payloads else np.zeros((0,), dtype=np.float32)
+    labels = np.concatenate([p["labels"] for p in payloads], axis=0) \
+        if payloads else np.zeros((0,), dtype=np.int64)
+    classes = payloads[0]["classes"] if payloads else []
+
+    # world → current display frame
+    bboxes = bboxes.copy()
+    if len(bboxes):
+        bboxes[:, :3] -= np.asarray(asset.center, dtype=np.float32)
+
+    return DetectionResult(
+        bboxes=bboxes, scores=scores, labels=labels,
+        classes=classes, box_pts=[],
+    )
 
 
 def match_boxes(det, box_class_embeds, text_encoder, clip_prompt: str, topk: int):

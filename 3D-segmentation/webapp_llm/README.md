@@ -144,6 +144,29 @@ curl -L -o unidet3d/work_dirs/unidet3d.pth \
 # 변환 예시는 docs/mmdet_get_started.md의 convert_ply 헬퍼 참고.
 ```
 
+### 2.5) detection 미리 계산 (precompute — OOM 방지 핵심)
+
+큰 씬(최대 130만 점)을 serve 중에 라이브로 detection 하면 GPU OOM 이 난다.
+그래서 miny-det 와 **똑같이** detection 을 **오프라인에서 한 번 미리 계산**해
+캐시에 저장하고, webapp 은 그걸 **로드만** 한다 (serve 시 GPU detection 0).
+
+```bash
+conda activate unidet3d
+python 3D-segmentation/unidet3d_only/precompute_unidet3d.py \
+    --buildings 00800_TEEsavR23oF 00809_Qpor2mEya8F \
+    --unidet3d-device cuda:0
+```
+
+→ 모델 1회 로드 후 각 region 을 detection 해서
+`cache/<building>/unidet3d/<region>.pkl` 로 저장 (박스는 **world 프레임**,
+`random_sample 80k` + superpoint `voxel 0.50` — miny-det 와 동일 파라미터).
+이미 있는 region 은 건너뜀(`--force` 로 재계산). 다른 building 도 인자로 추가 가능.
+
+> webapp 의 `Backend=unidet3d` 자동 경로(쿼리/씬전환)는 이 캐시를 로드한다. region
+> 뷰는 해당 pkl, building 뷰는 멤버 region pkl 들을 합쳐 현재 디스플레이 프레임으로
+> 변환한다. 캐시 없는 씬은 "precompute 필요" 상태만 뜨고(자동 OOM 안 남), 수동
+> **UniDet3D: (re)run detection** 버튼을 누르면 그 씬만 라이브 detection(voxel 0.50).
+
 ### 3) 실행
 
 서브모듈이 repo 루트의 `unidet3d/`에 있으면 기본 경로가 자동으로 잡혀서

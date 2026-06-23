@@ -144,7 +144,12 @@ mkdir -p unidet3d/work_dirs
 curl -L -o unidet3d/work_dirs/unidet3d.pth \
     https://github.com/filapro/unidet3d/releases/download/v1.0/unidet3d.pth
 
-# (3) --enable-unidet3d 로 두 백엔드 다 켜서 서버 실행
+# (3) UniDet3D detection 미리 계산 (OOM 방지 — 큰 씬 라이브 detection 금지).
+#     모델 1회 로드 후 각 region → cache/<building>/unidet3d/<region>.pkl (world 프레임).
+python unidet3d_only/precompute_unidet3d.py \
+    --buildings 00800_TEEsavR23oF 00809_Qpor2mEya8F --unidet3d-device cuda:0
+
+# (4) --enable-unidet3d 로 두 백엔드 다 켜서 서버 실행
 python webapp/server.py --port 8080 --host 0.0.0.0 \
     --enable-unidet3d --unidet3d-dataset scannetpp --unidet3d-device cuda:0
 ```
@@ -152,8 +157,10 @@ python webapp/server.py --port 8080 --host 0.0.0.0 \
 - 모델 weight 는 서버 시작 시 main thread 에서 1회 로드 (viser worker thread 에서 lazy
   로드하면 `pkg_resources` 크래시 — 그래서 startup 워밍업). 콘솔에 unidet3d head 로드 로그가
   뜬 뒤 viser 가 올라온다.
-- 같은 씬에서는 detection 결과를 캐시해 재쿼리 시 CLIP 매칭만 다시 한다. 입력 색상은
-  `miny-det/convert.py` 와 동일하게 `color/127.5-1` 정규화.
+- `Backend=unidet3d` 자동 경로는 (3)에서 미리 계산한 `cache/<building>/unidet3d/*.pkl` 을
+  **로드만** 한다(serve 시 GPU detection 0 → OOM 없음). region 뷰는 해당 pkl, building 뷰는
+  멤버 region pkl 합본. 캐시 없는 씬은 "precompute 필요" 상태만 뜨고, 수동 **(re)run
+  detection** 버튼만 그 씬을 라이브 detection(voxel 0.50). 색상은 `color/127.5-1` 정규화.
 - 반대로 **`mosaic3d` env 에서 띄우면** UniDet3D import 가 실패 → `--enable-unidet3d` 를 줘도
   `Backend` 드롭다운에 `unidet3d` 옵션이 안 뜨고 mosaic3d 만 동작한다(degrade, 크래시 아님).
 - LLM 웹앱(`webapp_llm/server.py`)도 같은 플래그를 받는다 — 자세한 건

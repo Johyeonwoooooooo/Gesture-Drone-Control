@@ -302,15 +302,31 @@ def main() -> None:
         need = (force_detect or u3d_session.det is None
                 or u3d_session.scene_key != scene_key)
         if need:
-            status_md.content = "_UniDet3D: detecting (first run loads the model) ..._"
-            try:
-                det, emb = u3d.detect_scene(
-                    detector, text_encoder, asset, u_score_thr.value)
-            except RuntimeError as e:
+            # 1) precomputed cache (no GPU). 2) manual button → live detect.
+            #    3) auto path w/o cache → ask for precompute (avoid OOM).
+            det = u3d.assemble_cached_detection(asset, cache_dir)
+            if det is not None:
+                emb = u3d.embeds_for_det(det, text_encoder)
+                status_md.content = "_UniDet3D: loaded cached detection_"
+            elif force_detect:
+                status_md.content = "_UniDet3D: detecting live (no cache) ..._"
+                try:
+                    det, emb = u3d.detect_scene(
+                        detector, text_encoder, asset, u_score_thr.value)
+                except RuntimeError as e:
+                    u3d.clear_boxes(u3d_session)
+                    u3d_session.det = None
+                    legend_md.content = ""
+                    status_md.content = f"_{e}_"
+                    return
+            else:
                 u3d.clear_boxes(u3d_session)
                 u3d_session.det = None
                 legend_md.content = ""
-                status_md.content = f"_{e}_"
+                status_md.content = (
+                    f"_UniDet3D: no precomputed detection for `{scene_key}`. "
+                    "Run `precompute_unidet3d.py`, or click "
+                    "'UniDet3D: (re)run detection' to detect live._")
                 return
             u3d_session.det = det
             u3d_session.box_class_embeds = emb
