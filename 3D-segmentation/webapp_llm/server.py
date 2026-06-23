@@ -121,6 +121,7 @@ def main() -> None:
         "asset": None,
         "cluster_handles": [],
         "region_label_handles": [],
+        "suppress_scene_cb": False,  # mute dropdown callbacks during LLM-driven scene switch
     }
 
     # ---------------- GUI ----------------
@@ -364,9 +365,44 @@ def main() -> None:
             f"_UniDet3D: {len(det.bboxes)} boxes, {len(top_idx)} matched_"
         )
 
+    def apply_intent_scene(intent: ParsedIntent) -> str:
+        """Switch the loaded scene per the LLM's room/scope.
+
+        - scope == "room" + target_room=N → load the N-th room (1-based) of the
+          currently selected building.
+        - scope == "building" → load the whole current building.
+        - otherwise → keep the current scene.
+        Dropdowns are updated to match (their callbacks are muted to avoid a
+        double load). Returns a short status note for the intent panel.
+        """
+        bld = building_dropdown.value
+        rooms = regions_for_building(bld, cache_dir)
+        state["suppress_scene_cb"] = True
+        try:
+            if intent.scope == "room" and intent.target_room is not None:
+                n = int(intent.target_room)
+                if 1 <= n <= len(rooms):
+                    target = rooms[n - 1]
+                    view_level.value = "room"
+                    building_dropdown.visible = False
+                    region_dropdown.visible = True
+                    region_dropdown.value = target
+                    load_and_render_region(target)
+                    return f"room {n} → `{target}`"
+                return (f"⚠ room {n} out of range (building has "
+                        f"{len(rooms)} rooms) — searching current scene")
+            if intent.scope == "building":
+                view_level.value = "building"
+                building_dropdown.visible = True
+                region_dropdown.visible = False
+                load_and_render_building(bld)
+                return f"whole building `{bld}` ({len(rooms)} rooms)"
+            return "current scene (no room/scope specified)"
+        finally:
+            state["suppress_scene_cb"] = False
+
     def run_pipeline() -> None:
-        asset: RegionAssets = state["asset"]  # type: ignore[assignment]
-        if asset is None:
+        if state["asset"] is None:
             status_md.content = "_no scene loaded_"
             return
         user_text = nl_text.value.strip()
@@ -379,6 +415,11 @@ def main() -> None:
         status_md.content = "_parsing with LLM ..._"
         intent: ParsedIntent = llm.parse(user_text)
         t_llm = time.time() - t0
+
+        # 1b. Switch scene per parsed room/scope, then refresh the asset.
+        scene_note = apply_intent_scene(intent)
+        asset: RegionAssets = state["asset"]  # type: ignore[assignment]
+
         raw_preview = intent.raw_text.strip()
         if len(raw_preview) > 1200:
             raw_preview = raw_preview[:1200] + "  …(truncated)"
@@ -387,6 +428,8 @@ def main() -> None:
             f"- target_object: `{intent.target_object}`\n"
             f"- clip_prompt:   `{intent.clip_prompt}`\n"
             f"- location_hint: `{intent.location_hint}`\n"
+            f"- target_room:   `{intent.target_room}`  scope: `{intent.scope or '—'}`\n"
+            f"- search scene:  {scene_note}\n"
             f"- action:        `{intent.action}`\n"
             f"- return_home:   `{intent.return_home}`\n\n"
             f"**LLM raw output**\n"
@@ -485,6 +528,8 @@ def main() -> None:
         is_b = view_level.value == "building"
         building_dropdown.visible = is_b
         region_dropdown.visible = not is_b
+        if state["suppress_scene_cb"]:
+            return
         if is_b:
             load_and_render_building(building_dropdown.value)
         else:
@@ -492,12 +537,12 @@ def main() -> None:
 
     @building_dropdown.on_update
     def _(_):
-        if view_level.value == "building":
+        if not state["suppress_scene_cb"] and view_level.value == "building":
             load_and_render_building(building_dropdown.value)
 
     @region_dropdown.on_update
     def _(_):
-        if view_level.value == "room":
+        if not state["suppress_scene_cb"] and view_level.value == "room":
             load_and_render_region(region_dropdown.value)
 
     @run_btn.on_click

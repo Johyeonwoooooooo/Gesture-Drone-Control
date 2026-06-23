@@ -28,10 +28,12 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 SYSTEM_PROMPT = """You parse natural-language drone commands into JSON.
 
-The drone operates in a pre-scanned 3D indoor scene. Your job is to extract:
+The drone operates in a pre-scanned 3D indoor scene made of numbered rooms. Extract:
 - target_object: the object to find, as a short English noun phrase (e.g. "toilet", "tv", "refrigerator", "sofa").
 - clip_prompt:   an English CLIP-friendly prompt, usually "a <target_object>".
 - location_hint: free-form location/region context from the user (e.g. "upstairs bathroom", "next room", "kitchen"). Empty string if none.
+- target_room:   the ROOM NUMBER to search, as an integer, when the user names a specific room (e.g. "3번 방" -> 3, "room 5" -> 5). null if no specific room number is given.
+- scope:         "room" if the user wants a specific room (target_room set), "building" if the user wants to search the WHOLE house/building (e.g. "집 전체", "온 집", "all rooms", "whole house"), or "" if unspecified.
 - action:        one of ["take_photo", "inspect", "goto", "other"].
 - return_home:   true if the user asks the drone to come back, else false.
 
@@ -40,17 +42,20 @@ Translate Korean object names to English. Keep it terse.
 
 Examples:
 
+User: 3번 방에서 의자 찾아줘
+{"target_object":"chair","clip_prompt":"a chair","location_hint":"room 3","target_room":3,"scope":"room","action":"goto","return_home":false}
+
+User: 5번 방에 있는 tv 사진 찍어와줘
+{"target_object":"tv","clip_prompt":"a tv","location_hint":"room 5","target_room":5,"scope":"room","action":"take_photo","return_home":true}
+
+User: 집 전체에서 냉장고 찾아줘
+{"target_object":"refrigerator","clip_prompt":"a refrigerator","location_hint":"whole house","target_room":null,"scope":"building","action":"goto","return_home":false}
+
 User: 옆 방에 있는 TV 사진 찍어와줘
-{"target_object":"tv","clip_prompt":"a tv","location_hint":"next room","action":"take_photo","return_home":true}
-
-User: 위층 방의 화장실 사진 촬영해줘
-{"target_object":"toilet","clip_prompt":"a toilet","location_hint":"upstairs room","action":"take_photo","return_home":false}
-
-User: 주방으로 가서 냉장고 앞에서 멈춰
-{"target_object":"refrigerator","clip_prompt":"a refrigerator","location_hint":"kitchen","action":"goto","return_home":false}
+{"target_object":"tv","clip_prompt":"a tv","location_hint":"next room","target_room":null,"scope":"","action":"take_photo","return_home":true}
 
 User: 거실 소파 위에 누가 있는지 확인해줘
-{"target_object":"sofa","clip_prompt":"a sofa","location_hint":"living room","action":"inspect","return_home":false}
+{"target_object":"sofa","clip_prompt":"a sofa","location_hint":"living room","target_room":null,"scope":"","action":"inspect","return_home":false}
 """
 
 
@@ -62,6 +67,8 @@ class ParsedIntent:
     action: str
     return_home: bool
     raw: dict
+    target_room: Optional[int] = None   # 1-based room number, or None
+    scope: str = ""                     # "room" | "building" | ""
     raw_text: str = ""  # full LLM generation before JSON parsing
 
 
@@ -116,9 +123,23 @@ class LocalLLMParser:
             location_hint=str(data.get("location_hint", "")).strip(),
             action=str(data.get("action", "goto")).strip(),
             return_home=bool(data.get("return_home", False)),
+            target_room=_coerce_room(data.get("target_room")),
+            scope=str(data.get("scope", "")).strip().lower(),
             raw=data,
             raw_text=gen,
         )
+
+
+def _coerce_room(v) -> Optional[int]:
+    """Best-effort int room number from the LLM field (handles 3, '3', '3번')."""
+    if v is None:
+        return None
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return int(v)
+    m = re.search(r"\d+", str(v))
+    return int(m.group(0)) if m else None
 
 
 def _extract_json(text: str) -> dict:
