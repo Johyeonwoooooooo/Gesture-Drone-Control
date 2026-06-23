@@ -1,4 +1,5 @@
-# app_query_highlight.py
+# app_query_highlight.py — UniDet3D + CLIP 쿼리 뷰어 (씬 드롭다운으로 선택)
+import os
 import numpy as np
 import pickle
 import torch
@@ -6,7 +7,8 @@ import clip
 import viser
 import time
 
-INDEX_FILE = '/shareHost/minyoy/project/data/clip_index.pkl'
+import scenes
+
 TOPK = 3
 
 # ── 색상 팔레트 ──────────────────────────────
@@ -158,113 +160,116 @@ def make_centered_scene(coords, bboxes, mode='floor_center'):
     return coords_vis.astype(np.float32), bboxes_vis.astype(np.float32), scene_origin
 
 
-def main():
-    # ── 데이터 로드 ───────────────────────────
-    idx = pickle.load(open(INDEX_FILE, 'rb'))
+def load_scene_data(region, device):
+    """clip_index .pkl 로드 → 렌더에 필요한 배열들로 정리해서 dict 반환."""
+    idx = pickle.load(open(scenes.index_path(region), 'rb'))
 
     points = idx['points']
     bboxes = idx['bboxes']
-    scores = idx['scores']
-    labels = idx['labels']
-    classes = idx['classes']
-    box_pts = idx['box_pts']
     box_embeds = idx['box_embeds']
 
-    print(f'points: {points.shape}')
-    print(f'bboxes: {bboxes.shape}')
-    print(f'box_embeds: {box_embeds.shape}')
-
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f'CLIP device: {device}')
-
-    clip_model = load_clip(device)
-
-    box_embeds_t = torch.tensor(box_embeds, device=device, dtype=torch.float32)
-    box_embeds_t = box_embeds_t / box_embeds_t.norm(dim=-1, keepdim=True)
-
     coords = points[:, :3].astype(np.float32)
-
-    # ── 집/방 scene 원점을 viser 원점에 맞추기 ─────────────
     coords_vis, bboxes_vis, scene_origin = make_centered_scene(
-        coords,
-        bboxes,
-        mode='floor_center',
-    )
-    print(f'scene_origin: {scene_origin}')
+        coords, bboxes, mode='floor_center')
 
-    # 색상 처리
     raw_rgb = points[:, 3:6].astype(np.float32)
-
     if raw_rgb.min() < 0:
         rgb = (raw_rgb + 1.0) / 2.0
     elif raw_rgb.max() > 1.0:
         rgb = raw_rgb / 255.0
     else:
         rgb = raw_rgb
-
     rgb = np.clip(rgb, 0.0, 1.0).astype(np.float32)
 
+    if len(box_embeds) > 0:
+        box_embeds_t = torch.tensor(box_embeds, device=device, dtype=torch.float32)
+        box_embeds_t = box_embeds_t / box_embeds_t.norm(dim=-1, keepdim=True)
+    else:
+        box_embeds_t = torch.zeros((0, 512), device=device, dtype=torch.float32)
+
+    return dict(
+        region=region,
+        points=points,
+        coords_vis=coords_vis,
+        bboxes_vis=bboxes_vis,
+        scene_origin=scene_origin,
+        rgb=rgb,
+        scores=idx['scores'],
+        labels=idx['labels'],
+        classes=idx['classes'],
+        box_pts=idx['box_pts'],
+        box_embeds_t=box_embeds_t,
+        n_boxes=len(bboxes_vis),
+    )
+
+
+def main():
+    regions = scenes.available_regions()
+    if not regions:
+        raise SystemExit(
+            f'전처리된 씬이 없습니다 ({scenes.DATA_DIR}/det_*_clip_index.pkl). '
+            'convert.py → infer.py → clip_index.py 를 먼저 실행하세요.'
+        )
+    print(f'사용 가능한 씬 {len(regions)}개')
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f'CLIP device: {device}')
+    clip_model = load_clip(device)
+
+    # ── 씬 데이터 상태 (드롭다운으로 교체) ──────────────
+    S = load_scene_data(regions[0], device)
+
     # ── viser 서버 ────────────────────────────
-    server = viser.ViserServer(port=8080)
-    print('viser running at http://localhost:8080')
+    server = viser.ViserServer(port=8081)
+    print('viser running at http://localhost:8081')
 
     pc_handle = server.scene.add_point_cloud(
         name='/scene/points',
-        points=coords_vis,
-        colors=rgb,
+        points=S['coords_vis'],
+        colors=S['rgb'],
         point_size=0.01,
     )
 
     # ── GUI 패널 ─────────────────────────────
+    with server.gui.add_folder('Scene'):
+        scene_dropdown = server.gui.add_dropdown(
+            'Scene',
+            options=regions,
+            initial_value=regions[0],
+        )
+        scene_info = server.gui.add_text('Info', initial_value='—')
+
     with server.gui.add_folder('Query'):
-        query_input = server.gui.add_text(
-            'Text Query',
-            initial_value='sofa',
-        )
+        query_input = server.gui.add_text('Text Query', initial_value='sofa')
         topk_slider = server.gui.add_slider(
-            'Top-K',
-            min=1,
-            max=10,
-            step=1,
-            initial_value=TOPK,
-        )
+            'Top-K', min=1, max=10, step=1, initial_value=TOPK)
         search_btn = server.gui.add_button('Search 🔍')
         clear_btn = server.gui.add_button('Clear Highlight')
         result_text = server.gui.add_text('Results', initial_value='—')
 
     with server.gui.add_folder('Display'):
-        show_all_boxes = server.gui.add_checkbox(
-            'Show all boxes',
-            initial_value=True,
-        )
-        show_labels = server.gui.add_checkbox(
-            'Show labels',
-            initial_value=True,
-        )
+        show_all_boxes = server.gui.add_checkbox('Show all boxes', initial_value=True)
+        show_labels = server.gui.add_checkbox('Show labels', initial_value=True)
         highlight_points = server.gui.add_checkbox(
-            'Highlight points in matched boxes',
-            initial_value=True,
-        )
+            'Highlight points in matched boxes', initial_value=True)
         pt_size = server.gui.add_slider(
-            'Point size',
-            min=0.001,
-            max=0.05,
-            step=0.001,
-            initial_value=0.01,
-        )
+            'Point size', min=0.001, max=0.05, step=0.001, initial_value=0.01)
+        score_thr = server.gui.add_slider(
+            'Score threshold', min=0.0, max=1.0, step=0.01, initial_value=0.0)
 
     # ── 상태 ─────────────────────────────────
     state = {
         'top_idx': [],
-        'pt_colors': rgb.copy().astype(np.float32),
+        'pt_colors': S['rgb'].copy().astype(np.float32),
+        'max_drawn_boxes': S['n_boxes'],  # 씬 전환 시 지울 박스 개수 추적
     }
 
     def get_label_text(i):
+        labels, classes, scores, bboxes_vis = (
+            S['labels'], S['classes'], S['scores'], S['bboxes_vis'])
         label_idx = int(labels[i])
         label_name = classes[label_idx] if 0 <= label_idx < len(classes) else f'class_{label_idx}'
-
         cx, cy, cz = bboxes_vis[i][:3]
-
         return (
             f'{label_idx}: {label_name} '
             f'score={float(scores[i]):.2f} '
@@ -278,45 +283,29 @@ def main():
             except Exception:
                 pass
             return
-
-        add_box_label(
-            server,
-            i,
-            bboxes_vis[i],
-            get_label_text(i),
-            highlighted=highlighted,
-        )
+        add_box_label(server, i, S['bboxes_vis'][i], get_label_text(i),
+                      highlighted=highlighted)
 
     def redraw_box(i, highlighted=False):
-        """
-        highlighted=True이면 쿼리에 해당하는 bbox를 빨강+두꺼운 선으로 표시.
-        highlighted=False이면 일반 bbox를 파랑+얇은 선으로 표시.
-        """
+        if float(S['scores'][i]) < score_thr.value:
+            remove_box_edges(server, i)
+            return
         if not show_all_boxes.value and not highlighted:
             remove_box_edges(server, i)
             return
-
         color = COLOR_MATCH if highlighted else COLOR_OTHERS
         lw = 6 if highlighted else 2
-
-        draw_box_lines(
-            server,
-            i,
-            bboxes_vis[i],
-            color=color,
-            line_width=lw,
-        )
+        draw_box_lines(server, i, S['bboxes_vis'][i], color=color, line_width=lw)
 
     def redraw_all():
         top_set = set(state['top_idx'])
-
-        for i in range(len(bboxes_vis)):
+        for i in range(S['n_boxes']):
             highlighted = i in top_set
             redraw_box(i, highlighted=highlighted)
             redraw_label(i, highlighted=highlighted)
 
     def reset_point_colors():
-        state['pt_colors'] = rgb.copy().astype(np.float32)
+        state['pt_colors'] = S['rgb'].copy().astype(np.float32)
         pc_handle.colors = state['pt_colors']
 
     def clear_highlight():
@@ -325,54 +314,68 @@ def main():
         result_text.value = '—'
         redraw_all()
 
-    # 초기 bbox와 label 표시
+    def clear_scene_graph():
+        """현재까지 그린 모든 박스 edge / label 제거 (씬 전환용)."""
+        for i in range(state['max_drawn_boxes']):
+            remove_box_edges(server, i)
+            try:
+                server.scene.remove_by_name(f'/labels/box_{i}')
+            except Exception:
+                pass
+
+    def load_scene(region):
+        nonlocal S
+        clear_scene_graph()
+        S = load_scene_data(region, device)
+        state['top_idx'] = []
+        state['pt_colors'] = S['rgb'].copy().astype(np.float32)
+        state['max_drawn_boxes'] = max(state['max_drawn_boxes'], S['n_boxes'])
+        pc_handle.points = S['coords_vis']
+        pc_handle.colors = state['pt_colors']
+        result_text.value = '—'
+        scene_info.value = f"{region} | pts={len(S['points'])} boxes={S['n_boxes']}"
+        redraw_all()
+        print(f"[scene] loaded {region}: {len(S['points'])} pts, {S['n_boxes']} boxes")
+
+    # 초기 표시
+    scene_info.value = f"{S['region']} | pts={len(S['points'])} boxes={S['n_boxes']}"
     redraw_all()
+
+    @scene_dropdown.on_update
+    def _(_):
+        load_scene(scene_dropdown.value)
 
     @search_btn.on_click
     def on_search(_):
         text = query_input.value.strip()
         if not text:
             return
+        if S['n_boxes'] == 0:
+            result_text.value = '(이 씬에 박스 없음)'
+            return
 
         k = int(topk_slider.value)
-
-        # 기존 강조 초기화
         state['top_idx'] = []
         reset_point_colors()
         redraw_all()
 
-        # CLIP 검색
-        top_idx, sims = query_clip(
-            clip_model,
-            device,
-            box_embeds_t,
-            text,
-            k,
-        )
-
+        top_idx, sims = query_clip(clip_model, device, S['box_embeds_t'], text, k)
         state['top_idx'] = top_idx.tolist()
 
-        # 결과 표시 + bbox 색상 변경
+        labels, classes, scores, bboxes_vis, box_pts = (
+            S['labels'], S['classes'], S['scores'], S['bboxes_vis'], S['box_pts'])
         lines = []
-
         for rank, i in enumerate(top_idx):
             label_idx = int(labels[i])
             label_name = classes[label_idx] if 0 <= label_idx < len(classes) else f'class_{label_idx}'
-            sim = float(sims[i])
-
             cx, cy, cz = bboxes_vis[i][:3]
-
             lines.append(
                 f'#{rank + 1} box={i} label={label_idx} {label_name} '
                 f'score={float(scores[i]):.2f} '
                 f'center=({cx:.2f}, {cy:.2f}, {cz:.2f})'
             )
-
-            # 쿼리에 해당하는 bbox는 빨강+두꺼운 선으로 변경
             redraw_box(i, highlighted=True)
             redraw_label(i, highlighted=True)
-
-            # 해당 bbox 안의 point도 노란색으로 강조
             if highlight_points.value:
                 pts_i = box_pts[i]
                 if len(pts_i) > 0:
@@ -380,7 +383,6 @@ def main():
 
         pc_handle.colors = state['pt_colors']
         result_text.value = '\n'.join(lines)
-
         print(f"Query: '{text}' → {lines}")
 
     @clear_btn.on_click
@@ -397,20 +399,21 @@ def main():
 
     @highlight_points.on_update
     def _(_):
-        # 포인트 강조 옵션을 바꾸면 현재 top_idx 기준으로 point color만 다시 계산
         reset_point_colors()
-
         if highlight_points.value:
             for i in state['top_idx']:
-                pts_i = box_pts[i]
+                pts_i = S['box_pts'][i]
                 if len(pts_i) > 0:
                     state['pt_colors'][pts_i] = COLOR_INBOX
-
         pc_handle.colors = state['pt_colors']
 
     @pt_size.on_update
     def _(_):
         pc_handle.point_size = float(pt_size.value)
+
+    @score_thr.on_update
+    def _(_):
+        redraw_all()
 
     # ── 루프 ─────────────────────────────────
     while True:

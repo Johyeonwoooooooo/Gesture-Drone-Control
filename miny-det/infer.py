@@ -1,6 +1,7 @@
-# infer.py
+# infer.py — .bin → UniDet3D detections .pkl, 모델 1회 로드 후 모든 REGION 일괄
 import sys
-sys.path.insert(0, '/shareHost/minyoy/unidet3d')
+#sys.path.insert(0, '/shareHost/minyoy/unidet3d')
+sys.path.insert(0, '/home/jgshin22/work/Gesture-Drone-Control/unidet3d')  # unidet3d 경로로 수정
 
 # mmdet3d보다 먼저 unidet3d 등록
 from unidet3d.data_preprocessor import Det3DDataPreprocessor_
@@ -13,15 +14,18 @@ from mmengine.config import Config
 from mmengine.runner import load_checkpoint
 from mmdet3d.registry import MODELS
 
+import scenes
 
-CFG = '/shareHost/minyoy/unidet3d/configs/unidet3d_1xb8_scannet_s3dis_multiscan_3rscan_scannetpp_arkitscenes.py'
-CKPT = '/shareHost/minyoy/unidet3d/work_dirs/unidet3d.pth'
-INPUT = '/shareHost/minyoy/project/data/my_scene.bin'
-OUT = '/shareHost/minyoy/project/data/detections.pkl'
+
+CFG = '/home/jgshin22/work/Gesture-Drone-Control/unidet3d/configs/unidet3d_1xb8_scannet_s3dis_multiscan_3rscan_scannetpp_arkitscenes.py'
+CKPT = '/home/jgshin22/work/Gesture-Drone-Control/unidet3d/work_dirs/unidet3d.pth'
 
 # 여기만 바꾸면 다른 dataset head로도 실험 가능
 # candidates: scannet, s3dis, multiscan, 3rscan, scannetpp, arkitscenes
 DATASET_NAME = 'scannetpp'
+
+SCORE_THR = 0.30
+MAX_POINTS = 80000
 
 SCANNETPP_CLASSES = [
     'table',
@@ -178,7 +182,8 @@ def get_dataset_classes(cfg, dataset_name, model=None):
     return [f'{dataset_name}_class_{i}' for i in range(200)]
 
 
-def main():
+def build_model():
+    """모델 + class name을 1회 로드 (여러 region 에 재사용)."""
     cfg = Config.fromfile(CFG)
 
     # mmengine registry에도 강제 등록
@@ -202,44 +207,34 @@ def main():
         )
 
     if DATASET_NAME == 'scannetpp':
-        CLASS_NAMES = SCANNETPP_CLASSES
+        class_names = SCANNETPP_CLASSES
     else:
-        CLASS_NAMES = get_dataset_classes(cfg, DATASET_NAME)
+        class_names = get_dataset_classes(cfg, DATASET_NAME)
 
-    print(f'{DATASET_NAME} 클래스 수: {len(CLASS_NAMES)}')
-    # =========================
+    print(f'{DATASET_NAME} 클래스 수: {len(class_names)}')
+    return model, class_names
+
+
+def infer_region(region, model, class_names):
+    """한 region .bin → detections .pkl."""
+    from mmdet3d.structures import Det3DDataSample, PointData
+
+    input_bin = scenes.bin_path(region)
+
     # 1. point cloud 로드
-    # =========================
-    pts_original = np.fromfile(INPUT, dtype=np.float32).reshape(-1, 9)
+    pts_original = np.fromfile(input_bin, dtype=np.float32).reshape(-1, 9)
     coords_original = pts_original[:, :3]
+    pts_original = pts_original[:, :6]  # model expects 6 channels (xyz + rgb)
 
-    print(f'원본 point 수: {len(pts_original)}')
-
-    # =========================
-    # 2. point 수 제한
-    # =========================
-    pts, sampled_indices = random_sample_points(
-        pts_original,
-        max_points=80000,
-    )
+    # 2. point 수 제한 (OOM 방지 — 이 단계가 webapp 백엔드에는 없음)
+    pts, sampled_indices = random_sample_points(pts_original, max_points=MAX_POINTS)
     coords = pts[:, :3]
 
-    print(f'inference point 수: {len(pts)}')
-
-    # =========================
     # 3. voxel 기반 superpoint 생성
-    # =========================
-    sp_np = make_voxel_superpoints(
-        coords,
-        voxel_size=0.10,
-    )
-
-    print(f'superpoint 수: {len(np.unique(sp_np))}')
+    sp_np = make_voxel_superpoints(coords, voxel_size=0.50)
 
     pts_tensor = torch.from_numpy(pts).float().cuda()
     sp = torch.from_numpy(sp_np).long().cuda()
-
-    from mmdet3d.structures import Det3DDataSample, PointData
 
     data_sample = Det3DDataSample()
 
@@ -264,9 +259,7 @@ def main():
         sp_pts_masks=[sp],
     )
 
-    # =========================
     # 4. inference
-    # =========================
     with torch.no_grad():
         with torch.amp.autocast('cuda'):
             results = model.predict(batch_inputs, [data_sample])
@@ -277,43 +270,16 @@ def main():
     scores = result.pred_instances_3d.scores_3d.detach().cpu().numpy()
     labels = result.pred_instances_3d.labels_3d.detach().cpu().numpy()
 
-    # =========================
     # 5. score threshold 적용
-    # =========================
-    score_thr = 0.30
-    mask = scores > score_thr
-
+    mask = scores > SCORE_THR
     bboxes = bboxes[mask]
     scores = scores[mask]
     labels = labels[mask]
 
-    print(f'score threshold: {score_thr}')
-    print(f'검출된 bbox: {len(bboxes)}개')
-
-    # label preview
-    print('상위 검출 결과:')
-    for i in range(min(10, len(bboxes))):
-        label_idx = int(labels[i])
-        if 0 <= label_idx < len(CLASS_NAMES):
-            class_name = CLASS_NAMES[label_idx]
-        else:
-            class_name = f'unknown_label_{label_idx}'
-
-        print(
-            f'  {i:02d}: '
-            f'label={label_idx}, '
-            f'class={class_name}, '
-            f'score={float(scores[i]):.3f}'
-        )
-
-    # =========================
     # 6. bbox 안에 들어가는 원본 point index 계산
-    # =========================
     box_pts = []
-
     for box in bboxes:
         cx, cy, cz, dx, dy, dz = box[:6]
-
         inbox = (
             (coords_original[:, 0] > cx - dx / 2) &
             (coords_original[:, 0] < cx + dx / 2) &
@@ -322,12 +288,9 @@ def main():
             (coords_original[:, 2] > cz - dz / 2) &
             (coords_original[:, 2] < cz + dz / 2)
         )
-
         box_pts.append(np.where(inbox)[0])
 
-    # =========================
     # 7. 저장
-    # =========================
     detections = dict(
         dataset_name=DATASET_NAME,
         points=pts_original,
@@ -337,13 +300,22 @@ def main():
         scores=scores,
         labels=labels,
         box_pts=box_pts,
-        classes=CLASS_NAMES,
+        classes=class_names,
     )
 
-    with open(OUT, 'wb') as f:
+    out = scenes.det_path(region)
+    with open(out, 'wb') as f:
         pickle.dump(detections, f)
+    print(f'[infer] {region}: {len(pts)} pts → {len(bboxes)} boxes → {out}')
 
-    print(f'완료 → {OUT}')
+
+def main():
+    regions = sys.argv[1:] or scenes.REGIONS
+    model, class_names = build_model()
+    for i, region in enumerate(regions):
+        print(f'=== ({i + 1}/{len(regions)}) {region} ===')
+        infer_region(region, model, class_names)
+    print('[infer] done.')
 
 
 if __name__ == '__main__':
