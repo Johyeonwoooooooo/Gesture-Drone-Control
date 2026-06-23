@@ -293,19 +293,27 @@ def main() -> None:
             w.visible = is_uni
 
     def run_unidet3d_match(intent: ParsedIntent, t_llm: float,
-                           force_detect: bool = False) -> None:
-        """UniDet3D backend: detect on the loaded scene, CLIP-match clip_prompt."""
+                           force_detect: bool = False,
+                           target_region: Optional[str] = None) -> None:
+        """UniDet3D backend: boxes only (original pipeline), scoped to a room.
+
+        Stays in building view, subtly tints the target room, and restricts the
+        cached detection to that room's boxes when `target_region` is set.
+        """
         asset: RegionAssets = state["asset"]  # type: ignore[assignment]
         clear_cluster_markers()
-        render_rgb()
+        upload_points(server, "/region", asset,
+                      scene_base_rgb(asset, target_region),
+                      float(point_size_slider.value))
 
-        scene_key = getattr(asset, "name", None)
+        regions = [target_region] if target_region else None
+        scene_key = f"{getattr(asset, 'name', None)}|{target_region or '*'}"
         need = (force_detect or u3d_session.det is None
                 or u3d_session.scene_key != scene_key)
         if need:
             # 1) precomputed cache (no GPU). 2) manual button → live detect.
             #    3) auto path w/o cache → ask for precompute (avoid OOM).
-            det = u3d.assemble_cached_detection(asset, cache_dir)
+            det = u3d.assemble_cached_detection(asset, cache_dir, regions=regions)
             if det is not None:
                 emb = u3d.embeds_for_det(det, text_encoder)
                 status_md.content = "_UniDet3D: loaded cached detection_"
@@ -365,41 +373,58 @@ def main() -> None:
             f"_UniDet3D: {len(det.bboxes)} boxes, {len(top_idx)} matched_"
         )
 
-    def apply_intent_scene(intent: ParsedIntent) -> str:
-        """Switch the loaded scene per the LLM's room/scope.
+    HILITE_TINT = np.array([90, 160, 255], dtype=np.float32)  # soft blue room tint
 
-        - scope == "room" + target_room=N → load the N-th room (1-based) of the
-          currently selected building.
-        - scope == "building" → load the whole current building.
-        - otherwise → keep the current scene.
-        Dropdowns are updated to match (their callbacks are muted to avoid a
-        double load). Returns a short status note for the intent panel.
+    def _resolve_region(target_room: Optional[str], building_id: str) -> Optional[str]:
+        """Map a room-id suffix (e.g. '001_004') to a full region name."""
+        if not target_room:
+            return None
+        rooms = regions_for_building(building_id, cache_dir)
+        for r in rooms:
+            if r.endswith(target_room) or r.endswith("_" + target_room):
+                return r
+        return None
+
+    def resolve_intent_scene(intent: ParsedIntent):
+        """Stay in BUILDING view; pick the target room to scope the search to.
+
+        Returns (target_region | None, note). Ensures the current building is
+        loaded as a building (so the whole house is visible and a single room
+        can be tinted inside it).
         """
         bld = building_dropdown.value
-        rooms = regions_for_building(bld, cache_dir)
-        state["suppress_scene_cb"] = True
-        try:
-            if intent.scope == "room" and intent.target_room is not None:
-                n = int(intent.target_room)
-                if 1 <= n <= len(rooms):
-                    target = rooms[n - 1]
-                    view_level.value = "room"
-                    building_dropdown.visible = False
-                    region_dropdown.visible = True
-                    region_dropdown.value = target
-                    load_and_render_region(target)
-                    return f"room {n} → `{target}`"
-                return (f"⚠ room {n} out of range (building has "
-                        f"{len(rooms)} rooms) — searching current scene")
-            if intent.scope == "building":
+        asset = state["asset"]
+        is_building_view = (asset is not None
+                            and getattr(asset, "region_slices", None) is not None
+                            and asset.name == bld)
+        if not is_building_view:
+            state["suppress_scene_cb"] = True
+            try:
                 view_level.value = "building"
                 building_dropdown.visible = True
                 region_dropdown.visible = False
                 load_and_render_building(bld)
-                return f"whole building `{bld}` ({len(rooms)} rooms)"
-            return "current scene (no room/scope specified)"
-        finally:
-            state["suppress_scene_cb"] = False
+            finally:
+                state["suppress_scene_cb"] = False
+
+        if intent.scope == "building":
+            return None, f"whole building `{bld}`"
+        if intent.target_room:
+            region = _resolve_region(intent.target_room, bld)
+            if region is not None:
+                return region, f"room `{intent.target_room}` → `{region}`"
+            return None, (f"⚠ room `{intent.target_room}` not in `{bld}` "
+                          "— searching whole building")
+        return None, f"whole building `{bld}` (no room specified)"
+
+    def scene_base_rgb(asset: RegionAssets, target_region: Optional[str]) -> np.ndarray:
+        """Building RGB with the target room subtly tinted (None → plain RGB)."""
+        rgb = rgb_for_asset(asset).astype(np.float32).copy()
+        slices = getattr(asset, "region_slices", None)
+        if target_region and slices and target_region in slices:
+            a, b = slices[target_region]
+            rgb[a:b] = 0.6 * rgb[a:b] + 0.4 * HILITE_TINT  # 은은한 tint
+        return np.clip(rgb, 0, 255).astype(np.uint8)
 
     def run_pipeline() -> None:
         if state["asset"] is None:
@@ -416,8 +441,8 @@ def main() -> None:
         intent: ParsedIntent = llm.parse(user_text)
         t_llm = time.time() - t0
 
-        # 1b. Switch scene per parsed room/scope, then refresh the asset.
-        scene_note = apply_intent_scene(intent)
+        # 1b. Keep building view; resolve which room to scope the search to.
+        target_region, scene_note = resolve_intent_scene(intent)
         asset: RegionAssets = state["asset"]  # type: ignore[assignment]
 
         raw_preview = intent.raw_text.strip()
@@ -438,13 +463,25 @@ def main() -> None:
 
         # UniDet3D backend: detect + CLIP-match instead of the heatmap path.
         if detector is not None and backend.value == "unidet3d":
-            run_unidet3d_match(intent, t_llm)
+            run_unidet3d_match(intent, t_llm, target_region=target_region)
             return
 
-        # 2. CLIP heatmap
+        # 2. CLIP heatmap (base = building RGB with the target room tinted)
         t1 = time.time()
         tf = text_encoder.encode([intent.clip_prompt])[0]
-        scores = query_single(asset, tf)
+        scores = query_single(asset, tf).astype(np.float32)
+
+        # Scope the heatmap/clusters to the target room's points (if any).
+        slices = getattr(asset, "region_slices", None)
+        if target_region and slices and target_region in slices:
+            a, b = slices[target_region]
+            room_mask = np.zeros(len(scores), dtype=bool)
+            room_mask[a:b] = True
+            in_scope = scores[room_mask]
+            scores = np.where(room_mask, scores, -1e9).astype(np.float32)
+        else:
+            room_mask = np.ones(len(scores), dtype=bool)
+            in_scope = scores
 
         # 3. Cluster
         params = ClusterParams(
@@ -454,10 +491,11 @@ def main() -> None:
             min_points=40,
             top_k=int(cluster_top_k.value),
         )
-        cutoff = float(np.percentile(scores, params.top_percentile))
-        mask = scores >= cutoff
+        cutoff = float(np.percentile(in_scope, params.top_percentile)) \
+            if in_scope.size else 0.0
+        mask = (scores >= cutoff) & room_mask
 
-        rgb_base = rgb_for_asset(asset)
+        rgb_base = scene_base_rgb(asset, target_region)
         overlay = rgb_base.copy()
         if mask.any():
             overlay[mask] = heatmap_colors(scores[mask])

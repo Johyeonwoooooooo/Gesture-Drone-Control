@@ -32,7 +32,7 @@ The drone operates in a pre-scanned 3D indoor scene made of numbered rooms. Extr
 - target_object: the object to find, as a short English noun phrase (e.g. "toilet", "tv", "refrigerator", "sofa").
 - clip_prompt:   an English CLIP-friendly prompt, usually "a <target_object>".
 - location_hint: free-form location/region context from the user (e.g. "upstairs bathroom", "next room", "kitchen"). Empty string if none.
-- target_room:   the ROOM NUMBER to search, as an integer, when the user names a specific room (e.g. "3번 방" -> 3, "room 5" -> 5). null if no specific room number is given.
+- target_room:   the ROOM ID to search. Rooms are identified by a code like "001_004" (two numbers, the scene file-name suffix). Copy that code as a string when the user names a specific room (e.g. "001_004 방" -> "001_004", "room 002_011" -> "002_011"). null if no specific room is given.
 - scope:         "room" if the user wants a specific room (target_room set), "building" if the user wants to search the WHOLE house/building (e.g. "집 전체", "온 집", "all rooms", "whole house"), or "" if unspecified.
 - action:        one of ["take_photo", "inspect", "goto", "other"].
 - return_home:   true if the user asks the drone to come back, else false.
@@ -42,11 +42,11 @@ Translate Korean object names to English. Keep it terse.
 
 Examples:
 
-User: 3번 방에서 의자 찾아줘
-{"target_object":"chair","clip_prompt":"a chair","location_hint":"room 3","target_room":3,"scope":"room","action":"goto","return_home":false}
+User: 001_004 방에서 의자 찾아줘
+{"target_object":"chair","clip_prompt":"a chair","location_hint":"room 001_004","target_room":"001_004","scope":"room","action":"goto","return_home":false}
 
-User: 5번 방에 있는 tv 사진 찍어와줘
-{"target_object":"tv","clip_prompt":"a tv","location_hint":"room 5","target_room":5,"scope":"room","action":"take_photo","return_home":true}
+User: 002_011 방에 있는 tv 사진 찍어와줘
+{"target_object":"tv","clip_prompt":"a tv","location_hint":"room 002_011","target_room":"002_011","scope":"room","action":"take_photo","return_home":true}
 
 User: 집 전체에서 냉장고 찾아줘
 {"target_object":"refrigerator","clip_prompt":"a refrigerator","location_hint":"whole house","target_room":null,"scope":"building","action":"goto","return_home":false}
@@ -67,7 +67,7 @@ class ParsedIntent:
     action: str
     return_home: bool
     raw: dict
-    target_room: Optional[int] = None   # 1-based room number, or None
+    target_room: Optional[str] = None   # room id suffix like "001_004", or None
     scope: str = ""                     # "room" | "building" | ""
     raw_text: str = ""  # full LLM generation before JSON parsing
 
@@ -123,23 +123,26 @@ class LocalLLMParser:
             location_hint=str(data.get("location_hint", "")).strip(),
             action=str(data.get("action", "goto")).strip(),
             return_home=bool(data.get("return_home", False)),
-            target_room=_coerce_room(data.get("target_room")),
+            target_room=_coerce_room_id(data.get("target_room")),
             scope=str(data.get("scope", "")).strip().lower(),
             raw=data,
             raw_text=gen,
         )
 
 
-def _coerce_room(v) -> Optional[int]:
-    """Best-effort int room number from the LLM field (handles 3, '3', '3번')."""
-    if v is None:
+def _coerce_room_id(v) -> Optional[str]:
+    """Best-effort room id like '001_004' from the LLM field.
+
+    Accepts '001_004', '1_4', 'room 002_011', etc. Each numeric part is
+    zero-padded to 3 digits to match the region file-name suffix. Returns None
+    if no `<num>_<num>` pattern is present.
+    """
+    if v is None or isinstance(v, bool):
         return None
-    if isinstance(v, bool):
+    m = re.search(r"(\d+)_(\d+)", str(v))
+    if not m:
         return None
-    if isinstance(v, (int, float)):
-        return int(v)
-    m = re.search(r"\d+", str(v))
-    return int(m.group(0)) if m else None
+    return f"{int(m.group(1)):03d}_{int(m.group(2)):03d}"
 
 
 def _extract_json(text: str) -> dict:

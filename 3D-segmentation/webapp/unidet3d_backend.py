@@ -218,19 +218,22 @@ def _load_world_payload(path: Path) -> Optional[dict]:
         return pickle.load(f)
 
 
-def assemble_cached_detection(asset, cache_dir) -> Optional[DetectionResult]:
+def assemble_cached_detection(asset, cache_dir, regions=None) -> Optional[DetectionResult]:
     """Build a DISPLAY-frame DetectionResult for `asset` from cached world pkls.
 
     - region load (`asset.region_slices is None`) → load that one region's pkl.
     - building load → concatenate every member region's pkl (keys from
       `asset.region_slices`); all are world-frame so they merge directly.
+    - `regions` (optional): restrict to these region ids (e.g. a single room
+      inside a building view). Boxes still shift into `asset`'s display frame.
 
     Boxes are shifted into the current display frame by subtracting
     `asset.center`. Returns None if any required pkl is missing (caller then
     falls back / shows a "precompute needed" status).
     """
-    slices = getattr(asset, "region_slices", None)
-    regions = list(slices.keys()) if slices else [asset.name]
+    if regions is None:
+        slices = getattr(asset, "region_slices", None)
+        regions = list(slices.keys()) if slices else [asset.name]
 
     payloads = []
     for r in regions:

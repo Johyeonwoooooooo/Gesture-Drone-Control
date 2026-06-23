@@ -43,21 +43,26 @@ python 3D-segmentation/webapp_llm/server.py \
 → Parsed intent + 3D 후보(World 좌표 포함)가 패널에 표시되고, scene에는 히트맵과
 후보별 sphere/bbox/label 마커가 렌더링됩니다.
 
-### 방별 / 집 전체 검색 (LLM 쿼리로 씬 선택)
+### 방별 / 집 전체 검색 (LLM 쿼리로 검색 범위 선택)
 
-명령 안에 **방 번호**나 **집 전체**를 말하면 LLM 이 파싱해서 검색 대상 씬을 자동 전환합니다
-(드롭다운을 직접 만질 필요 없음). 방 번호 N = **현재 선택된 building** 의 N번째 room
-(1-based, `Room` 드롭다운 순서와 동일).
+명령 안에 **방 ID**나 **집 전체**를 말하면 LLM 이 파싱해서 검색 범위를 정합니다.
+방 ID = scene 파일명 suffix 인 `NNN_MMM` 형식(예: `001_004`, `002_011`) — 현재 선택된
+**building** 안에서 그 방을 찾습니다. 화면은 **항상 building(집 전체) 뷰를 유지**하고,
+대상 방만 **은은하게 tint** 한 뒤 그 방 범위로 검색 결과를 그립니다.
 
 | 쿼리 예 | scope | 동작 |
 | --- | --- | --- |
-| `3번 방에서 의자 찾아줘` | `room` (target_room=3) | 현재 building 의 3번 room 으로 전환 후 그 방만 검색 |
-| `5번 방에 있는 tv 사진 찍어줘` | `room` (5) | 5번 room 검색 |
-| `집 전체에서 냉장고 찾아줘` | `building` | building 전체(모든 room 합본) 검색 |
-| `소파 찾아줘` | `""` | 현재 로드된 씬 그대로 검색 |
+| `001_004 방에서 의자 찾아줘` | `room` (`001_004`) | building 뷰 유지 + `..._001_004` 방 tint, 그 방만 검색 |
+| `002_011 방에 있는 tv 찍어줘` | `room` (`002_011`) | 해당 방 tint + 검색 |
+| `집 전체에서 냉장고 찾아줘` | `building` | building 전체(tint 없음) 검색 |
+| `소파 찾아줘` | `""` | building 전체 검색 |
 
-파싱된 `target_room` / `scope` / 실제 검색 씬은 **Parsed intent 패널**에 표시됩니다.
-unidet3d·mosaic3d 백엔드 모두에 적용됩니다(unidet3d 는 해당 씬의 precompute 캐시 사용).
+- **mosaic3d 백엔드**: 대상 방을 tint + 매칭 물체를 **heatmap** 으로 강조(검색 범위도 그 방).
+- **unidet3d 백엔드**: 대상 방을 tint + 그 방 박스만 detection 해서 매칭 박스를 **빨간 ★ wireframe**
+  으로 강조(원래 박스 파이프라인 그대로, precompute 캐시 사용).
+
+파싱된 `target_room` / `scope` / 실제 검색 범위는 **Parsed intent 패널**에 표시됩니다.
+방 ID 가 현재 building 에 없으면 경고 후 building 전체를 검색합니다.
 
 ## 8× RTX 3080 (8GB) 권장 모델 매핑
 
