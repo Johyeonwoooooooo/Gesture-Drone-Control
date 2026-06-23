@@ -124,6 +124,41 @@ tmux new -s mosaic-web -d \
 
 20초 정도 후 `http://<host>:8080` 접속 (CLIP 모델 로딩에 시간 걸림).
 
+### 4.1. mosaic3d + unidet3d 두 백엔드 동시 실행
+
+`Backend` 드롭다운에서 `mosaic3d`(heatmap+DBSCAN) ↔ `unidet3d`(3D detection+CLIP 매칭)을
+한 서버에서 골라 쓰려면 **`unidet3d` env 에서 서버를 띄운다**. mosaic3d/unidet3d 는 torch
+버전이 충돌해(2.2.2 vs 2.1.2 + mmdet3d + MinkowskiEngine) 한 env 에 같이 설치할 수 없지만,
+webapp 의 mosaic3d 경로는 *서빙 시* 미리 만들어둔 `feat.npy` 캐시 위에서 open_clip + viser +
+DBSCAN 만 돌리므로(spconv/SpUNet101 불필요) `unidet3d` env 에서도 그대로 동작한다. 즉
+**두 백엔드가 한 프로세스에서 같은 점군 위에서 같이 뜬다.**
+
+```bash
+# (1) unidet3d env 셋업은 webapp_llm/README.md §1 참고.
+#     그 env 에 serving용 순수-python deps 추가 (한 번만):
+conda activate unidet3d
+pip install open_clip_torch viser scikit-learn transformers accelerate
+
+# (2) 체크포인트 (한 번만): unidet3d/work_dirs/unidet3d.pth (~1GB)
+mkdir -p unidet3d/work_dirs
+curl -L -o unidet3d/work_dirs/unidet3d.pth \
+    https://github.com/filapro/unidet3d/releases/download/v1.0/unidet3d.pth
+
+# (3) --enable-unidet3d 로 두 백엔드 다 켜서 서버 실행
+python webapp/server.py --port 8080 --host 0.0.0.0 \
+    --enable-unidet3d --unidet3d-dataset scannetpp --unidet3d-device cuda:0
+```
+
+- 모델 weight 는 서버 시작 시 main thread 에서 1회 로드 (viser worker thread 에서 lazy
+  로드하면 `pkg_resources` 크래시 — 그래서 startup 워밍업). 콘솔에 unidet3d head 로드 로그가
+  뜬 뒤 viser 가 올라온다.
+- 같은 씬에서는 detection 결과를 캐시해 재쿼리 시 CLIP 매칭만 다시 한다. 입력 색상은
+  `miny-det/convert.py` 와 동일하게 `color/127.5-1` 정규화.
+- 반대로 **`mosaic3d` env 에서 띄우면** UniDet3D import 가 실패 → `--enable-unidet3d` 를 줘도
+  `Backend` 드롭다운에 `unidet3d` 옵션이 안 뜨고 mosaic3d 만 동작한다(degrade, 크래시 아님).
+- LLM 웹앱(`webapp_llm/server.py`)도 같은 플래그를 받는다 — 자세한 건
+  [`webapp_llm/README.md`](webapp_llm/README.md) "UniDet3D 백엔드 모드".
+
 GUI 컨트롤:
 - **Backend**: `mosaic3d`(heatmap+DBSCAN) / `unidet3d`(3D detection+CLIP 매칭).
   `unidet3d` 옵션은 `--enable-unidet3d` 로 켜고 `unidet3d` env 에서 서버를 띄울 때만 보임
