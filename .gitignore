@@ -102,3 +102,9 @@ Assembly-CSharp-Editor-firstpass.csproj
 # AI
 CLAUDE.md
 playground/demo_house/PROGRESS.md
+
+# RL (reinforce_learning) 생성물 — 모델/캐시/로그/결과 이미지는 추적 안 함
+playground/reinforce_learning/*.zip
+playground/reinforce_learning/*.npz
+playground/reinforce_learning/runs/
+playground/reinforce_learning/progress.png
