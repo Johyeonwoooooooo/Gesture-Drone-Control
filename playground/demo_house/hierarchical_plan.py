@@ -27,8 +27,8 @@ _BASE  = os.path.dirname(os.path.abspath(__file__))
 _GRAPH = os.path.join(_BASE, 'rooms_graph.json')
 _NPY   = os.path.join(_BASE, 'npy')
 
-# 기존 RRT* 재사용
-sys.path.insert(0, os.path.join(_BASE, '..', 'path'))
+# 기존 RRT* 재사용 (rrt_star_drone.py 는 auto_driving/draft 로 이동됨)
+sys.path.insert(0, os.path.join(_BASE, '..', 'auto_driving', 'draft'))
 import rrt_star_drone as R   # noqa: E402
 
 _KO_FONT_PATHS = [r"C:\Windows\Fonts\malgun.ttf", r"C:\Windows\Fonts\NanumGothic.ttf"]
@@ -94,6 +94,34 @@ def stair_points(ra, rb):
     if best is None:
         return None
     return best[1], best[2]   # (점 in ra, 점 in rb)
+
+
+def door_points(ra, rb, edge):
+    """door edge(A-B): 내가 직접 찍은 통로 점들만 경유점으로 (자동 중점 door_center 안 씀).
+       한 방의 passages 는 '각 점 = 다른 이웃 방으로 가는 출입구' 이므로,
+       이 edge 에 해당하는 점을 골라 A→B 순서로 돌려준다.
+         - 양쪽 다 점 있음 → 가장 가까운 쌍 [A점, B점] (그 문에 해당하는 두 출입구)
+         - 한쪽만 있음     → 그 점 [점] (상대 방 center 에 가장 가까운 출입구)
+         - 둘 다 없음       → [edge door_center] (폴백)"""
+    pa = [np.array(p, float) for p in ra.get('passages', [])]
+    pb = [np.array(p, float) for p in rb.get('passages', [])]
+    if pa and pb:
+        best = None
+        for x in pa:
+            for y in pb:
+                d = float(np.linalg.norm(x - y))
+                if best is None or d < best[0]:
+                    best = (d, x, y)
+        return [list(map(float, best[1])), list(map(float, best[2]))]
+    if pa:
+        cb = np.array(rb['center'], float)
+        x = min(pa, key=lambda p: float(np.linalg.norm(p - cb)))
+        return [list(map(float, x))]
+    if pb:
+        ca = np.array(ra['center'], float)
+        y = min(pb, key=lambda p: float(np.linalg.norm(p - ca)))
+        return [list(map(float, y))]
+    return [list(map(float, edge['door_center']))]
 
 
 def find_vertical_opening(tree, cxy, z_lo, z_hi, xy_bounds, radius=R.OBSTACLE_RADIUS,
@@ -242,8 +270,11 @@ def plan(start_room, goal_room, max_iter=4000, voxel=0.06, stair_radius=0.12):
             wps.append(list(e['door_center'])); labels.append(f"door({a}-{b}) stairs")
             plans.append({'kind': 'rrt'})
         else:
-            wps.append(list(e['door_center'])); labels.append(f"door({a}-{b})")
-            plans.append({'kind': 'rrt'})
+            pts = door_points(rooms[a], rooms[b], e)   # 직접 찍은 통로 점만 경유
+            for j, p in enumerate(pts):
+                wps.append(p)
+                labels.append(f"door({a}-{b}) 통로점{j+1}" if len(pts) > 1 else f"door({a}-{b})")
+                plans.append({'kind': 'rrt'})
     wps.append(list(rooms[goal_room]['center'])); labels.append(f"{goal_room} 목표")
     plans.append({'kind': 'rrt'})
 
@@ -267,37 +298,33 @@ def plan(start_room, goal_room, max_iter=4000, voxel=0.06, stair_radius=0.12):
                 ok = True
             else:
                 path = np.array([wps[k], wps[k + 1]]); ok = False
-        else:                                    # 일반 구간 RRT*
-            path = plan_segment(tree, gbounds, wps[k], wps[k + 1], max_iter, pad=2.5)
-            ok = path is not None
-            if not ok:
-                path = np.array([wps[k], wps[k + 1]])
+        else:                                    # 일반 구간: 직선 우선, 막히면 RRT*
+            a = np.array(wps[k], float); b = np.array(wps[k + 1], float)
+            if R.is_edge_free(a, b, tree, radius=R.OBSTACLE_RADIUS):
+                path = np.array([a, b]); ok = True       # 두 통로점 사이가 트였으면 직선
+            else:
+                path = plan_segment(tree, gbounds, wps[k], wps[k + 1], max_iter, pad=2.5)
+                ok = path is not None
+                if ok:
+                    path = np.asarray(path, float)
+                    path[0] = a; path[-1] = b             # 끝점은 정확히 찍은 통로점으로
+                else:
+                    path = np.array([a, b])
         segments.append({'path': np.asarray(path),
                          'type': 'stairs' if pl['kind'] == 'grid' else 'seg',
                          'label': labels[k]})
         tag = 'OK' if ok else ('격자 경로없음' if pl['kind'] == 'grid' else '직선대체')
         print(f"  → {labels[k]} {np.round(wps[k+1],2)}  {tag} ({len(path)}pt)")
 
-    # 전체 경로 스무딩: 같은 층 구간들은 합쳐 line-of-sight 단축(불필요한 꺾임 제거),
-    # 계단 구간은 좁아서 그대로 둔다(펴면 벽에 닿음).
-    full, buf = [], []
-
-    def _flush():
-        if len(buf) >= 2:
-            sm = R.smooth_path(np.array(buf), tree, obs_radius=R.OBSTACLE_RADIUS)
-            full.extend(sm.tolist())
-        else:
-            full.extend(buf)
-        buf.clear()
-
+    # 전체 경로 = 각 구간을 순서대로 이어붙임.
+    # ★ 구간을 가로지르는 전역 스무딩은 하지 않는다 — 그렇게 하면 line-of-sight 단축이
+    #   내가 찍은 통로점을 지름길로 잘라내 버린다. 각 구간은 이미 시작/끝이 통로점이고
+    #   내부만 (직선 or RRT*) 이라, 찍은 점들이 고정 경유점으로 그대로 보존된다.
+    full = []
     for s in segments:
-        pts = [[float(p[0]), float(p[1]), float(p[2])] for p in s['path']]
-        if s['type'] == 'stairs':
-            _flush(); full.extend(pts)
-        else:
-            buf.extend(pts)
-    _flush()
-    # 연속 중복 제거
+        for p in s['path']:
+            full.append([float(p[0]), float(p[1]), float(p[2])])
+    # 연속 중복 제거 (구간 경계에서 같은 통로점이 두 번 들어감)
     fp = [full[0]]
     for p in full[1:]:
         if np.linalg.norm(np.array(p) - np.array(fp[-1])) > 1e-6:
