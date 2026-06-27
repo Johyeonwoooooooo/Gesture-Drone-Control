@@ -87,6 +87,7 @@ class DroneHouseEnv(gym.Env):
                  goal_bonus=100.0,
                  timeout_penalty=0.0,  # 시간초과 시 페널티(배회 방지). 0이면 끔
                  sample_same_room=False,  # True면 시작·도착을 '같은 방'에서만 (쉬움)
+                 sample_same_floor=False, # True면 '같은 층'에서만(방은 달라도 됨) — 중간 난이도
                  max_goal_dist=None,   # 설정 시 시작-도착 거리 상한(m) — 가까운 목표만
                  obstacles=None):
         super().__init__()
@@ -100,8 +101,15 @@ class DroneHouseEnv(gym.Env):
 
         # 시작/도착 샘플링용 방 bbox 목록 (랜덤점이 항상 '집 안'에 찍히도록)
         g = load_graph()
-        self.rooms = [(np.array(r['bbox_min'], float), np.array(r['bbox_max'], float))
-                      for r in g['rooms'].values()]
+        self.rooms, floors = [], []
+        for r in g['rooms'].values():
+            self.rooms.append((np.array(r['bbox_min'], float), np.array(r['bbox_max'], float)))
+            floors.append(int(r.get('floor', 0)))
+        # 층 → 그 층에 속한 방 인덱스 목록 (같은 층 샘플링용)
+        self.floor_rooms = {}
+        for i, f in enumerate(floors):
+            self.floor_rooms.setdefault(f, []).append(i)
+        self.floor_keys = list(self.floor_rooms.keys())
 
         self.max_step          = float(max_step)
         self.clearance         = float(clearance)
@@ -116,6 +124,7 @@ class DroneHouseEnv(gym.Env):
         self.goal_bonus        = float(goal_bonus)
         self.timeout_penalty   = float(timeout_penalty)
         self.sample_same_room  = bool(sample_same_room)
+        self.sample_same_floor = bool(sample_same_floor)
         self.max_goal_dist     = None if max_goal_dist is None else float(max_goal_dist)
 
         self.ray_dirs = _ray_directions()
@@ -144,9 +153,17 @@ class DroneHouseEnv(gym.Env):
     def _sample_pair(self, tries=100):
         last = (None, None)
         for _ in range(tries):
-            ri = self.np_random.integers(len(self.rooms)) if self.sample_same_room else None
-            s = self._sample_free(ri)
-            g = self._sample_free(ri)
+            if self.sample_same_room:                  # 같은 방 (제일 쉬움)
+                ra = rb = int(self.np_random.integers(len(self.rooms)))
+            elif self.sample_same_floor:               # 같은 층, 방은 달라도 됨 (중간)
+                f = self.floor_keys[int(self.np_random.integers(len(self.floor_keys)))]
+                idxs = self.floor_rooms[f]
+                ra = idxs[int(self.np_random.integers(len(idxs)))]
+                rb = idxs[int(self.np_random.integers(len(idxs)))]
+            else:                                      # 집 전체 (제일 어려움, 층 넘기 포함)
+                ra = rb = None
+            s = self._sample_free(ra)
+            g = self._sample_free(rb)
             last = (s, g)
             if s is None or g is None:
                 continue

@@ -36,7 +36,8 @@ def main():
     ap.add_argument('--easy', action='store_true',
                     help='난이도 낮춤 프리셋(같은 방+≤4m+goal_radius0.6+배회페널티). 1단계용')
     # 난이도 세부 조절 (커리큘럼 단계마다 직접 지정) — --easy 안 줄 때 사용
-    ap.add_argument('--same-room', action='store_true', help='시작·도착을 같은 방에서만 뽑기')
+    ap.add_argument('--same-room', action='store_true', help='시작·도착을 같은 방에서만 (1단계)')
+    ap.add_argument('--same-floor', action='store_true', help='같은 층에서만, 방은 달라도 됨 (2단계)')
     ap.add_argument('--max-goal-dist', type=float, default=None,
                     help='시작-도착 최대 거리(m). 미지정=집 전체')
     ap.add_argument('--goal-radius', type=float, default=0.3, help='도착 판정 반경(m)')
@@ -54,10 +55,11 @@ def main():
         print("[난이도] --easy: 같은 방/≤4m, goal_radius=0.6, 배회 페널티 ON")
     else:           # 세부 인자로 직접 (커리큘럼 2단계 이후)
         env_kw = dict(goal_radius=args.goal_radius, sample_same_room=args.same_room,
-                      max_goal_dist=args.max_goal_dist, min_separation=args.min_sep,
-                      timeout_penalty=args.timeout_penalty)
-        print(f"[난이도] same_room={args.same_room} max_goal_dist={args.max_goal_dist} "
-              f"goal_radius={args.goal_radius} timeout_penalty={args.timeout_penalty}")
+                      sample_same_floor=args.same_floor, max_goal_dist=args.max_goal_dist,
+                      min_separation=args.min_sep, timeout_penalty=args.timeout_penalty)
+        print(f"[난이도] same_room={args.same_room} same_floor={args.same_floor} "
+              f"max_goal_dist={args.max_goal_dist} goal_radius={args.goal_radius} "
+              f"timeout_penalty={args.timeout_penalty}")
 
     env = Monitor(DroneHouseEnv(**env_kw))
     Algo = SAC if args.algo == 'sac' else PPO
