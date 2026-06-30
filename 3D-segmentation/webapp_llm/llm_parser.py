@@ -94,9 +94,20 @@ class LocalLLMParser:
         self.device = next(self.model.parameters()).device
 
     @torch.no_grad()
-    def parse(self, user_text: str, max_new_tokens: int = 200) -> ParsedIntent:
+    def parse(self, user_text: str, max_new_tokens: int = 200,
+              room_directory: str = "") -> ParsedIntent:
+        system = SYSTEM_PROMPT
+        if room_directory:
+            system = (
+                f"{SYSTEM_PROMPT}\n"
+                "Use this room directory to pick target_room by floor/type when the "
+                "user names a room by description (e.g. '위층 화장실', '거실'). Choose "
+                "the room_id whose floor and type/aliases best match; copy its code "
+                "into target_room and set scope='room'.\n"
+                f"{room_directory}\n"
+            )
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system},
             {"role": "user", "content": user_text.strip()},
         ]
         prompt = self.tokenizer.apply_chat_template(

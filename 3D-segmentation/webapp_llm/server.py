@@ -56,6 +56,11 @@ from webapp.server import (  # noqa: E402
 from webapp import unidet3d_backend as u3d  # noqa: E402  (alt detection backend)
 
 from webapp_llm.llm_parser import LocalLLMParser, ParsedIntent  # noqa: E402
+from webapp_llm.room_labels import (  # noqa: E402
+    load_room_labels,
+    match_room_by_hint,
+    room_directory_text,
+)
 
 
 def main() -> None:
@@ -122,7 +127,15 @@ def main() -> None:
         "cluster_handles": [],
         "region_label_handles": [],
         "suppress_scene_cb": False,  # mute dropdown callbacks during LLM-driven scene switch
+        "room_labels_cache": {},     # building_id -> {region_id: {...}} (lazy)
     }
+
+    def room_labels_for(building_id: str) -> Dict[str, Dict]:
+        """Per-building room labels (from labels.json), cached. {} if absent."""
+        cache: Dict[str, Dict] = state["room_labels_cache"]  # type: ignore[assignment]
+        if building_id not in cache:
+            cache[building_id] = load_room_labels(building_id, cache_dir)
+        return cache[building_id]
 
     # ---------------- GUI ----------------
     gui_md_title = server.gui.add_markdown(
@@ -415,6 +428,15 @@ def main() -> None:
                 return region, f"room `{intent.target_room}` → `{region}`"
             return None, (f"⚠ room `{intent.target_room}` not in `{bld}` "
                           "— searching whole building")
+        # No explicit room id: fall back to matching the free-form hint against
+        # this building's room labels/aliases/floor (e.g. "위층 화장실").
+        hint_room = match_room_by_hint(
+            intent.location_hint, intent.target_object, room_labels_for(bld))
+        if hint_room:
+            region = _resolve_region(hint_room, bld)
+            if region is not None:
+                return region, (f"hint `{intent.location_hint}` → "
+                                f"room `{hint_room}` → `{region}`")
         return None, f"whole building `{bld}` (no room specified)"
 
     def scene_base_rgb(asset: RegionAssets, target_region: Optional[str]) -> np.ndarray:
@@ -435,10 +457,12 @@ def main() -> None:
             status_md.content = "_query is empty_"
             return
 
-        # 1. LLM parse
+        # 1. LLM parse (inject the current building's room directory so the LLM
+        #    can resolve a room named by floor/type, e.g. "위층 화장실").
         t0 = time.time()
         status_md.content = "_parsing with LLM ..._"
-        intent: ParsedIntent = llm.parse(user_text)
+        room_dir = room_directory_text(room_labels_for(building_dropdown.value))
+        intent: ParsedIntent = llm.parse(user_text, room_directory=room_dir)
         t_llm = time.time() - t0
 
         # 1b. Keep building view; resolve which room to scope the search to.
