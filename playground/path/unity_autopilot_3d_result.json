@@ -1,0 +1,26 @@
+{
+  "planner": "astar_3d",
+  "success": true,
+  "execute_enabled": true,
+  "plan_time_sec": 1.5351610000361688,
+  "execute_time_sec": 24.67054730001837,
+  "path_length": 134.39100086780908,
+  "smoothness_deg": 746.9076732098914,
+  "waypoint_count": 54,
+  "mean_tracking_error": 2.261075465058836,
+  "max_tracking_error": 4.654772839784989,
+  "final_position_error": 1.424991249095937,
+  "had_collision": false,
+  "collision_count": 0,
+  "rc_commands_sent": 480,
+  "goal_world": [
+    47.173199999999994,
+    59.2312,
+    56.465500000000006
+  ],
+  "start_world": [
+    -36.0,
+    10.0,
+    7.0
+  ]
+}
