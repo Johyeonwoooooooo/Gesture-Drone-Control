@@ -35,8 +35,8 @@ GRID_SIZE   = 0.02   # GridSample voxel (학습 설정과 동일)
 MAX_POINTS  = 10_000_000  # 실질적 제한 없음 — 4090 24GB 여유
 
 # DBSCAN 설정 (중심점 클러스터링)
-DBSCAN_EPS        = 0.3   # m 단위
-DBSCAN_MIN_POINTS = 50    # 최소 포인트 수
+DBSCAN_EPS        = 0.2   # m 단위
+DBSCAN_MIN_POINTS = 200    # 최소 포인트 수
 
 # 무시할 배경 클래스 (wall, floor)
 IGNORE_CLASSES = {'wall', 'floor'}

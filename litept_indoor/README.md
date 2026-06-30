@@ -46,6 +46,8 @@ cd /shareHost/minyoy/litept_indoor
 
 ## 시각화 실행
 
+# http://localhost:8080 접속
+# 왼쪽 패널 "🔍 검색" → 쿼리 입력 → [검색] 버튼
 ```bash
 cd /shareHost/minyoy/litept_indoor
 
