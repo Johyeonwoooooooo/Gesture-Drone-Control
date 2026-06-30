@@ -25,7 +25,13 @@ if str(CURRENT_DIR) not in sys.path:
 
 from integrated_path_benchmark import compute_path_length, compute_smoothness  # noqa: E402
 from unity_bridge import DroneState, UnityTelloBridge  # noqa: E402
-from unity_scene_voxel import UnitySceneVoxel, VoxelPoint, load_unity_scene_voxel  # noqa: E402
+from unity_scene_voxel import (  # noqa: E402
+    IntrusionReport,
+    UnitySceneVoxel,
+    VoxelPoint,
+    check_world_points_against_voxels,
+    load_unity_scene_voxel,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DRONE_PATHFINDING_DIR = REPO_ROOT / "drone_pathfinding"
@@ -59,6 +65,14 @@ class Autopilot3DResult:
     rc_commands_sent: int
     goal_world: Tuple[float, float, float]
     start_world: Tuple[float, float, float]
+    # Voxel-map intrusion check (independent of Unity physics).
+    # "planned_*" comes from the planned waypoints, "trajectory_*" from the flown path.
+    planned_intrusion_steps: int
+    planned_intrusion_ratio: float
+    planned_min_clearance_m: float
+    trajectory_intrusion_steps: int
+    trajectory_intrusion_ratio: float
+    trajectory_min_clearance_m: float
 
 
 def grid_path_to_world_waypoints(
@@ -225,6 +239,38 @@ def save_unity_path_preview(
     output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def _json_safe(obj):
+    """Recursively replace inf/-inf/nan with None so the output is valid JSON
+    (Unity JsonUtility and strict parsers reject the default `Infinity` token)."""
+    if isinstance(obj, float):
+        return obj if math.isfinite(obj) else None
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(v) for v in obj]
+    return obj
+
+
+def save_trajectory(
+    output_path: Path,
+    planner: str,
+    trajectory: Sequence[Tuple[float, float, float]],
+    world_waypoints: Sequence[Tuple[float, float, float]],
+    report: IntrusionReport,
+) -> None:
+    """Dump the flown trajectory + planned path for offline inspection/visualization."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "planner": planner,
+        "intrusion_steps": report.intrusion_points,
+        "intrusion_ratio": report.intrusion_ratio,
+        "min_clearance_m": report.min_clearance_m,
+        "trajectory_world": [{"x": p[0], "y": p[1], "z": p[2]} for p in trajectory],
+        "path_world": [{"x": p[0], "y": p[1], "z": p[2]} for p in world_waypoints],
+    }
+    output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
 def run_autopilot_3d(
     scene_voxel: UnitySceneVoxel,
     bridge: UnityTelloBridge | None,
@@ -233,6 +279,10 @@ def run_autopilot_3d(
     goal_z: float | None,
     execute: bool,
     unity_path_json: Path,
+    start_x: float | None = None,
+    start_y: float | None = None,
+    start_z: float | None = None,
+    trajectory_out: Path | None = None,
     max_speed: float = 4.0,
     dt: float = 0.05,
     arrival_threshold: float = 1.2,
@@ -241,22 +291,35 @@ def run_autopilot_3d(
     planner_name = "astar_3d"
     planner = AStarPlanner()
 
-    if bridge is None:
-        raise RuntimeError("A live Unity bridge is currently required for 3D planning, so the current drone position can be used as the start.")
+    start_specified = start_x is not None and start_y is not None and start_z is not None
 
-    init_reply = bridge.initialize_sdk()
-    if init_reply not in {"ok", "timeout"}:
-        raise RuntimeError(f"Simulator handshake failed: {init_reply}")
+    # A live bridge is needed to execute, and to read the current drone position
+    # when an explicit start is not given. Pure planning + preview can run offline.
+    if execute and bridge is None:
+        raise RuntimeError("--execute requires a live Unity bridge.")
+    if bridge is None and not start_specified:
+        raise RuntimeError(
+            "Provide --start-x/--start-y/--start-z, or run with a live Unity bridge "
+            "so the current drone position can be used as the start."
+        )
 
-    state = bridge.wait_for_state(timeout=3.0)
-    if state is None:
-        raise RuntimeError("No simulator state received. Check Unity play mode and state port.")
+    if bridge is not None:
+        init_reply = bridge.initialize_sdk()
+        if init_reply not in {"ok", "timeout"}:
+            raise RuntimeError(f"Simulator handshake failed: {init_reply}")
 
-    start_world = (state.x, state.y, state.z)
+    if start_specified:
+        start_world = (float(start_x), float(start_y), float(start_z))
+    else:
+        state = bridge.wait_for_state(timeout=3.0)
+        if state is None:
+            raise RuntimeError("No simulator state received. Check Unity play mode and state port.")
+        start_world = (state.x, state.y, state.z)
+
     start_grid = scene_voxel.clamp_grid_point(scene_voxel.world_to_grid(*start_world))
     nearest_start = scene_voxel.find_nearest_free(start_grid)
     if nearest_start is None:
-        raise RuntimeError("Could not find a nearby free 3D voxel around the current drone position.")
+        raise RuntimeError("Could not find a nearby free 3D voxel around the start position.")
     start_grid = nearest_start
 
     if goal_x is None or goal_y is None or goal_z is None:
@@ -287,6 +350,12 @@ def run_autopilot_3d(
     world_waypoints[-1] = (goal_x, goal_y, goal_z)
     save_unity_path_preview(unity_path_json, planner_name, world_waypoints)
 
+    # Verification (independent of Unity physics): does the *planned* path itself
+    # pass through occupied voxels? Non-zero here points at the planner/coordinate
+    # mapping (cause A); zero here but non-zero on the flown trajectory points at
+    # tracking error / sim collision (cause B).
+    planned_report = check_world_points_against_voxels(scene_voxel, world_waypoints)
+
     if not execute:
         return Autopilot3DResult(
             planner=planner_name,
@@ -305,6 +374,12 @@ def run_autopilot_3d(
             rc_commands_sent=0,
             goal_world=world_waypoints[-1],
             start_world=start_world,
+            planned_intrusion_steps=planned_report.intrusion_points,
+            planned_intrusion_ratio=planned_report.intrusion_ratio,
+            planned_min_clearance_m=planned_report.min_clearance_m,
+            trajectory_intrusion_steps=0,
+            trajectory_intrusion_ratio=0.0,
+            trajectory_min_clearance_m=float("inf"),
         )
 
     takeoff_reply = bridge.takeoff()
@@ -326,6 +401,7 @@ def run_autopilot_3d(
     )
 
     tracking_errors: List[float] = []
+    trajectory: List[Tuple[float, float, float]] = [(state.x, state.y, state.z)]
     rc_count = 0
     execute_start = time.perf_counter()
     success = False
@@ -341,6 +417,7 @@ def run_autopilot_3d(
         collision_count = max(collision_count, state.collision_count)
 
         current_pos = np.array([state.x, state.y, state.z], dtype=float)
+        trajectory.append((state.x, state.y, state.z))
         velocity = controller.compute(tuple(current_pos), dt=dt)
         speed = float(np.linalg.norm(velocity))
         if speed > max_speed:
@@ -373,6 +450,15 @@ def run_autopilot_3d(
     had_collision = had_collision or final_state.had_collision
     collision_count = max(collision_count, final_state.collision_count)
 
+    trajectory.append((final_state.x, final_state.y, final_state.z))
+
+    # Did the *flown* path pass through occupied voxels, regardless of whether
+    # Unity's collision callback fired?
+    trajectory_report = check_world_points_against_voxels(scene_voxel, trajectory)
+
+    if trajectory_out is not None:
+        save_trajectory(trajectory_out, planner_name, trajectory, world_waypoints, trajectory_report)
+
     return Autopilot3DResult(
         planner=planner_name,
         success=success,
@@ -390,12 +476,21 @@ def run_autopilot_3d(
         rc_commands_sent=rc_count,
         goal_world=world_waypoints[-1],
         start_world=start_world,
+        planned_intrusion_steps=planned_report.intrusion_points,
+        planned_intrusion_ratio=planned_report.intrusion_ratio,
+        planned_min_clearance_m=planned_report.min_clearance_m,
+        trajectory_intrusion_steps=trajectory_report.intrusion_points,
+        trajectory_intrusion_ratio=trajectory_report.intrusion_ratio,
+        trajectory_min_clearance_m=trajectory_report.min_clearance_m,
     )
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--map-json", required=True, help="Path to the exported 3D voxel JSON.")
+    parser.add_argument("--start-x", type=float, help="Explicit start X (Unity world). Requires --start-y/--start-z.")
+    parser.add_argument("--start-y", type=float)
+    parser.add_argument("--start-z", type=float)
     parser.add_argument("--goal-x", type=float)
     parser.add_argument("--goal-y", type=float)
     parser.add_argument("--goal-z", type=float)
@@ -406,6 +501,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--execute", action="store_true", help="Actually fly the planned 3D path in Unity.")
     parser.add_argument("--path-json", default=str(DEFAULT_UNITY_PATH_JSON))
     parser.add_argument("--output", default=str(CURRENT_DIR / "unity_autopilot_3d_result.json"))
+    parser.add_argument(
+        "--trajectory-out",
+        default=None,
+        help="When executing, save the flown trajectory + planned path to this JSON for inspection.",
+    )
     return parser.parse_args()
 
 
@@ -413,13 +513,19 @@ def main() -> None:
     args = parse_args()
     scene_voxel = load_unity_scene_voxel(args.map_json)
 
-    bridge = UnityTelloBridge(
-        unity_host=args.host,
-        command_port=args.command_port,
-        local_command_port=args.local_command_port,
-        local_state_port=args.local_state_port,
-    )
-    bridge.connect()
+    start_specified = args.start_x is not None and args.start_y is not None and args.start_z is not None
+
+    # Offline planning (no --execute) with an explicit start does not need Unity running.
+    bridge: UnityTelloBridge | None = None
+    if args.execute or not start_specified:
+        bridge = UnityTelloBridge(
+            unity_host=args.host,
+            command_port=args.command_port,
+            local_command_port=args.local_command_port,
+            local_state_port=args.local_state_port,
+        )
+        bridge.connect()
+
     try:
         result = run_autopilot_3d(
             scene_voxel=scene_voxel,
@@ -429,13 +535,19 @@ def main() -> None:
             goal_z=args.goal_z,
             execute=args.execute,
             unity_path_json=Path(args.path_json),
+            start_x=args.start_x,
+            start_y=args.start_y,
+            start_z=args.start_z,
+            trajectory_out=Path(args.trajectory_out) if args.trajectory_out else None,
         )
     finally:
-        bridge.close()
+        if bridge is not None:
+            bridge.close()
 
     output_path = Path(args.output)
-    output_path.write_text(json.dumps(asdict(result), indent=2), encoding="utf-8")
-    print(json.dumps(asdict(result), indent=2))
+    safe_result = _json_safe(asdict(result))
+    output_path.write_text(json.dumps(safe_result, indent=2), encoding="utf-8")
+    print(json.dumps(safe_result, indent=2))
     print(f"\nSaved 3D autopilot metrics to {output_path}")
 
 
