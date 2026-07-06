@@ -2,25 +2,31 @@
   "planner": "astar_3d",
   "success": true,
   "execute_enabled": true,
-  "plan_time_sec": 1.5351610000361688,
-  "execute_time_sec": 24.67054730001837,
-  "path_length": 134.39100086780908,
-  "smoothness_deg": 746.9076732098914,
-  "waypoint_count": 54,
-  "mean_tracking_error": 2.261075465058836,
-  "max_tracking_error": 4.654772839784989,
-  "final_position_error": 1.424991249095937,
+  "plan_time_sec": 0.08548290003091097,
+  "execute_time_sec": 10.944248399930075,
+  "path_length": 50.951638472475,
+  "smoothness_deg": 376.41128215968615,
+  "waypoint_count": 19,
+  "mean_tracking_error": 2.3947145468002873,
+  "max_tracking_error": 4.471407405951735,
+  "final_position_error": 0.9382411950026527,
   "had_collision": false,
   "collision_count": 0,
-  "rc_commands_sent": 480,
+  "rc_commands_sent": 173,
   "goal_world": [
-    47.173199999999994,
-    59.2312,
-    56.465500000000006
+    17.6119,
+    25.8169,
+    -28.864400000000003
   ],
   "start_world": [
-    -36.0,
-    10.0,
-    7.0
-  ]
+    53.6,
+    7.8,
+    -8.9
+  ],
+  "planned_intrusion_steps": 0,
+  "planned_intrusion_ratio": 0.0,
+  "planned_min_clearance_m": 2.0,
+  "trajectory_intrusion_steps": 4,
+  "trajectory_intrusion_ratio": 0.022857142857142857,
+  "trajectory_min_clearance_m": 1.3854824430500763
 }

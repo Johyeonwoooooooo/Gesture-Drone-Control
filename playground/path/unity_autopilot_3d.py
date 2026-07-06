@@ -382,6 +382,14 @@ def run_autopilot_3d(
             trajectory_min_clearance_m=float("inf"),
         )
 
+    if start_specified:
+        # Move the simulator drone to the requested start so the flight actually
+        # begins there (planning start and physical start stay consistent).
+        setpos_reply = bridge.set_position(*start_world)
+        if setpos_reply not in {"ok", "timeout"}:
+            raise RuntimeError(f"setpos failed: {setpos_reply}")
+        time.sleep(0.2)
+
     takeoff_reply = bridge.takeoff()
     if takeoff_reply not in {"ok", "timeout"}:
         raise RuntimeError(f"Takeoff failed: {takeoff_reply}")

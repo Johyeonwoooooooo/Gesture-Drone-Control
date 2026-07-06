@@ -87,6 +87,12 @@ class UnityTelloBridge:
     def send_rc(self, lr: int, fb: int, ud: int, yaw: int) -> str:
         return self.send_command(f"rc {lr} {fb} {ud} {yaw}")
 
+    def set_position(self, x: float, y: float, z: float, yaw: float | None = None) -> str:
+        """Teleport the simulator drone to a world-space start position (sim only)."""
+        if yaw is None:
+            return self.send_command(f"setpos {x} {y} {z}")
+        return self.send_command(f"setpos {x} {y} {z} {yaw}")
+
     def takeoff(self) -> str:
         return self.send_command("takeoff")
 
