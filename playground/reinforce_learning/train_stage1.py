@@ -6,7 +6,7 @@ train_stage1.py — 커리큘럼 1단계: 같은 방, 가까운 목표 (첫 성�
   python train_stage1.py                      # 기본 30만 스텝, model_s1.zip 저장
   python train_stage1.py --timesteps 500000
 
-다음: train_stage2.py  (이 결과 model_s1 을 이어받음)
+다음: train_stage2a.py  (이 결과 model_s1 을 이어받음)
 """
 import os
 import argparse

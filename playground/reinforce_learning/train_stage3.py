@@ -1,7 +1,7 @@
 """
 train_stage3.py — 커리큘럼 3단계: 전 층 (집 전체, 층 넘기 포함)
 ─────────────────────────────────────────────────────────────
-2단계(model_s2)를 이어받아 집 전체 아무 두 점으로 비행 학습.
+2단계 최종(model_s2d)을 이어받아 집 전체 아무 두 점으로 비행 학습.
 
   python train_stage3.py
   python train_stage3.py --timesteps 800000
@@ -27,7 +27,7 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser(description='커리큘럼 3단계: 전 층')
     ap.add_argument('--timesteps', type=int, default=600_000)
     ap.add_argument('--out', default='model_s3')
-    ap.add_argument('--init-from', default='model_s2', help='이어받을 2단계 모델')
+    ap.add_argument('--init-from', default='model_s2d', help='이어받을 2단계(2d) 모델')
     ap.add_argument('--seed', type=int, default=0)
     a = ap.parse_args()
     print("⚠️ 층 넘기(계단)는 reactive 정책으론 매우 어려움. README/CLAUDE.md 의 하이브리드 참고.")
