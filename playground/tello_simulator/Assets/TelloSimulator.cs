@@ -24,6 +24,15 @@ public class TelloSimulator : MonoBehaviour
     [Tooltip("Clamp the drone so it never drops below this world-space Y value.")]
     public float minHeight = 0.5f;
 
+    [Header("Flight Visualization")]
+    [Tooltip("Draw a colored trail behind the drone while it flies.")]
+    public bool showFlightTrail = true;
+    public Color trailColor = new Color(0.2f, 0.85f, 1f, 0.9f);
+    public float trailWidth = 0.3f;
+    [Tooltip("Drop a red sphere marker at every recorded collision position.")]
+    public bool markCollisions = true;
+    public float collisionMarkerSize = 1.2f;
+
     [Header("Collision Settings")]
     [Tooltip("Radius of the sphere used to detect environment collisions every frame, " +
              "independent of the CharacterController callback. Keep it below minHeight so " +
@@ -62,6 +71,9 @@ public class TelloSimulator : MonoBehaviour
     private int collisionCount = 0;
 
     private CharacterController cc;
+    private TrailRenderer trail;
+    private readonly System.Collections.Generic.List<GameObject> collisionMarkers =
+        new System.Collections.Generic.List<GameObject>();
 
     // Reused buffer for the per-frame collision probe so it does not allocate.
     private readonly Collider[] overlapResults = new Collider[16];
@@ -71,7 +83,26 @@ public class TelloSimulator : MonoBehaviour
         Application.runInBackground = true;
         cc = GetComponent<CharacterController>();
         DisableLeftoverPhysics();
+        if (showFlightTrail)
+        {
+            SetupFlightTrail();
+        }
         StartUDPServer();
+    }
+
+    void SetupFlightTrail()
+    {
+        GameObject trailGO = new GameObject("FlightTrail");
+        trailGO.transform.SetParent(transform, false);
+        trail = trailGO.AddComponent<TrailRenderer>();
+        trail.time = Mathf.Infinity;              // keep the whole flight visible
+        trail.minVertexDistance = 0.15f;
+        trail.startWidth = trailWidth;
+        trail.endWidth = trailWidth;
+        trail.material = new Material(Shader.Find("Sprites/Default"));
+        trail.startColor = trailColor;
+        trail.endColor = trailColor;
+        trail.emitting = false;                   // only while flying
     }
 
     // The tello model comes from a URDF import that leaves gravity-driven
@@ -229,6 +260,11 @@ public class TelloSimulator : MonoBehaviour
             hadCollision = false;
             collisionCount = 0;
             lastCollisionRecordTime = -10f;
+            ClearFlightVisuals();
+            if (trail != null)
+            {
+                trail.emitting = true;
+            }
             // Takeoff is a deliberate ground-escape: lift the drone to at least minHeight.
             // We set the position directly (not cc.Move) on purpose, because a CharacterController
             // that starts embedded in the floor cannot climb out with cc.Move and would stay stuck.
@@ -244,6 +280,10 @@ public class TelloSimulator : MonoBehaviour
             isFlying = false;
             targetLR = targetFB = targetUD = targetYaw = 0f;
             currentLR = currentFB = currentUD = currentYaw = 0f;
+            if (trail != null)
+            {
+                trail.emitting = false;   // freeze the trail so the flight stays reviewable
+            }
             SendState();
             return;
         }
@@ -388,6 +428,41 @@ public class TelloSimulator : MonoBehaviour
         hadCollision = true;
         collisionCount += 1;
         lastCollisionRecordTime = Time.time;
+
+        if (markCollisions)
+        {
+            SpawnCollisionMarker(transform.position);
+        }
+    }
+
+    void SpawnCollisionMarker(Vector3 position)
+    {
+        GameObject marker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        marker.name = $"CollisionMarker_{collisionCount}";
+        marker.transform.position = position;
+        marker.transform.localScale = Vector3.one * collisionMarkerSize;
+        // The marker must not collide with anything (it would trigger more collisions).
+        Destroy(marker.GetComponent<Collider>());
+        Renderer rend = marker.GetComponent<Renderer>();
+        rend.material = new Material(Shader.Find("Sprites/Default"));
+        rend.material.color = new Color(1f, 0.15f, 0.1f, 0.95f);
+        collisionMarkers.Add(marker);
+    }
+
+    void ClearFlightVisuals()
+    {
+        if (trail != null)
+        {
+            trail.Clear();
+        }
+        foreach (GameObject marker in collisionMarkers)
+        {
+            if (marker != null)
+            {
+                Destroy(marker);
+            }
+        }
+        collisionMarkers.Clear();
     }
 
     void OnDrawGizmosSelected()
