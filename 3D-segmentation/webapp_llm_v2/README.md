@@ -43,6 +43,10 @@ between `00800_TEEsavR23oF` / `00809_Qpor2mEya8F`), `quit`.
 - **red** = localized target + bbox, **green** = planned path, **blue** = path
   start.
 - **Show room labels** checkbox (viser GUI) toggles the per-room ID labels.
+- After planning + SDK export, the DRONE marker **flies slowly along the path**
+  (waypoint by waypoint) to the goal. Tune with `--anim-speed` (m/s, default 1.0)
+  and `--anim-fps`; `--no-anim` disables it (jump straight to the goal). The
+  terminal is blocked for the flight duration.
 
 ### Key flags
 - `--algo astar|rrt` — A* (default) or RRT*.

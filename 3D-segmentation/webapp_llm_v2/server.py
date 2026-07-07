@@ -99,6 +99,13 @@ def main() -> None:
     ap.add_argument("--out-dir", default=str(_THIS.parent / "out"))
     ap.add_argument("--point-size", type=float, default=0.02)
     ap.add_argument("--overlay-alpha", type=float, default=0.7)
+    # drone flight animation (viser)
+    ap.add_argument("--anim-speed", type=float, default=1.0,
+                    help="Drone animation speed (m/s) along the planned path.")
+    ap.add_argument("--anim-fps", type=float, default=20.0,
+                    help="Animation frames per second.")
+    ap.add_argument("--no-anim", action="store_true",
+                    help="Skip the drone fly-through; jump straight to the goal.")
     args = ap.parse_args()
 
     cache_dir = Path(args.cache_dir)
@@ -265,6 +272,22 @@ def main() -> None:
                                    position=(pos[0], pos[1], pos[2] + 0.3)),
         ]
 
+    def animate_drone(asset: RegionAssets, path_world) -> None:
+        """Fly the DRONE marker slowly along the planned path (world waypoints)."""
+        pts = [np.asarray(p, dtype=float) for p in path_world]
+        if len(pts) < 2 or args.no_anim:
+            render_drone_marker(asset, pts[-1] if pts else state["home"])
+            return
+        step = max(1e-3, float(args.anim_speed) / max(1.0, float(args.anim_fps)))
+        dt = 1.0 / max(1.0, float(args.anim_fps))
+        for i in range(1, len(pts)):
+            a, b = pts[i - 1], pts[i]
+            seg = float(np.linalg.norm(b - a))
+            n = max(1, int(np.ceil(seg / step)))
+            for k in range(1, n + 1):
+                render_drone_marker(asset, a + (b - a) * (k / n))
+                time.sleep(dt)
+
     @show_labels_cb.on_update
     def _(_):
         state["show_labels"] = bool(show_labels_cb.value)
@@ -404,9 +427,13 @@ def main() -> None:
         out_path = sdk_export.save_program(program, args.out_dir)
         print(f"[sdk] {len(program['commands'])} commands -> {out_path}")
 
-        # 8. Advance the mission (drone is now at the goal)
+        # 8. Fly the drone slowly along the path, then advance the mission.
+        if not args.no_anim:
+            flight_s = info["length_m"] / max(1e-3, float(args.anim_speed))
+            print(f"[fly] drone flying {info['length_m']:.1f} m at "
+                  f"{args.anim_speed} m/s (~{flight_s:.0f}s) ...")
+        animate_drone(asset, path)
         state["last_goal"] = goal_world
-        render_drone_marker(asset, goal_world)
 
     # --------------------------------------------------------------- initial load
     load_building_scene(args.building)
