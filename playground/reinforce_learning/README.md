@@ -25,16 +25,40 @@ pip install gymnasium stable-baselines3 tensorboard tqdm rich
 - `tensorboard`(학습곡선), `tqdm`+`rich`(진행바)는 없으면 자동 생략되지만 있으면 편함
 - 점군/충돌검사용 numpy<2, scipy, open3d 는 tello 환경에 이미 있음
 
-## 사용 순서
+## 사용 순서 (커리큘럼 ★권장)
+
+전 집을 한 번에 학습하면 sparse reward 함정으로 성공률 0에 머문다.
+**쉬움→어려움 단계별**로, 각 단계가 이전 모델을 `--init-from` 으로 이어받는다:
 
 ```powershell
-python check_env.py                       # 1. 환경 검증 (학습 전 필수)
-python train.py --easy --timesteps 300000 # 2. 쉬운 버전부터 (첫 성공 빨리 보기) ★권장 시작
-python train.py --timesteps 1000000       # 3. 본 학습(전체 난이도), model.zip 저장
-python evaluate.py --pick                 # 4. 점 2개 찍어 비행 결과 3D 확인
+python check_env.py          # 0. 환경 검증 (학습 전 필수)
+python train_stage1.py       # 1.  같은 방            → model_s1
+python train_stage2a.py      # 2a. 문턱 넘기(문 통과) → model_s2a
+python train_stage2b.py      # 2b. 인접 방(문 1개)    → model_s2b
+python train_stage2c.py      # 2c. 같은 층 ≤8m        → model_s2c
+python train_stage2d.py      # 2d. 같은 층 무제한     → model_s2d
+python evaluate.py --pick --model model_s2d --goal-radius 0.5   # 3D 비행 확인
 ```
 
-### 난이도 (`--easy`)
+| 단계 | 시작·도착 샘플링 | 새로 배우는 것 | 진급 기준(간이평가) |
+|---|---|---|---|
+| 1 | 같은 방, ≤4m | 기본 비행/장애물 회피 | ≥ 0.7 |
+| 2a | 문 양쪽 1.5m 이내 | **문 통과** (2단계 병목 스킬) | ≥ 0.8 |
+| 2b | 문 하나로 연결된 두 방, ≤5m | 방 비행 + 문 통과 결합 | ≥ 0.7 |
+| 2c | 같은 층 아무 방, ≤8m | 문 1~2개 라우팅 | ≥ 0.6 |
+| 2d | 같은 층, 거리 무제한 | 2단계 최종 목표 | — |
+
+- 각 단계 도중 성과 확인: `python plot_progress.py` (success_rate 곡선)
+- 2b부터는 이전 단계 에피소드를 20~30% 섞어(`easy_mix`) 앞 단계 실력 망각을 방지
+- 문 경유 에피소드(2a/2b, 혼합 포함)는 **문 경유 진척 보상**: 문을 지나기 전엔
+  (현위치→문)+(문→목표) 거리가 줄어야 +보상 — 직선거리 보상이 벽 쪽으로 유인하는
+  문제를 고침. 문 통과(중심 근접 or 목표 직선 가시) 후엔 직선 진척으로 전환
+- 수동 표시된 문 중심(door_center)이 문틀에 박힌 경우가 있어(5/20개 통과 불가였음)
+  환경이 자동으로 개구부 중앙(주변 최대 여유 점)으로 스냅해서 사용
+- 정체되면(성공률 안 오름) 그 단계 `--timesteps` 를 늘리거나 이전 단계로 돌아가 더 학습
+- 단일 스크립트로 직접 난이도를 지정하고 싶으면 구버전 `train.py` (아래) 사용
+
+### 난이도 (`--easy`, 구버전 train.py)
 
 전체 집(3층 22방) 아무 두 점이나는 단순 정책엔 너무 어려워 `success_rate` 가 0 근처에
 머물기 쉽다. RL 은 **한 번도 성공 못 한 행동은 못 배우므로**, 먼저 쉬운 문제로 첫 성공을
@@ -70,10 +94,13 @@ python evaluate.py --start 6 6 4.2 --goal 2 0 1.2
 
 | 파일 | 역할 |
 |---|---|
-| `drone_env.py` | ★ 환경 (관측/행동/보상, KDTree 충돌검사). RL의 핵심 |
+| `drone_env.py` | ★ 환경 (관측/행동/보상, KDTree 충돌검사, 난이도별 샘플링). RL의 핵심 |
 | `check_env.py` | 학습 전 환경 검증 + 랜덤 롤아웃 |
-| `train.py` | SAC/PPO 학습 → `model.zip` |
+| `train_stage1.py` `train_stage2a~2d.py` `train_stage3.py` | ★ 커리큘럼 단계별 학습. 난이도는 각 파일 맨 위 `ENV` 만 수정 |
+| `train_common.py` | 단계 스크립트 공통 학습 함수 (SAC 보일러플레이트) |
+| `train.py` | (구버전) 인자로 난이도를 직접 지정하는 단일 스크립트 |
 | `evaluate.py` | 점 2개 → 학습된 정책 비행 → open3d 시각화 |
+| `plot_progress.py` | 학습곡선(success_rate/보상) PNG 저장 |
 | `obstacles_cache.npz` | 전역 장애물 점군 캐시 (자동 생성, gitignore 대상) |
 
 ## 한계 / 솔직한 메모
