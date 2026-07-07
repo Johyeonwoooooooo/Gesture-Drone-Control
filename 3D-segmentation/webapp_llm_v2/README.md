@@ -36,6 +36,14 @@ Open the printed viser URL, then type queries in the terminal, e.g.
 REPL commands: `home` (reset start to launch point), `building <id>` (switch
 between `00800_TEEsavR23oF` / `00809_Qpor2mEya8F`), `quit`.
 
+### viser markers
+- **gold** sphere = `HOME` (launch / return point; `--home-xyz` or default).
+- **cyan** sphere = `DRONE` — current position; starts at home, moves to each
+  query's goal (continuous mission), resets on `home`.
+- **red** = localized target + bbox, **green** = planned path, **blue** = path
+  start.
+- **Show room labels** checkbox (viser GUI) toggles the per-room ID labels.
+
 ### Key flags
 - `--algo astar|rrt` — A* (default) or RRT*.
 - `--resolution 0.15 --margin 1 --sample 10` — voxel grid (obstacle inflation,

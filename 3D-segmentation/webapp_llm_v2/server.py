@@ -135,9 +135,17 @@ def main() -> None:
         "gm": None,             # cached voxel grid for the current building
         "home": None,           # (3,) world launch point
         "last_goal": None,      # (3,) world — next query starts here
-        "handles": [],          # viser handles to clear each query
+        "handles": [],          # per-query viser handles (cleared each query)
+        "label_handles": [],    # room-label handles (toggled by GUI checkbox)
+        "home_handles": [],     # persistent HOME marker handles
+        "drone_handles": [],    # persistent DRONE (current pos) marker handles
+        "show_labels": True,    # room-label visibility (GUI checkbox)
         "room_labels": {},      # building -> labels dict
     }
+
+    # ---------------- GUI (viser): room-label on/off toggle ----------------
+    server.gui.add_markdown("### webapp_llm_v2\nType queries in the **terminal**.")
+    show_labels_cb = server.gui.add_checkbox("Show room labels", initial_value=True)
 
     # ------------------------------------------------------------------ helpers
     def labels_for(building_id: str) -> Dict[str, Dict]:
@@ -194,11 +202,25 @@ def main() -> None:
         upload_points(server, "/region", asset, rgb_for_asset(asset),
                       float(args.point_size))
         render_region_labels(building_id, asset.center)
+        render_home_marker(asset)
+        render_drone_marker(asset, state["home"])  # drone starts at home
         print(f"[v2] building ready: {len(regions_for_building(building_id, cache_dir))} "
               f"rooms, {asset.n_render_units} pts, grid={state['gm'].shape} "
               f"({time.time()-t0:.1f}s). home={np.round(state['home'],2)}")
 
+    def clear_region_labels() -> None:
+        for h in state["label_handles"]:  # type: ignore[assignment]
+            try:
+                h.remove()
+            except Exception:
+                pass
+        state["label_handles"] = []
+
     def render_region_labels(building_id: str, world_center: np.ndarray) -> None:
+        clear_region_labels()
+        if not state["show_labels"]:
+            return
+        handles = []
         for r in regions_for_building(building_id, cache_dir):
             cpath = _feat_path(r, cache_dir) / "coord.npy"
             if not cpath.exists():
@@ -206,9 +228,49 @@ def main() -> None:
             coord = np.load(cpath).astype(np.float32)
             centroid = coord.mean(axis=0) - world_center
             top_z = float(coord[:, 2].max()) - float(world_center[2]) + 0.3
-            server.scene.add_label(
+            handles.append(server.scene.add_label(
                 f"/region_labels/{r}", text=r,
-                position=(float(centroid[0]), float(centroid[1]), top_z))
+                position=(float(centroid[0]), float(centroid[1]), top_z)))
+        state["label_handles"] = handles
+
+    def render_home_marker(asset: RegionAssets) -> None:
+        """Persistent gold HOME marker (drone launch / return point)."""
+        for h in state["home_handles"]:  # type: ignore[assignment]
+            try:
+                h.remove()
+            except Exception:
+                pass
+        hp = np.asarray(state["home"], dtype=float) - asset.center
+        pos = tuple(float(v) for v in hp)
+        state["home_handles"] = [
+            server.scene.add_icosphere("/home/sphere", radius=0.22,
+                                       color=(255, 200, 0), opacity=0.55, position=pos),
+            server.scene.add_label("/home/label", text="HOME",
+                                   position=(pos[0], pos[1], pos[2] + 0.35)),
+        ]
+
+    def render_drone_marker(asset: RegionAssets, pos_world) -> None:
+        """Persistent cyan DRONE marker at the drone's current position."""
+        for h in state["drone_handles"]:  # type: ignore[assignment]
+            try:
+                h.remove()
+            except Exception:
+                pass
+        dp = np.asarray(pos_world, dtype=float) - asset.center
+        pos = tuple(float(v) for v in dp)
+        state["drone_handles"] = [
+            server.scene.add_icosphere("/drone/sphere", radius=0.16,
+                                       color=(0, 210, 210), opacity=0.95, position=pos),
+            server.scene.add_label("/drone/label", text="DRONE",
+                                   position=(pos[0], pos[1], pos[2] + 0.3)),
+        ]
+
+    @show_labels_cb.on_update
+    def _(_):
+        state["show_labels"] = bool(show_labels_cb.value)
+        asset = state["asset"]
+        if asset is not None:
+            render_region_labels(state["building"], asset.center)
 
     # ---------------------------------------------------------- scope resolution
     def resolve_target_region(intent: ParsedIntent, building_id: str) -> Optional[str]:
@@ -314,6 +376,7 @@ def main() -> None:
                   f"— no path saved.")
             state["handles"] = handles
             state["last_goal"] = goal_world  # still advance the mission target
+            render_drone_marker(asset, goal_world)
             return
         print(f"[plan] {args.algo}: {info['n_waypoints']} waypoints, "
               f"{info['length_m']:.2f} m ({t_plan:.2f}s)")
@@ -341,14 +404,17 @@ def main() -> None:
         out_path = sdk_export.save_program(program, args.out_dir)
         print(f"[sdk] {len(program['commands'])} commands -> {out_path}")
 
-        # 8. Advance the mission
+        # 8. Advance the mission (drone is now at the goal)
         state["last_goal"] = goal_world
+        render_drone_marker(asset, goal_world)
 
     # --------------------------------------------------------------- initial load
     load_building_scene(args.building)
 
     print("\n" + "=" * 68)
     print("  webapp_llm_v2 — type a drone command (Korean/English).")
+    print("  viser: gold=HOME, cyan=DRONE(now), red=target, green=path.")
+    print("         toggle room labels with the 'Show room labels' checkbox.")
     print("  commands:  home            reset start to launch point")
     print("             building <id>   switch (00800_TEEsavR23oF | 00809_Qpor2mEya8F)")
     print("             quit / exit     stop")
@@ -368,6 +434,8 @@ def main() -> None:
             break
         if low == "home":
             state["last_goal"] = None
+            if state["asset"] is not None:
+                render_drone_marker(state["asset"], state["home"])  # drone back at home
             print(f"[v2] start reset to home {np.round(state['home'],2)}")
             continue
         if low.startswith("building "):
