@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 import math
-from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Sequence, Tuple
@@ -65,25 +64,27 @@ class UnitySceneVoxel:
         if self.map_.is_free(point):
             return point
 
-        queue = deque([point])
-        visited = {point}
-        while queue:
-            current = queue.popleft()
-            if self.map_.is_free(current):
-                return current
-
-            if max(
-                abs(current[0] - point[0]),
-                abs(current[1] - point[1]),
-                abs(current[2] - point[2]),
-            ) >= max_radius:
-                continue
-
-            for neighbor in self.map_.get_neighbors(current):
-                neighbor = (int(neighbor[0]), int(neighbor[1]), int(neighbor[2]))
-                if neighbor not in visited:
-                    visited.add(neighbor)
-                    queue.append(neighbor)
+        # Expanding Chebyshev shells. A BFS through free neighbors cannot escape
+        # a point buried deep inside solid geometry (occupied cells have no free
+        # neighbors to traverse), so scan outward shell by shell instead.
+        px, py, pz = point
+        for radius in range(1, max_radius + 1):
+            best: VoxelPoint | None = None
+            best_dist_sq = 0
+            for dx in range(-radius, radius + 1):
+                for dy in range(-radius, radius + 1):
+                    for dz in range(-radius, radius + 1):
+                        if max(abs(dx), abs(dy), abs(dz)) != radius:
+                            continue
+                        cell = (px + dx, py + dy, pz + dz)
+                        if not self.map_.is_in_bounds(cell) or not self.map_.is_free(cell):
+                            continue
+                        dist_sq = dx * dx + dy * dy + dz * dz
+                        if best is None or dist_sq < best_dist_sq:
+                            best = cell
+                            best_dist_sq = dist_sq
+            if best is not None:
+                return best
         return None
 
 

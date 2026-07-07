@@ -45,6 +45,11 @@ from core import Controller  # type: ignore  # noqa: E402
 DEFAULT_UNITY_PATH_JSON = (
     REPO_ROOT / "playground" / "tello_simulator" / "Assets" / "Resources" / "planned_path_3d.json"
 )
+# Written after every executed flight so Unity's FlightReportRenderer can draw the
+# flown trajectory and intrusion points directly in the scene.
+DEFAULT_UNITY_TRAJ_JSON = (
+    REPO_ROOT / "playground" / "tello_simulator" / "Assets" / "Resources" / "flight_trajectory_3d.json"
+)
 
 
 @dataclass
@@ -257,8 +262,16 @@ def save_trajectory(
     trajectory: Sequence[Tuple[float, float, float]],
     world_waypoints: Sequence[Tuple[float, float, float]],
     report: IntrusionReport,
+    scene_voxel: UnitySceneVoxel | None = None,
 ) -> None:
     """Dump the flown trajectory + planned path for offline inspection/visualization."""
+    intrusions: List[Tuple[float, float, float]] = []
+    if scene_voxel is not None:
+        for point in trajectory:
+            grid = scene_voxel.world_to_grid(*point)
+            if scene_voxel.map_.is_in_bounds(grid) and not scene_voxel.map_.is_free(grid):
+                intrusions.append(point)
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "planner": planner,
@@ -267,8 +280,9 @@ def save_trajectory(
         "min_clearance_m": report.min_clearance_m,
         "trajectory_world": [{"x": p[0], "y": p[1], "z": p[2]} for p in trajectory],
         "path_world": [{"x": p[0], "y": p[1], "z": p[2]} for p in world_waypoints],
+        "intrusions_world": [{"x": p[0], "y": p[1], "z": p[2]} for p in intrusions],
     }
-    output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    output_path.write_text(json.dumps(_json_safe(payload), indent=2), encoding="utf-8")
 
 
 def run_autopilot_3d(
@@ -464,8 +478,13 @@ def run_autopilot_3d(
     # Unity's collision callback fired?
     trajectory_report = check_world_points_against_voxels(scene_voxel, trajectory)
 
+    # Always drop a copy where Unity's FlightReportRenderer looks, so the flown
+    # trajectory + intrusion points appear in the scene right after landing.
+    save_trajectory(DEFAULT_UNITY_TRAJ_JSON, planner_name, trajectory, world_waypoints,
+                    trajectory_report, scene_voxel)
     if trajectory_out is not None:
-        save_trajectory(trajectory_out, planner_name, trajectory, world_waypoints, trajectory_report)
+        save_trajectory(trajectory_out, planner_name, trajectory, world_waypoints,
+                        trajectory_report, scene_voxel)
 
     return Autopilot3DResult(
         planner=planner_name,
