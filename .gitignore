@@ -134,3 +134,17 @@ data/
 *.npy
 # UniDet3D precomputed detection cache (regenerate via precompute_unidet3d.py)
 3D-segmentation/cache/*/unidet3d/
+
+# Unity (simulator/tello_simulator) — editor-generated, never commit
+simulator/tello_simulator/Library/
+simulator/tello_simulator/Temp/
+simulator/tello_simulator/Logs/
+simulator/tello_simulator/UserSettings/
+simulator/tello_simulator/obj/
+simulator/tello_simulator/Build/
+simulator/tello_simulator/Builds/
+simulator/tello_simulator/*.csproj
+simulator/tello_simulator/*.sln*
+simulator/tello_simulator/.vs/
+simulator/tello_simulator/.vsconfig
+simulator/tello_simulator/UpgradeLog*.htm

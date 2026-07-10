@@ -13,6 +13,18 @@ Two layers under one repo:
    the current active work: natural language → LLM intent parsing → 3D object
    localization in a prebuilt scene → (future) path planning → drone execution.
    This is where almost all recent commits land.
+3. **Unity simulator integration** (`simulator/`, `README-integration.md`) —
+   sim-integration branch only: Unity 6 Tello simulator (`simulator/tello_simulator/`,
+   from the jiyun-simul branch) + Python UDP bridge (`simulator/bridge/`). The
+   `webapp_llm_v2` server gains a `--sim --unity-host <ip>` mode that flies the
+   planned path in Unity via Tello-style `rc` commands. Coordinates are converted
+   mosaic3d-world → Unity-world by a calibrated affine transform committed at
+   `simulator/bridge/transforms/<building>.json` (regenerate with
+   `simulator/bridge/calibrate_transform.py`; the Unity scene places the house glb
+   at scale 5, −90° about X, offset (1.26,0,0)). Protocol: server → Unity UDP 9000
+   (`command`/`takeoff`/`land`/`rc`/`setpos`/`msg`), Unity → server UDP 9002 JSON
+   state @20 Hz. `simulator/bridge/fake_unity_sim.py` is a protocol stub for
+   testing without Unity. See `README-integration.md` for the full run guide.
 
 The 3D localization layer has **two complementary object-finding backends**:
 
