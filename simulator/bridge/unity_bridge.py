@@ -72,7 +72,7 @@ class UnityTelloBridge:
             raise RuntimeError("Bridge is not connected.")
 
         self.command_socket.sendto(
-            command.encode("ascii"),
+            command.encode("utf-8"),
             (self.unity_host, self.command_port),
         )
         if not expect_reply:
@@ -80,7 +80,7 @@ class UnityTelloBridge:
 
         try:
             response, _ = self.command_socket.recvfrom(1024)
-            return response.decode("ascii").strip()
+            return response.decode("utf-8", errors="replace").strip()
         except (socket.timeout, ConnectionResetError, OSError):
             return "timeout"
 
@@ -101,6 +101,11 @@ class UnityTelloBridge:
 
     def initialize_sdk(self) -> str:
         return self.send_command("command")
+
+    def send_status(self, text: str) -> None:
+        """On-screen status message shown by the simulator. Unity acks every
+        packet with "ok", so consume the reply to keep the socket drained."""
+        self.send_command(f"msg {text}")
 
     def request_state(self) -> str:
         return self.send_command("state")
@@ -124,7 +129,7 @@ class UnityTelloBridge:
         while not self._stop_event.is_set():
             try:
                 payload, _ = self.state_socket.recvfrom(4096)
-                parsed = json.loads(payload.decode("ascii"))
+                parsed = json.loads(payload.decode("utf-8"))
                 state = DroneState(
                     x=float(parsed["x"]),
                     y=float(parsed["y"]),
