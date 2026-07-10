@@ -1,4 +1,0 @@
-# @package model
-clip_encoder:
-  model_id: ViT-B/16
-  text_dim: 512
