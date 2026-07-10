@@ -69,6 +69,8 @@ public class TelloSimulator : MonoBehaviour
     private bool hadCollision = false;
     private string lastCommand = "";
     private int collisionCount = 0;
+    private string statusMessage = "";
+    private float statusMessageTime = -1f;
 
     private CharacterController cc;
     private TrailRenderer trail;
@@ -173,7 +175,10 @@ public class TelloSimulator : MonoBehaviour
                 byte[] data = udpServer.Receive(ref remote);
                 lastRemoteEndPoint = remote;
 
-                string msg = Encoding.ASCII.GetString(data).Trim().ToLowerInvariant();
+                // UTF-8 and original case are preserved so the "msg" command can
+                // carry human-readable (e.g. Korean) status text; keyword matching
+                // lowercases a copy in ProcessCommand.
+                string msg = Encoding.UTF8.GetString(data).Trim();
                 byte[] ok = Encoding.ASCII.GetBytes("ok");
                 udpServer.Send(ok, ok.Length, remote);
 
@@ -238,9 +243,18 @@ public class TelloSimulator : MonoBehaviour
         }
     }
 
-    void ProcessCommand(string cmd)
+    void ProcessCommand(string raw)
     {
-        lastCommand = cmd;
+        lastCommand = raw;
+        string cmd = raw.ToLowerInvariant();
+
+        if (cmd.StartsWith("msg "))
+        {
+            // On-screen status text from the pipeline (keep original casing).
+            statusMessage = raw.Substring(4);
+            statusMessageTime = Time.unscaledTime;
+            return;
+        }
 
         if (cmd == "command")
         {
@@ -479,6 +493,19 @@ public class TelloSimulator : MonoBehaviour
     {
         GUIStyle style = new GUIStyle(GUI.skin.label);
         style.fontSize = 14;
+
+        // Pipeline status banner (from the "msg" UDP command), top-center.
+        if (!string.IsNullOrEmpty(statusMessage))
+        {
+            GUIStyle banner = new GUIStyle(GUI.skin.box);
+            banner.fontSize = 22;
+            banner.alignment = TextAnchor.MiddleCenter;
+            banner.wordWrap = true;
+            float age = Time.unscaledTime - statusMessageTime;
+            GUI.color = age > 30f ? new Color(1f, 1f, 1f, 0.5f) : Color.white;
+            float width = Mathf.Min(Screen.width - 40f, 720f);
+            GUI.Box(new Rect((Screen.width - width) / 2f, 12f, width, 44f), statusMessage, banner);
+        }
 
         GUI.color = isFlying ? Color.cyan : Color.yellow;
         GUI.Label(new Rect(10, 10, 520, 25), $"[Tello] State: {(isFlying ? "Flying" : "Landed")}", style);
