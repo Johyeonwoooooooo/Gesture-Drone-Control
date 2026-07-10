@@ -106,6 +106,26 @@ def main() -> None:
                     help="Animation frames per second.")
     ap.add_argument("--no-anim", action="store_true",
                     help="Skip the drone fly-through; jump straight to the goal.")
+    # Unity simulator link (simulator/bridge; see README-integration.md)
+    ap.add_argument("--sim", action="store_true",
+                    help="Fly the planned path in the Unity Tello simulator "
+                         "instead of the viser-only animation.")
+    ap.add_argument("--unity-host", default=None,
+                    help="IP of the machine running Unity (required with --sim).")
+    ap.add_argument("--unity-port", type=int, default=9000)
+    ap.add_argument("--unity-state-port", type=int, default=9002)
+    ap.add_argument("--unity-local-port", type=int, default=9001)
+    ap.add_argument("--sim-transform", default=None,
+                    help="Path to a calibrated transform JSON. Default: "
+                         "simulator/bridge/transforms/<building>.json")
+    ap.add_argument("--sim-speed", type=float, default=2.0,
+                    help="Flight speed in Unity units/s (house is at scale 5, "
+                         "so 2.0 u/s = 0.4 m/s real).")
+    ap.add_argument("--sim-rc-limit", type=int, default=30)
+    ap.add_argument("--sim-timeout", type=float, default=0.0,
+                    help="Flight timeout seconds; 0 = auto from path length.")
+    ap.add_argument("--sim-no-status", action="store_true",
+                    help="Do not push status text to the Unity on-screen banner.")
     args = ap.parse_args()
 
     cache_dir = Path(args.cache_dir)
@@ -135,6 +155,44 @@ def main() -> None:
     server.scene.world_axes.visible = True
     print(f"[v2] viser running at http://{args.host}:{args.port}")
 
+    # ---------------- Unity simulator link (lazy: only with --sim) ----------
+    bridge = None
+    coord_transform = follow_path = None  # modules, bound under --sim
+    if args.sim:
+        if not args.unity_host:
+            raise SystemExit("--sim requires --unity-host <ip-of-unity-machine>")
+        sys.path.insert(0, str(_THIS.parents[2]))  # repo root
+        from simulator.bridge import coord_transform, follow_path  # noqa: E402
+        from simulator.bridge.unity_bridge import UnityTelloBridge  # noqa: E402
+        bridge = UnityTelloBridge(args.unity_host, args.unity_port,
+                                  args.unity_local_port, args.unity_state_port)
+        bridge.connect()
+        reply = bridge.initialize_sdk()
+        print(f"[sim] Unity {args.unity_host}:{args.unity_port} -> {reply!r}"
+              + ("  (no reply yet — is Unity in Play mode?)" if reply == "timeout" else ""))
+
+    def sim_transform_for(building_id: str):
+        """Calibrated SimTransform for the building, or None (sim disabled)."""
+        if not args.sim:
+            return None
+        try:
+            if args.sim_transform:
+                return coord_transform.SimTransform.load(args.sim_transform)
+            return coord_transform.load_building_transform(building_id)
+        except FileNotFoundError as e:
+            print(f"[sim] WARNING: {e}\n[sim] simulator flight disabled for "
+                  f"{building_id}.")
+            return None
+
+    def status(text: str) -> None:
+        """Progress line: terminal always, Unity banner when connected."""
+        print(f"[status] {text}")
+        if bridge is not None and not args.sim_no_status:
+            try:
+                bridge.send_status(text)
+            except Exception:
+                pass
+
     state: Dict[str, object] = {
         "asset": None,          # RegionAssets (building view)
         "building": args.building,
@@ -148,6 +206,7 @@ def main() -> None:
         "drone_handles": [],    # persistent DRONE (current pos) marker handles
         "show_labels": True,    # room-label visibility (GUI checkbox)
         "room_labels": {},      # building -> labels dict
+        "sim_transform": None,  # SimTransform for the current building (--sim)
     }
 
     # ---------------- GUI (viser): room-label on/off toggle ----------------
@@ -205,6 +264,10 @@ def main() -> None:
         else:
             state["home"] = first_region_centroid(building_id)
         state["last_goal"] = None
+        state["sim_transform"] = sim_transform_for(building_id)
+        if bridge is not None and state["sim_transform"] is not None:
+            hu = state["sim_transform"].mosaic_to_unity(np.asarray(state["home"]))
+            bridge.set_position(float(hu[0]), float(hu[1]), float(hu[2]), 0.0)
         clear_handles()
         upload_points(server, "/region", asset, rgb_for_asset(asset),
                       float(args.point_size))
@@ -322,6 +385,7 @@ def main() -> None:
         building_id = state["building"]  # type: ignore[assignment]
 
         # 1. LLM intent parse
+        status(f"의도 분석 중... ({user_text})")
         t0 = time.time()
         room_dir = room_directory_text(labels_for(building_id))
         intent = llm.parse(user_text, room_directory=room_dir)
@@ -332,6 +396,7 @@ def main() -> None:
               f"return_home={intent.return_home}  ({t_llm:.2f}s)")
 
         # 2. CLIP heatmap
+        status(f"'{intent.target_object}' 위치 탐색 중 (segmentation)...")
         tf = text_encoder.encode([intent.clip_prompt])[0]
         scores = query_single(asset, tf).astype(np.float32)
         slices = getattr(asset, "region_slices", None)
@@ -352,6 +417,7 @@ def main() -> None:
         result = candidates_from_heatmap(asset.coord, scores, params)
         cands = result["candidates"]
         if not cands:
+            status(f"'{intent.target_object}' 를 찾지 못했습니다")
             print("[query] no candidate found — try another phrasing / room. Skipped.")
             return
         top = cands[0]
@@ -386,6 +452,7 @@ def main() -> None:
             position=(center_disp[0], center_disp[1], float(bb_max[2]) + 0.2)))
 
         # 5. Path plan (continuous mission: start = last goal or home)
+        status("경로 계산 중...")
         start_world = state["last_goal"] if state["last_goal"] is not None else state["home"]
         start_world = np.asarray(start_world, dtype=float)
         t1 = time.time()
@@ -395,6 +462,7 @@ def main() -> None:
             rrt_iter=args.rrt_iter, gm=state["gm"])
         t_plan = time.time() - t1
         if path is None:
+            status("경로 계산 실패")
             print(f"[plan] {args.algo} FAILED ({info.get('reason','?')}, {t_plan:.2f}s) "
                   f"— no path saved.")
             state["handles"] = handles
@@ -427,12 +495,40 @@ def main() -> None:
         out_path = sdk_export.save_program(program, args.out_dir)
         print(f"[sdk] {len(program['commands'])} commands -> {out_path}")
 
-        # 8. Fly the drone slowly along the path, then advance the mission.
-        if not args.no_anim:
-            flight_s = info["length_m"] / max(1e-3, float(args.anim_speed))
-            print(f"[fly] drone flying {info['length_m']:.1f} m at "
-                  f"{args.anim_speed} m/s (~{flight_s:.0f}s) ...")
-        animate_drone(asset, path)
+        # 8. Fly the drone along the path — in the Unity simulator when --sim is
+        #    active (the viser DRONE marker mirrors the sim state), otherwise the
+        #    viser-only animation — then advance the mission.
+        sim_tf = state["sim_transform"]
+        if bridge is not None and sim_tf is not None:
+            wps_unity = sim_tf.mosaic_to_unity(np.asarray(path, dtype=float))
+            length_u = float(np.linalg.norm(np.diff(wps_unity, axis=0), axis=1).sum())
+            status(f"비행 중... ({info['length_m']:.1f} m)")
+            print(f"[sim] flying {length_u:.1f} u at {args.sim_speed} u/s "
+                  f"(~{length_u / max(1e-3, args.sim_speed):.0f}s) ...")
+
+            def _on_state(s):
+                render_drone_marker(asset, sim_tf.unity_to_mosaic(
+                    np.array([s.x, s.y, s.z], dtype=float)))
+
+            res = follow_path.fly_mission(
+                bridge, [tuple(p) for p in wps_unity],
+                max_speed=float(args.sim_speed), rc_limit=int(args.sim_rc_limit),
+                timeout_sec=(args.sim_timeout or None),
+                on_state=_on_state, on_status=status)
+            status("착륙 완료" if res.success else f"비행 중단 ({res.reason})")
+            print(f"[sim] {res.reason}: err={res.final_error_u:.2f}u "
+                  f"collisions={res.collision_count} rc={res.rc_commands_sent} "
+                  f"{res.duration_s:.0f}s")
+            render_drone_marker(asset, goal_world if res.success else
+                                sim_tf.unity_to_mosaic(np.asarray(
+                                    res.trajectory_unity[-1], dtype=float))
+                                if res.trajectory_unity else goal_world)
+        else:
+            if not args.no_anim:
+                flight_s = info["length_m"] / max(1e-3, float(args.anim_speed))
+                print(f"[fly] drone flying {info['length_m']:.1f} m at "
+                      f"{args.anim_speed} m/s (~{flight_s:.0f}s) ...")
+            animate_drone(asset, path)
         state["last_goal"] = goal_world
 
     # --------------------------------------------------------------- initial load
@@ -463,6 +559,9 @@ def main() -> None:
             state["last_goal"] = None
             if state["asset"] is not None:
                 render_drone_marker(state["asset"], state["home"])  # drone back at home
+            if bridge is not None and state["sim_transform"] is not None:
+                hu = state["sim_transform"].mosaic_to_unity(np.asarray(state["home"]))
+                bridge.set_position(float(hu[0]), float(hu[1]), float(hu[2]), 0.0)
             print(f"[v2] start reset to home {np.round(state['home'],2)}")
             continue
         if low.startswith("building "):
@@ -478,6 +577,9 @@ def main() -> None:
             print(f"[v2] error: {e}")
             import traceback
             traceback.print_exc()
+
+    if bridge is not None:
+        bridge.close()
 
 
 if __name__ == "__main__":
