@@ -70,7 +70,11 @@ class VoxelMap:
         self.grid[occ[:, 0], occ[:, 1], occ[:, 2]] = True
 
     def hit_rate(self, pts_unity: np.ndarray) -> tuple[float, float]:
-        """(hit_rate, in_bounds_rate) of points vs occupied voxels."""
+        """(hit_rate, in_bounds_rate) of points vs occupied voxels.
+
+        The dilated export occupies ~43% of the padded box, so hit_rate alone
+        saturates for any roughly-aligned candidate; scoring must combine it
+        with in_bounds_rate (see score())."""
         cells = np.floor((pts_unity - self.origin) / self.voxel_size).astype(np.int64)
         in_bounds = np.all((cells >= 0) & (cells < self.size), axis=1)
         if not in_bounds.any():
@@ -78,6 +82,12 @@ class VoxelMap:
         c = cells[in_bounds]
         hits = self.grid[c[:, 0], c[:, 1], c[:, 2]]
         return float(hits.mean()), float(in_bounds.mean())
+
+    def score(self, pts_unity: np.ndarray) -> float:
+        """hit_rate x in_bounds_rate — penalizes candidates that shove most of
+        the cloud outside the map (their few in-bounds points hit by chance)."""
+        hit, ib = self.hit_rate(pts_unity)
+        return hit * ib
 
 
 def bbox_center_translation(matrix: np.ndarray, pts: np.ndarray, vm: VoxelMap) -> np.ndarray:
@@ -99,7 +109,7 @@ def refine_translation(
         for dy in dys:
             for dz in offsets:
                 t = t0 + np.array([dx, dy, dz])
-                score, _ = vm.hit_rate(rotated + t)
+                score = vm.score(rotated + t)
                 if score > best_score:
                     best_score, best_t = score, t
     return best_t, best_score
@@ -119,7 +129,7 @@ def main() -> int:
     ap.add_argument("--max-points", type=int, default=300_000)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--margin", type=float, default=1.2,
-                    help="required hit_rate ratio best/runner-up (different sign candidates)")
+                    help="required score ratio best/runner-up")
     args = ap.parse_args()
 
     pts = load_building_coords(args.cache_dir, args.building, args.max_points, args.seed)
@@ -137,18 +147,19 @@ def main() -> int:
             if best is None or score > best[1]:
                 best = (t, score, t_init_name)
         t, score, t_init_name = best
-        _, ib = vm.hit_rate(pts @ cand.matrix.T + t)
-        rows.append((name, score, ib, t, t_init_name, cand.matrix))
+        hit, ib = vm.hit_rate(pts @ cand.matrix.T + t)
+        rows.append((name, score, hit, ib, t, t_init_name, cand.matrix))
 
     rows.sort(key=lambda r: -r[1])
-    print(f"\n{'candidate':<10} {'hit_rate':>8} {'in_bounds':>9}  translation (init)")
-    for name, score, ib, t, init, _ in rows:
-        print(f"{name:<10} {score:>8.4f} {ib:>9.4f}  ({t[0]:+.2f},{t[1]:+.2f},{t[2]:+.2f}) ({init})")
+    print(f"\n{'candidate':<10} {'score':>8} {'hit_rate':>8} {'in_bounds':>9}  translation (init)")
+    for name, score, hit, ib, t, init, _ in rows:
+        print(f"{name:<10} {score:>8.4f} {hit:>8.4f} {ib:>9.4f}  "
+              f"({t[0]:+.2f},{t[1]:+.2f},{t[2]:+.2f}) ({init})")
 
-    best_name, best_score, best_ib, best_t, best_init, best_m = rows[0]
+    best_name, best_score, best_hit, best_ib, best_t, best_init, best_m = rows[0]
     runner_score = rows[1][1]
     if runner_score > 0 and best_score / max(runner_score, 1e-9) < args.margin:
-        print(f"\n[calib] FAIL: best ({best_score:.4f}) < {args.margin}x runner-up "
+        print(f"\n[calib] FAIL: best score ({best_score:.4f}) < {args.margin}x runner-up "
               f"({runner_score:.4f}) — ambiguous, check scale/translation/scene.")
         return 1
 
@@ -160,9 +171,10 @@ def main() -> int:
             "building": args.building,
             "candidate": best_name,
             "scale": args.scale,
-            "hit_rate": round(best_score, 4),
+            "score": round(best_score, 4),
+            "hit_rate": round(best_hit, 4),
             "in_bounds_rate": round(best_ib, 4),
-            "runner_up_hit_rate": round(runner_score, 4),
+            "runner_up_score": round(runner_score, 4),
             "translation_init": best_init,
             "voxel_map": args.voxel_map.name,
             "n_points": int(len(pts)),
@@ -170,7 +182,8 @@ def main() -> int:
         },
     )
     tf.save(out)
-    print(f"\n[calib] wrote {out} (candidate {best_name}, hit_rate {best_score:.4f})")
+    print(f"\n[calib] wrote {out} (candidate {best_name}, score {best_score:.4f}, "
+          f"hit_rate {best_hit:.4f})")
     return 0
 
 
