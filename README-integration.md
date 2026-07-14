@@ -116,6 +116,29 @@ python simulator/bridge/fake_unity_sim.py &     # 가짜 시뮬레이터 (localh
 python simulator/bridge/smoke.py --unity-host 127.0.0.1 --fly
 ```
 
+### 4-1. 노트북이 Wi-Fi NAT 뒤라 서버→노트북이 안 될 때 (릴레이)
+
+교내 Wi-Fi 등에서는 **노트북 → 서버는 되는데 서버 → 노트북(UDP 9000)은 막히는**
+경우가 흔합니다 (smoke.py가 `command timeout`으로 실패, 노트북에서
+`ping <서버IP>` 는 성공). 이때는 `relay.py` 로 방향을 뒤집습니다 —
+노트북이 서버로 TCP 연결을 걸고, 모든 UDP 트래픽이 그 연결로 중계됩니다.
+
+```bash
+# ① 서버: 릴레이 서버 (TCP 9010에서 노트북 접속 대기)
+python simulator/bridge/relay.py server
+
+# ② 노트북: relay.py 파일 하나만 복사해서 (Unity Play 상태에서)
+python relay.py client --server-host <서버IP>
+
+# ③ 서버: 이후 모든 명령에서 --unity-host 를 127.0.0.1 로
+python simulator/bridge/smoke.py --unity-host 127.0.0.1 --fly
+python 3D-segmentation/webapp_llm_v2/server.py ... --sim --unity-host 127.0.0.1
+```
+
+- 노트북 클라이언트는 끊겨도 3초마다 자동 재접속합니다.
+- 원하면 양쪽에 `--token <비밀문자열>` 을 주어 접속을 제한할 수 있습니다.
+- 서버 방화벽 사용 시 TCP 9010 인바운드 허용 필요 (`sudo ufw allow 9010/tcp`).
+
 ## 5. 사용법
 
 서버 터미널의 `query>` 프롬프트에 자연어로 입력합니다 (한국어/영어):
@@ -169,6 +192,7 @@ simulator/
 │   ├── calibrate_transform.py  # 좌표 변환 자동 캘리브레이션
 │   ├── follow_path.py      # PID 웨이포인트 추종 (rc 명령), fly_mission
 │   ├── fake_unity_sim.py   # Unity 없이 테스트용 프로토콜 스텁
+│   ├── relay.py            # NAT 우회 UDP-over-TCP 릴레이 (§4-1; 노트북에 단독 복사 가능)
 │   ├── smoke.py            # 네트워크 연결 점검 도구
 │   └── transforms/00800_TEEsavR23oF.json   # 캘리브레이션 결과 (커밋됨)
 └── docs/AUTOPILOT_3D_GUIDE.md  # (참고) 시각화 컴포넌트·복셀맵 재추출 가이드
@@ -216,7 +240,7 @@ simulator/
 
 | 증상 | 원인 / 해결 |
 |---|---|
-| `smoke.py`: `command` timeout | Unity가 Play 상태인지, `--unity-host` IP가 맞는지, 노트북 인바운드 UDP 9000 방화벽 확인 |
+| `smoke.py`: `command` timeout | Unity가 Play 상태인지, `--unity-host` IP가 맞는지, 노트북 인바운드 UDP 9000 방화벽 확인. 노트북이 Wi-Fi NAT 뒤(서버에서 `ping <노트북IP>` 실패)면 §4-1 릴레이 사용 |
 | `command -> 'ok'` 는 되는데 state 없음 | 노트북 → 서버 UDP 9002 경로 차단. 서버 방화벽(`ufw allow 9002/udp`)·VPN 설정 확인 |
 | 비행 중 `simulator state lost` | 네트워크 끊김 — 드론은 자동 정지·착륙. 연결 복구 후 `home` 으로 리셋 |
 | Unity 상태 배너 한글 깨짐 | 폰트 문제 — 서버에서 `--sim-no-status` 로 끄고 터미널 로그만 사용 가능 |
