@@ -16,8 +16,9 @@ from train_common_tqc import run_training
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
 
-ENV = dict(goal_radius=0.5, sample_same_floor=True, max_goal_dist=8.0,
+ENV = dict(goal_radius=0.7, sample_same_floor=True, max_goal_dist=8.0,
            min_separation=1.5, timeout_penalty=10.0,
+           progress_scale=10.0, step_penalty=0.05, max_steps=500,
            easy_mix=0.3, easy_mix_mode='same_room')
 
 if __name__ == '__main__':
