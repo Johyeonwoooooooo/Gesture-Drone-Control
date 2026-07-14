@@ -521,7 +521,11 @@ def main() -> None:
             print(label, flush=True)
 
             if args.execute:
-                row = run_execute_case(scene_voxel, bridge, start, goal, index, output_dir)
+                try:
+                    row = run_execute_case(scene_voxel, bridge, start, goal, index, output_dir)
+                except Exception as exc:  # noqa: BLE001 — one bad flight must not kill the batch
+                    print(f"  case {index} failed: {exc}")
+                    row = {"success": False, "error": f"{type(exc).__name__}: {exc}"}
             else:
                 row = run_offline_case(scene_voxel, planner, start, goal)
 
