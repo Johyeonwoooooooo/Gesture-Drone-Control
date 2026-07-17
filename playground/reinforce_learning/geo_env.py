@@ -480,38 +480,6 @@ class DroneGeoEnv(gym.Env):
         # 검증된 레일(셀 중심)로 복귀시키면 다음 셀은 보인다(간선 검증됨).
         return self.node_pos[n0]
 
-    # ── 보조: 계단 구역 전용 carrot — 검증된 체인 웨이포인트를 φ 감소 방향으로 ──
-    def _stair_carrot(self):
-        best = None
-        for ci, ch in enumerate(self._chains):
-            dd = np.linalg.norm(ch - self.pos, axis=1)
-            j = int(np.argmin(dd))
-            if best is None or dd[j] < best[0]:
-                best = (float(dd[j]), ci, j)
-        if best is None:
-            return None
-        _, ci, j = best
-        ch = self._chains[ci]
-        # 목표가 직선으로 보이면 체인 이탈해 바로 목표로 (계단 다 내려온 경우 등)
-        if float(np.linalg.norm(self.goal - self.pos)) <= 4.0 and \
-                R.is_edge_free(self.pos, self.goal, self.tree,
-                               radius=self._clr(self.pos)):
-            return self.goal
-        # 진행 방향 = φ 가 낮아지는 끝쪽
-        dirn = 1 if self._phi(ch[-1]) < self._phi(ch[0]) else -1
-        dj = float(np.linalg.norm(ch[j] - self.pos))
-        if dj < 0.35:
-            # 체인점 위에 서 있음 → 다음 체인점으로 무조건 전진 (연속 구간은
-            # 생성 시 0.16 반경으로 비행가능 검증됨. 자기점 복귀 = 제자리걸음 버그)
-            return ch[int(np.clip(j + dirn, 0, len(ch) - 1))]
-        k = int(np.clip(j + 2 * dirn, 0, len(ch) - 1))
-        if R.is_edge_free(self.pos, ch[k], self.tree, radius=self.stair_clearance):
-            return ch[k]
-        k = int(np.clip(j + dirn, 0, len(ch) - 1))
-        if R.is_edge_free(self.pos, ch[k], self.tree, radius=self.stair_clearance):
-            return ch[k]
-        return ch[j]                                 # 최후: 가장 가까운 체인점으로 복귀
-
     # ── 관측 ────────────────────────────────────────────────
     def _raycast(self, pos):
         clr = self._clr(pos)

@@ -1,111 +1,82 @@
 # 강화학습(RL) 자율비행 — demo_house
 
-demo_house 점군 위에서 드론이 **시작점→도착점**으로 날아가는 정책을 강화학습으로 배운다.
-RRT*/A*(`../demo_house/hierarchical_plan.py`)의 대안/비교 실험용.
+demo_house(Matterport 22방·3층) 점군 위에서 드론이 **시작점→도착점**으로 나는 정책을
+SAC로 학습한다. 보상이 길을 알고(측지거리 shaping), 환경이 스스로 난이도를 올리는
+(자동 커리큘럼) **v2 구조** — 수동 단계 없이 계단(층 넘기) 포함 집 전체를 한 번에 커버.
 
-## RL 한 줄 요약 (입문)
+설계 배경·Before/After 는 `NOTION_SUMMARY.md` 참고.
 
-- 강화학습 = **시행착오로 배우기**. "데이터셋"을 미리 안 만들고, **환경**을 만들면
-  에이전트(드론)가 그 안에서 수백만 번 직접 날아보며 **경험(데이터)을 스스로 생성**해 학습한다.
-- 우리가 정의하는 건 환경의 3요소뿐:
-  - **관측(state)** = 목표 방향(3) + 목표 거리(1) + 14방향 거리센서(레이캐스트)
-  - **행동(action)** = 속도벡터 (vx, vy, vz), 각 -1~1
-  - **보상(reward)** = 가까워지면 +, 매 스텝 작은 -, 벽 박으면 -10, 도착하면 +100
-- 충돌검사·전역 점군은 기존 코드(`rrt_star_drone.py`, `hierarchical_plan.py`)를 그대로 재활용.
+## 핵심 구조
+
+- **보상** = 측지거리(벽을 돌아가는 실제 최단거리, Dijkstra) 진척 × 5
+  − 0.02/스텝 + 도착 +100 − 충돌 범프 −2 (potential-based shaping, Ng 1999)
+- **자동 커리큘럼**: 시작점을 측지거리 밴드 [d_max−3, d_max]에서 샘플.
+  최근 30ep 성공률 >60% → d_max +0.25m / <30% → −0.25m
+- **서브골(carrot)**: 관측의 목표가 측지 내리막 2.5m 앞 지점을 가리킴(전역 안내는
+  필드, 국소 조종은 RL 의 계층 구조)
+- **Asymmetric actor-critic**: critic 만 특권 정보(측지거리·하강방향)를 봄
+- **guide_clearance**: 안내 그래프는 통로 여유 ≥0.2m 만 경유(물리는 0.12m) —
+  스캔 틈새(벽 속 공동)로 새는 유령 경로 차단
 
 ## 설치
 
 ```powershell
 conda activate tello
-# GPU torch (tello=py3.9 → cu128).  py3.10+ 면 cu130 가능
-pip install torch --index-url https://download.pytorch.org/whl/cu128
+pip install torch --index-url https://download.pytorch.org/whl/cu128   # py3.9 → cu128
 pip install gymnasium stable-baselines3 tensorboard tqdm rich
 ```
-- GPU 확인: `python -c "import torch; print(torch.cuda.is_available())"` → True
-- `tensorboard`(학습곡선), `tqdm`+`rich`(진행바)는 없으면 자동 생략되지만 있으면 편함
-- 점군/충돌검사용 numpy<2, scipy, open3d 는 tello 환경에 이미 있음
 
-## 사용 순서 (커리큘럼 ★권장)
+## 사용법
 
-전 집을 한 번에 학습하면 sparse reward 함정으로 성공률 0에 머문다.
-**쉬움→어려움 단계별**로, 각 단계가 이전 모델을 `--init-from` 으로 이어받는다:
+현재 최종 모델 기준 학습 설정: `--ray-max 4 --rays horiz14 --subgoal 2.5 --bump 2
+--clearance 0.12 --max-steps 700` (평가·시연도 같은 값이어야 함 — fly_pick 은 내장됨).
 
 ```powershell
-python check_env.py          # 0. 환경 검증 (학습 전 필수)
-python train_stage1.py       # 1.  같은 방            → model_s1
-python train_stage2a.py      # 2a. 문턱 넘기(문 통과) → model_s2a
-python train_stage2b.py      # 2b. 인접 방(문 1개)    → model_s2b
-python train_stage2c.py      # 2c. 같은 층 ≤8m        → model_s2c
-python train_stage2d.py      # 2d. 같은 층 무제한     → model_s2d
-python evaluate.py --pick --model model_s2d --goal-radius 0.5   # 3D 비행 확인
+# ── 시연 (모델 있으면 바로) ──────────────────────────────
+python fly_pick.py --demo            # 1층 아무데나 → 3층 아무데나 자동 비행 + 3D
+python fly_pick.py --demo --loop     # 반복 데모
+python fly_pick.py                   # 3D에서 Shift+클릭으로 시작/도착 직접 찍기
+
+# ── 평가 ────────────────────────────────────────────────
+python _test_eval500.py model_geo_best 500       # 500ep 균일(4~32m) 확정 평가
+python _test_anatomy.py 200                      # 200ep 해부(실패 모드/클러스터)
+python _test_stair_eval.py model_geo_best 40     # 계단 과제 회귀 체크
+
+# ── 학습 (fresh, 시간 예산) ──────────────────────────────
+python train_geo.py --hours 12 --ray-max 4 --rays horiz14 --subgoal 2.5 `
+    --bump 2 --clearance 0.12 --max-steps 700 --stair-mix 0.15
+
+# 이어받기(같은 물리 체제만! 버퍼 자동 로드) / 학습 곡선
+python train_geo.py --init-from model_geo --hours 8 --d-init <직전 d_max> ...
+tensorboard --logdir runs            # rollout/d_max 우상향 + eval/success_rate 확인
 ```
 
-| 단계 | 시작·도착 샘플링 | 새로 배우는 것 | 진급 기준(간이평가) |
-|---|---|---|---|
-| 1 | 같은 방, ≤4m | 기본 비행/장애물 회피 | ≥ 0.7 |
-| 2a | 문 양쪽 1.5m 이내 | **문 통과** (2단계 병목 스킬) | ≥ 0.8 |
-| 2b | 문 하나로 연결된 두 방, ≤5m | 방 비행 + 문 통과 결합 | ≥ 0.7 |
-| 2c | 같은 층 아무 방, ≤8m | 문 1~2개 라우팅 | ≥ 0.6 |
-| 2d | 같은 층, 거리 무제한 | 2단계 최종 목표 | — |
+## 현재 성능 (2026-07-17, model_geo_best)
 
-- 각 단계 도중 성과 확인: `python plot_progress.py` (success_rate 곡선)
-- 2b부터는 이전 단계 에피소드를 20~30% 섞어(`easy_mix`) 앞 단계 실력 망각을 방지
-- 문 경유 에피소드(2a/2b, 혼합 포함)는 **문 경유 진척 보상**: 문을 지나기 전엔
-  (현위치→문)+(문→목표) 거리가 줄어야 +보상 — 직선거리 보상이 벽 쪽으로 유인하는
-  문제를 고침. 문 통과(중심 근접 or 목표 직선 가시) 후엔 직선 진척으로 전환
-- 수동 표시된 문 중심(door_center)이 문틀에 박힌 경우가 있어(5/20개 통과 불가였음)
-  환경이 자동으로 개구부 중앙(주변 최대 여유 점)으로 스냅해서 사용
-- 정체되면(성공률 안 오름) 그 단계 `--timesteps` 를 늘리거나 이전 단계로 돌아가 더 학습
-- 단일 스크립트로 직접 난이도를 지정하고 싶으면 구버전 `train.py` (아래) 사용
-
-### 난이도 (`--easy`, 구버전 train.py)
-
-전체 집(3층 22방) 아무 두 점이나는 단순 정책엔 너무 어려워 `success_rate` 가 0 근처에
-머물기 쉽다. RL 은 **한 번도 성공 못 한 행동은 못 배우므로**, 먼저 쉬운 문제로 첫 성공을
-만들어 신호를 키운 뒤 어렵게 가는 게 정석(커리큘럼). `--easy` 가 그 쉬운 설정:
-
-| 항목 | 기본 | --easy | 효과 |
-|---|---|---|---|
-| 시작·도착 위치 | 집 전체 랜덤 | **같은 방 안** | 문/계단 횡단 제거 |
-| 목표 거리 상한 | 없음 | **4 m** | 가까운 목표만 |
-| 도착 판정 `goal_radius` | 0.30 m | **0.60 m** | 근처까지 가면 성공 |
-| 시간초과 페널티 | 0 | **10** | "안전하게 배회" 국소최적 방지 |
-
-`--easy` 로 success_rate 가 충분히 오르면(>0.5), `--easy` 빼고 본 학습으로 넘어간다.
-(`drone_env.py` 의 `sample_same_room`/`max_goal_dist`/`goal_radius`/`timeout_penalty`
-인자를 직접 조절하면 그 중간 난이도도 가능)
-
-평가 때 좌표 직접 지정도 가능:
-```powershell
-python evaluate.py --start 6 6 4.2 --goal 2 0 1.2
-```
-
-## 네가 실제로 만지는 것
-
-대부분 SB3 기본값이라 건드릴 게 별로 없다. 실질적으로 둘:
-
-1. **`--timesteps`** (train.py): 학습량. 성공률 낮으면 늘린다.
-2. **보상함수** (drone_env.py 상단 인자): `progress_scale`, `collision_penalty`,
-   `goal_bonus`, `step_penalty`. 행동이 이상하면 여기를 조정.
-
-신경망 크기(`net_arch`)나 `learning_rate` 같은 건 보통 그대로 둔다.
+- 균일·결정론·정책 단독 200ep: **0.980** (같은층 1.000 / 층넘기 0.973)
+- 무작위 500ep (측지 4~32m): **0.968** (전 거리대 0.95~1.0, 성공 평균 49스텝)
+- 계단 과제(양방향): **0.97**
 
 ## 파일
 
 | 파일 | 역할 |
 |---|---|
-| `drone_env.py` | ★ 환경 (관측/행동/보상, KDTree 충돌검사, 난이도별 샘플링). RL의 핵심 |
-| `check_env.py` | 학습 전 환경 검증 + 랜덤 롤아웃 |
-| `train_stage1.py` `train_stage2a~2d.py` `train_stage3.py` | ★ 커리큘럼 단계별 학습. 난이도는 각 파일 맨 위 `ENV` 만 수정 |
-| `train_common.py` | 단계 스크립트 공통 학습 함수 (SAC 보일러플레이트) |
-| `train.py` | (구버전) 인자로 난이도를 직접 지정하는 단일 스크립트 |
-| `evaluate.py` | 점 2개 → 학습된 정책 비행 → open3d 시각화 |
-| `plot_progress.py` | 학습곡선(success_rate/보상) PNG 저장 |
-| `obstacles_cache.npz` | 전역 장애물 점군 캐시 (자동 생성, gitignore 대상) |
+| `geo_env.py` | ★ v2 환경 (측지 보상·자동 커리큘럼·carrot·범퍼/슬라이드·guide) |
+| `asym_policy.py` | Asymmetric actor-critic (특권 정보 경계 강제) |
+| `train_geo.py` | ★ 학습 (시간 예산·병렬 env·발산 가드·best 저장) |
+| `evaluate_geo.py` | 배치 평가(층넘기 분리)·경계 증명·점 찍기 시연 |
+| `fly_pick.py` | ★ 3D 시연 (점 찍기 / --demo 무작위 층간 비행, 궤적 npy 저장) |
+| `inject_stair_demos.py` | 계단 오라클 시범을 리플레이 버퍼에 주입 (재학습용) |
+| `_test_eval500.py` `_test_anatomy.py` `_test_stair_eval.py` | 평가 도구 3종 |
+| `drone_env.py` `evaluate.py` | (v1 잔존) v2 가 장애물 로딩·계단 체인·3D 픽킹을 재사용 |
 
-## 한계 / 솔직한 메모
+생성물(gitignore): `model_geo.zip`(최종) / `model_geo_best.zip`(★시연용) /
+`model_geo_replay.pkl`(이어받기) / `*_cache.npz`(격자·장애물 캐시) / `runs/`
 
-- 고정 맵 점A→B는 RRT*가 더 빠르고 확실. RL은 **학습/비교 실험**으로 의미.
-- 학습 병목은 신경망이 아니라 **매 스텝 KDTree 충돌검사**. 100만 스텝에 수십 분~수 시간.
-- 관측이 "위치+목표+로컬센서"라 한 맵 안 일반화는 되지만, 아주 좁은 계단 통과는 어려울 수 있음.
-- 실제 Tello 비행 연결(좌표 m↔cm, RC 변환)은 아직 미연결 — RRT* 쪽과 동일 과제.
+## 주의 (사고 이력에서 나온 규칙)
+
+- **물리/보상 체제가 바뀌면 이어받기 금지, fresh 학습** (섞인 버퍼 → SAC 발산 4회)
+- 이어받기는 반드시 `_replay.pkl` 있는 모델로 (빈 버퍼 워밍업이 정책 파괴)
+- env 를 만들 땐 항상 `clearance=0.12` 명시 (기본 0.235로 만들면 격자 캐시가 덮임)
+- 곡선 읽기: success_rate 톱니는 정상(온도조절기). 진짜 지표는 d_max 우상향과
+  eval/success_rate
