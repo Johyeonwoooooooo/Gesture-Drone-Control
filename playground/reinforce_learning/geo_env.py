@@ -114,6 +114,15 @@ class DroneGeoEnv(gym.Env):
                  stair_mix=0.0,        # 커리큘럼 중 이 확률로 '계단 과외' 에피소드
                                        # (계단 체인 한쪽 끝 → 반대쪽 끝, 짧은 층간 과제).
                                        # 계단 통과 경험을 강제로 쌓는다. 적응 통계 제외.
+                 people=0,             # ★ 동적 장애물(사람) 수. 드론의 예정 경로 근처를
+                                       # 왕복 순찰하는 원기둥(반경 people_radius, 높이 ±1m).
+                                       # 레이캐스트·충돌 물리에는 보이지만 측지 필드/carrot
+                                       # 은 모름 → 회피는 순수 정책(reactive) 몫.
+                 people_radius=0.3,    # 사람 원기둥 반경(m)
+                 people_speed=0.08,    # 사람 이동 속도(m/스텝). 드론 최대 0.3의 ~1/4
+                 people_penalty=None,  # 사람 접촉 페널티(기본 bump_penalty 와 동일).
+                                       # 벽 범프보다 크게(예: 5) 줘야 '사람은 밀고
+                                       # 지나가면 안 된다'를 학습한다
                  obstacles=None):
         super().__init__()
         self.coord = load_obstacles(voxel) if obstacles is None else obstacles
@@ -148,6 +157,12 @@ class DroneGeoEnv(gym.Env):
         self.subgoal_dist      = None if subgoal_dist is None else float(subgoal_dist)
         self.stair_relax       = float(stair_relax)
         self.bump_penalty      = None if bump_penalty is None else float(bump_penalty)
+        self.n_people          = int(people)
+        self.people_radius     = float(people_radius)
+        self.people_speed      = float(people_speed)
+        self.people_penalty    = (self.bump_penalty if people_penalty is None
+                                  else float(people_penalty))
+        self._people           = []   # [{pos, a, b, tgt}]  에피소드마다 리셋
 
         # 계단 체인(grid A* 캐시, drone_env 가 만든 것 재사용 — 없으면 한 번 생성)
         if not os.path.exists(_STAIR_CACHE):
@@ -480,6 +495,97 @@ class DroneGeoEnv(gym.Env):
         # 검증된 레일(셀 중심)로 복귀시키면 다음 셀은 보인다(간선 검증됨).
         return self.node_pos[n0]
 
+    # ── 동적 장애물(사람): 예정 경로 근처를 왕복 순찰하는 원기둥 ──────
+    # 레이·충돌 물리에는 보이지만 측지 필드/carrot 은 모른다(지도에 없는 존재).
+    # 회피는 순수하게 정책의 reactive 스킬 몫.
+    def _greedy_path_cells(self, p, limit=200):
+        """p 셀에서 목표까지 측지 최급강하 셀 체인 (사람 배치 앵커용)."""
+        c = np.clip(np.round((p - self.bounds_lo) / self.grid_v).astype(int),
+                    0, self.grid_dims - 1)
+        n = self.nid[c[0], c[1], c[2]]
+        if n < 0 or not np.isfinite(self._field[n]):
+            return []
+        out = [int(n)]
+        for _ in range(limit):
+            if self._field[n] <= self.grid_v:
+                break
+            ci = np.round((self.node_pos[n] - self.bounds_lo) / self.grid_v).astype(int)
+            best, bf = n, self._field[n]
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    for dz in (-1, 0, 1):
+                        if not (dx or dy or dz):
+                            continue
+                        x, y, z = ci[0] + dx, ci[1] + dy, ci[2] + dz
+                        if not (0 <= x < self.grid_dims[0] and
+                                0 <= y < self.grid_dims[1] and
+                                0 <= z < self.grid_dims[2]):
+                            continue
+                        m = self.nid[x, y, z]
+                        if m >= 0 and self._field[m] < bf:
+                            best, bf = int(m), float(self._field[m])
+            if best == n:
+                break
+            n = best
+            out.append(n)
+        return out
+
+    def _spawn_people(self):
+        self._people = []
+        if self.n_people <= 0:
+            return
+        chain = self._greedy_path_cells(self.pos)
+        if len(chain) < 6:
+            return
+        anchors = np.linspace(0.30, 0.85, self.n_people)
+        for u in anchors:
+            a = self.node_pos[chain[int(u * (len(chain) - 1))]].copy()
+            if np.linalg.norm(a - self.goal) < 1.5 or \
+                    np.linalg.norm(a - self.pos) < 2.0:
+                continue
+            # 왕복 반대 끝점: 같은 높이(|dz|<0.4)의 0.8~2.5m 떨어진 유효 셀
+            d = np.linalg.norm(self.node_pos - a, axis=1)
+            cand = np.where((d > 0.8) & (d < 2.5) &
+                            (np.abs(self.node_pos[:, 2] - a[2]) < 0.4))[0]
+            if len(cand) == 0:
+                continue
+            b = self.node_pos[int(cand[int(self.np_random.integers(len(cand)))])].copy()
+            u0 = float(self.np_random.random())        # 순찰 위상 무작위
+            self._people.append({
+                'a': a, 'b': b, 'pos': a + u0 * (b - a),
+                'tgt': int(self.np_random.integers(2))})
+
+    def _person_blocks(self, p, margin=None):
+        """점 p 가 사람 원기둥(반경+여유, 높이 ±1m)에 닿는가."""
+        r = self.people_radius + (self.clearance if margin is None else margin)
+        for h in self._people:
+            q = h['pos']
+            if abs(p[2] - q[2]) <= 1.0 and \
+                    (p[0]-q[0])**2 + (p[1]-q[1])**2 <= r * r:
+                return True
+        return False
+
+    def _person_seg_hit(self, p0, p1):
+        if not self._people:
+            return False
+        L = float(np.linalg.norm(p1 - p0))
+        k = max(2, int(L / 0.08) + 1)
+        for t in np.linspace(0.0, 1.0, k):
+            if self._person_blocks(p0 + t * (p1 - p0)):
+                return True
+        return False
+
+    def _step_people(self):
+        for h in self._people:
+            tgt = h['b'] if h['tgt'] == 1 else h['a']
+            v = tgt - h['pos']
+            n = float(np.linalg.norm(v))
+            if n <= self.people_speed:
+                h['pos'] = tgt.copy()
+                h['tgt'] = 1 - h['tgt']
+            else:
+                h['pos'] = h['pos'] + v / n * self.people_speed
+
     # ── 관측 ────────────────────────────────────────────────
     def _raycast(self, pos):
         clr = self._clr(pos)
@@ -488,7 +594,9 @@ class DroneGeoEnv(gym.Env):
             hit = self.ray_max
             t = self.ray_step
             while t <= self.ray_max:
-                if not R.is_point_free(pos + d * t, self.tree, clr):
+                q = pos + d * t
+                if not R.is_point_free(q, self.tree, clr) or \
+                        (self._people and self._person_blocks(q)):
                     hit = t
                     break
                 t += self.ray_step
@@ -556,7 +664,9 @@ class DroneGeoEnv(gym.Env):
         self.prev_a = np.zeros(3)
         self.steps = 0
         self._bumps = 0
+        self._person_hits = 0
         self._carrot_prev = None
+        self._spawn_people()
         self.path = [self.pos.copy()]
         self._phi_prev = self._phi(self.pos)
         return self._obs(), {}
@@ -565,10 +675,16 @@ class DroneGeoEnv(gym.Env):
         action = np.clip(np.asarray(action, np.float64), -1.0, 1.0)
         new = self.pos + action * self.max_step
         self.steps += 1
+        if self._people:
+            self._step_people()                       # 사람이 먼저 움직인다
 
         out_of_bounds = bool(np.any(new < self.bounds_lo) or np.any(new > self.bounds_hi))
         clr = min(self._clr(self.pos), self._clr(new))
-        hit = (not out_of_bounds) and (not R.is_edge_free(self.pos, new, self.tree,
+        p_hit = (not out_of_bounds) and self._person_seg_hit(self.pos, new)
+        if p_hit:
+            self._person_hits += 1
+        hit = (not out_of_bounds) and (p_hit or
+                                       not R.is_edge_free(self.pos, new, self.tree,
                                                           radius=clr))
         terminated = False
         success = False
@@ -580,6 +696,7 @@ class DroneGeoEnv(gym.Env):
                 # 부과되므로 벽 타기는 자유비행보다 항상 손해.
                 self._bumps += 1
                 self.prev_a = action
+                pen = self.people_penalty if p_hit else self.bump_penalty
                 slid = None
                 if not out_of_bounds:
                     disp = action * self.max_step
@@ -591,17 +708,18 @@ class DroneGeoEnv(gym.Env):
                         if np.any(cand < self.bounds_lo) or np.any(cand > self.bounds_hi):
                             continue
                         if R.is_edge_free(self.pos, cand, self.tree,
-                                          radius=min(self._clr(self.pos), self._clr(cand))):
+                                          radius=min(self._clr(self.pos), self._clr(cand))) \
+                                and not self._person_seg_hit(self.pos, cand):
                             slid = cand
                             break
                 if slid is None:
-                    reward = -self.bump_penalty
+                    reward = -pen
                 else:
                     self.pos = slid
                     self.path.append(self.pos.copy())
                     phi = self._phi(self.pos)
                     reward = (self._phi_prev - phi) * self.progress_scale \
-                        - self.step_penalty - self.bump_penalty
+                        - self.step_penalty - pen
                     self._phi_prev = phi
                     if float(np.linalg.norm(self.goal - self.pos)) <= self.goal_radius:
                         reward += self.goal_bonus
@@ -637,5 +755,6 @@ class DroneGeoEnv(gym.Env):
                     self.d_max = max(2.0, self.d_max - 0.25)
 
         info = {"dist": float(np.linalg.norm(self.goal - self.pos)),
-                "is_success": success, "d_max": self.d_max, "bumps": self._bumps}
+                "is_success": success, "d_max": self.d_max, "bumps": self._bumps,
+                "person_hits": self._person_hits}
         return self._obs(), float(reward), terminated, truncated, info
