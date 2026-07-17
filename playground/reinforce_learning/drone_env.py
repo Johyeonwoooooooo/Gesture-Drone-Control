@@ -21,6 +21,8 @@ demo_house 점군 위에서 드론이 시작점→도착점으로 날아가는 �
 
 import os
 import sys
+from collections import deque
+
 import numpy as np
 
 import gymnasium as gym
@@ -34,11 +36,13 @@ sys.path.insert(0, _DEMO)
 sys.path.insert(0, _DRAFT)
 
 import rrt_star_drone as R                                   # noqa: E402  충돌검사/보조함수
-from hierarchical_plan import load_graph, build_global_obstacles  # noqa: E402
+from hierarchical_plan import (load_graph, build_global_obstacles,  # noqa: E402
+                               stair_points, grid_astar)
 
 from scipy.spatial import cKDTree                            # noqa: E402
 
 _CACHE = os.path.join(_BASE, 'obstacles_cache.npz')
+_STAIR_CACHE = os.path.join(_BASE, 'stair_chains_cache.npz')
 
 
 # ── 장애물(전역 점군 + KDTree) 준비 — 한 번만 만들고 캐시 ─────────
@@ -91,13 +95,22 @@ class DroneHouseEnv(gym.Env):
                  sample_adjacent_rooms=False,  # True면 문 하나로 연결된 두 방에서 (2b)
                  sample_door_cross=False,      # True면 문 앞↔문 뒤 근접 지점만 (2a, 문 통과 집중훈련)
                  door_range=1.5,       # door_cross: 문 중심에서 이 반경 안에서 시작/도착을 뽑음
-                 door_route_reward=True,  # 문 경유 에피소드(2a/2b)의 진척을 '문 경유 거리'로 계산.
-                                          # 직선거리 진척은 벽 쪽으로 유인하는 문제가 있어, 문을
-                                          # 지나기 전엔 (현위치→문)+(문→목표) 가 줄어야 +보상.
-                 door_pass_radius=0.5, # 문 중심 이 반경 안에 들어오면 '문 통과' → 직선 진척으로 전환
+                 door_route_reward=True,  # 문 경유 에피소드의 진척을 '문 경유 거리'로 계산.
+                                          # 2a/2b는 그 문 하나, same_floor/all 은 방그래프 BFS로
+                                          # 경유할 문들을 찾아 (현위치→문1→…→목표) 경유거리 사용.
+                                          # 직선거리 진척은 목표가 옆방 너머일 때 벽으로 유인함.
+                 door_pass_radius=0.5, # 문 중심 이 반경 안에 들어오면 '문 통과' → 다음 웨이포인트로
                  easy_mix=0.0,         # 이 확률로 easy_mix_mode 난이도 에피소드를 섞음(망각 방지)
                  easy_mix_mode=None,   # 'same_room' | 'door_cross' | 'adjacent_rooms'
                  max_goal_dist=None,   # 설정 시 시작-도착 거리 상한(m) — 가까운 목표만
+                 sample_full_house=False,  # True면 집 전체(층 넘기 포함). 계단은 grid A* 로
+                                           # 미리 깔아둔 웨이포인트 체인을 경유(최초 1회 계산 후 캐시)
+                 waypoint_obs=False,   # True면 관측의 방향/거리를 '최종 목표' 대신 '다음
+                                       # 웨이포인트'(다음 문/계단점, 없으면 목표)로 채움.
+                                       # 정책이 문을 스스로 찾을 필요가 없어져 과제가 쉬워짐.
+                                       # 차원(18) 불변이라 기존 모델 이어받기 가능.
+                 stair_clearance=0.12, # 계단 체인 근처(0.9m)에서만 쓰는 완화 여유반경(m).
+                                       # 좁은 계단은 기본 여유반경(~0.235m)으론 통과 불가
                  obstacles=None):
         super().__init__()
         self.coord = load_obstacles(voxel) if obstacles is None else obstacles
@@ -142,6 +155,9 @@ class DroneHouseEnv(gym.Env):
         self.easy_mix          = float(easy_mix)
         self.easy_mix_mode     = easy_mix_mode
         self.max_goal_dist     = None if max_goal_dist is None else float(max_goal_dist)
+        self.sample_full_house = bool(sample_full_house)
+        self.waypoint_obs      = bool(waypoint_obs)
+        self.stair_clearance   = float(stair_clearance)
 
         # 같은 층 문 엣지 (방A인덱스, 방B인덱스, 문 중심좌표) — 2a/2b 샘플링용.
         # 계단(층간) 엣지는 제외: 문 커리큘럼은 층 안에서만.
@@ -166,7 +182,34 @@ class DroneHouseEnv(gym.Env):
         if dropped:
             print(f"[환경] 통과 불가 문 {dropped}개 제외 (door_center 주변 0.5m에 빈 공간 없음)")
 
+        # 방 인접 그래프 (같은 층 문 엣지) — same_floor/all 에피소드에서 시작→도착 방을
+        # BFS 해 '경유할 문' 목록을 뽑는 데 쓴다. 문 정보 없이 직선거리 진척만 주면
+        # 목표가 옆방 너머일 때 보상이 벽 쪽으로 유인함(2c 0.5 정체의 원인).
+        # 값은 (이웃방, 경유 웨이포인트 체인) — 문은 체인이 점 1개, 계단은 여러 점.
+        self.room_adj = {}
+        for a, b, dc in self.door_edges:
+            self.room_adj.setdefault(a, []).append((b, [dc]))
+            self.room_adj.setdefault(b, []).append((a, [dc]))
+
+        # 전체집(층 넘기) 그래프: 문 엣지 + 계단 엣지(grid A* 웨이포인트 체인).
+        self.stair_chain_tree = None
+        self.route_adj = self.room_adj
+        if self.sample_full_house:
+            chains = self._build_stair_chains(g, id2i)
+            self.route_adj = {k: list(v) for k, v in self.room_adj.items()}
+            all_pts = []
+            for a, b, ch in chains:
+                fwd = [np.array(p, float) for p in ch]
+                self.route_adj.setdefault(a, []).append((b, fwd))
+                self.route_adj.setdefault(b, []).append((a, fwd[::-1]))
+                all_pts.append(np.asarray(ch, float))
+            if all_pts:
+                self.stair_chain_tree = cKDTree(np.vstack(all_pts))
+            else:
+                print("[환경] 경고: 계단 체인이 없어 층 넘기 에피소드는 직선 보상으로 폴백")
+
         needs_doors = (self.sample_door_cross or self.sample_adjacent_rooms
+                       or self.sample_full_house
                        or self.easy_mix_mode in ('door_cross', 'adjacent_rooms'))
         if needs_doors and not self.door_edges:
             raise RuntimeError("rooms_graph.json 에 같은 층 문 엣지(door_center)가 없어 "
@@ -219,31 +262,119 @@ class DroneHouseEnv(gym.Env):
                 return p.astype(np.float64)
         return None
 
+    # ── 보조: 계단 엣지마다 grid A* 로 통과 웨이포인트 체인 계산 (1회, 캐시) ──
+    # 계단은 기본 여유반경으론 통과 불가 → stair_clearance 로 격자 A* 후 스무딩.
+    # 반환: [(방a인덱스, 방b인덱스, 체인점배열), ...]  체인 방향은 a→b.
+    def _build_stair_chains(self, g, id2i):
+        if os.path.exists(_STAIR_CACHE):
+            d = np.load(_STAIR_CACHE)
+            if float(d['stair_clearance']) == self.stair_clearance:
+                return [(int(d[f'ab_{k}'][0]), int(d[f'ab_{k}'][1]),
+                         d[f'chain_{k}'].astype(np.float64)) for k in range(int(d['n']))]
+        rooms = g['rooms']
+        chains = []
+        for e in g.get('edges', []):
+            if e.get('type') != 'stairs':
+                continue
+            a, b = id2i.get(e['a']), id2i.get(e['b'])
+            ra, rb = rooms[e['a']], rooms[e['b']]
+            sp = stair_points(ra, rb)
+            if a is None or b is None or sp is None:
+                continue
+            pa, pb = np.array(sp[0], float), np.array(sp[1], float)
+            lower = ra if ra['floor'] <= rb['floor'] else rb
+            m = 1.5                        # hierarchical_plan.plan() 의 계단 박스와 동일
+            lo = [min(lower['bbox_min'][0], pa[0], pb[0]) - m,
+                  min(lower['bbox_min'][1], pa[1], pb[1]) - m, min(pa[2], pb[2]) - 0.6]
+            hi = [max(lower['bbox_max'][0], pa[0], pb[0]) + m,
+                  max(lower['bbox_max'][1], pa[1], pb[1]) + m, max(pa[2], pb[2]) + 0.6]
+            print(f"[환경] 계단 {e['a']}-{e['b']} 웨이포인트 체인 계산 중 (grid A*, 최초 1회만)...")
+            # 체인은 비행 반경(stair_clearance)보다 +0.04m 여유로 만들어 둔다 —
+            # is_edge_free 의 샘플링 간격 때문에 딱 경계로 만든 경로는 비행 중
+            # 벽을 스치는 판정이 날 수 있음. 넉넉한 반경이 안 뚫리면 원반경 폴백.
+            build_r = self.stair_clearance + 0.04
+            gp = grid_astar(self.tree, pa, pb, lo, hi, build_r, max_expand=500_000)
+            if gp is None or len(gp) < 2:
+                build_r = self.stair_clearance
+                gp = grid_astar(self.tree, pa, pb, lo, hi, build_r, max_expand=500_000)
+            if gp is None or len(gp) < 2:
+                print(f"[환경] 경고: 계단 {e['a']}-{e['b']} grid A* 실패, 이 엣지 제외")
+                continue
+            path = R.smooth_path(gp, self.tree, obs_radius=build_r)
+            chains.append((a, b, self._densify(np.asarray(path, float))))
+        save = {'n': len(chains), 'stair_clearance': self.stair_clearance}
+        for k, (a, b, ch) in enumerate(chains):
+            save[f'ab_{k}'] = np.array([a, b]); save[f'chain_{k}'] = ch.astype(np.float32)
+        np.savez_compressed(_STAIR_CACHE, **save)
+        print(f"[환경] 계단 체인 {len(chains)}개 캐시 저장: {_STAIR_CACHE}")
+        return chains
+
+    @staticmethod
+    def _densify(path, max_seg=1.2):
+        """웨이포인트 간격이 max_seg 를 넘으면 중간점을 삽입 (통과 판정 놓침 방지)."""
+        out = [np.asarray(path[0], float)]
+        for p in path[1:]:
+            p = np.asarray(p, float)
+            prev = out[-1]
+            seg = p - prev
+            n = int(np.linalg.norm(seg) // max_seg)
+            for j in range(1, n + 1):
+                out.append(prev + seg * (j / (n + 1)))
+            out.append(p)
+        return np.asarray(out)
+
+    # ── 보조: 방 ra→rb 를 그래프 BFS 로 이어 경유 웨이포인트 목록 반환 ──
+    # adj 값은 (이웃방, 체인). 같은 방이거나 경로 없음이면 None → 직선 진척으로 폴백.
+    def _graph_route(self, adj, ra, rb):
+        if ra == rb:
+            return None
+        prev = {ra: None}
+        q = deque([ra])
+        while q:
+            u = q.popleft()
+            if u == rb:
+                break
+            for v, ch in adj.get(u, []):
+                if v not in prev:
+                    prev[v] = (u, ch)
+                    q.append(v)
+        if rb not in prev:
+            return None
+        segs, u = [], rb
+        while prev[u] is not None:
+            u, ch = prev[u]
+            segs.append(ch)
+        segs.reverse()
+        return [p for ch in segs for p in ch]
+
     # ── 보조: 이번 에피소드 샘플링 모드 결정 (easy_mix 확률로 쉬운 모드 섞기) ──
     def _episode_mode(self):
         if self.sample_same_room:        mode = 'same_room'
         elif self.sample_door_cross:     mode = 'door_cross'
         elif self.sample_adjacent_rooms: mode = 'adjacent_rooms'
         elif self.sample_same_floor:     mode = 'same_floor'
+        elif self.sample_full_house:     mode = 'full_house'
         else:                            mode = 'all'
         if self.easy_mix_mode and self.np_random.random() < self.easy_mix:
             mode = self.easy_mix_mode
         return mode
 
     # ── 보조: 시작·도착 쌍 뽑기 (난이도 옵션 반영) ──────────────
-    # 반환: (시작, 도착, 문중심 or None) — 문 경유 에피소드(2a/2b)면 그 문의 중심좌표
+    # 반환: (시작, 도착, 경유할 문중심 리스트 or None)
+    #   2a/2b = 그 문 하나짜리 리스트, same_floor/all = 방그래프 BFS 경로(문 0개↑),
+    #   None = 문 경유 보상 없이 직선 진척(같은 방, 층간, 경로 없음 등).
     def _sample_pair(self, tries=100):
         last = (None, None, None)
         for _ in range(tries):
             mode = self._episode_mode()
-            door = None
+            doors = None
             if mode == 'door_cross':                   # 문 앞 ↔ 문 뒤 (2a)
                 ai, bi, dc = self.door_edges[int(self.np_random.integers(len(self.door_edges)))]
                 if self.np_random.random() < 0.5:
                     ai, bi = bi, ai
                 s = self._sample_near_door(ai, dc)
                 g = self._sample_near_door(bi, dc)
-                door = dc
+                doors = [dc]
             else:
                 if mode == 'same_room':                # 같은 방 (제일 쉬움)
                     ra = rb = int(self.np_random.integers(len(self.rooms)))
@@ -251,17 +382,21 @@ class DroneHouseEnv(gym.Env):
                     ra, rb, dc = self.door_edges[int(self.np_random.integers(len(self.door_edges)))]
                     if self.np_random.random() < 0.5:
                         ra, rb = rb, ra
-                    door = dc
+                    doors = [dc]
                 elif mode == 'same_floor':             # 같은 층, 방은 달라도 됨 (중간)
                     f = self.floor_keys[int(self.np_random.integers(len(self.floor_keys)))]
                     idxs = self.floor_rooms[f]
                     ra = idxs[int(self.np_random.integers(len(idxs)))]
                     rb = idxs[int(self.np_random.integers(len(idxs)))]
-                else:                                  # 집 전체 (제일 어려움, 층 넘기 포함)
-                    ra = rb = None
+                    doors = self._graph_route(self.room_adj, ra, rb)
+                else:                                  # 집 전체 (full_house/all, 층 넘기 포함)
+                    ra = int(self.np_random.integers(len(self.rooms)))
+                    rb = int(self.np_random.integers(len(self.rooms)))
+                    # full_house 는 계단 체인 포함 그래프, all(구버전) 은 같은 층 문만
+                    doors = self._graph_route(self.route_adj, ra, rb)
                 s = self._sample_free(ra)
                 g = self._sample_free(rb)
-            last = (s, g, door)
+            last = (s, g, doors)
             if s is None or g is None:
                 continue
             d = float(np.linalg.norm(g - s))
@@ -269,26 +404,64 @@ class DroneHouseEnv(gym.Env):
                 continue
             if self.max_goal_dist is not None and d > self.max_goal_dist:
                 continue
-            return s, g, door
+            return s, g, doors
         return last
 
     # ── 보조: 진척 계산용 거리 (문 경유 보상) ────────────────────
-    # 문 경유 에피소드에서 문을 지나기 전엔 (현위치→문)+(문→목표), 지난 후엔 직선거리.
-    # 직선거리 진척은 목표가 옆방일 때 벽 쪽으로 유인하므로, 보상 기울기가 문을 가리키게 한다.
+    # 남은 문 웨이포인트가 있으면 (현위치→문1)+(문1→문2)+…+(마지막 문→목표) 경유거리,
+    # 없으면 목표 직선거리. 직선거리 진척은 목표가 옆방(들) 너머일 때 벽 쪽으로
+    # 유인하므로, 보상 기울기가 항상 '다음 문'을 가리키게 한다.
     def _route_dist(self, p):
-        if self.door_wp is not None and not self.door_passed:
-            return float(np.linalg.norm(self.door_wp - p) +
-                         np.linalg.norm(self.goal - self.door_wp))
-        return float(np.linalg.norm(self.goal - p))
+        d, prev = 0.0, p
+        for wp in self.door_wps:
+            d += float(np.linalg.norm(wp - prev))
+            prev = wp
+        return d + float(np.linalg.norm(self.goal - prev))
+
+    # ── 보조: 지나온/불필요해진 문 웨이포인트를 큐 앞에서 제거 ──────
+    # 통과 판정 = 문 중심 door_pass_radius 근접, 또는 다음 웨이포인트(다음 문 or 목표)가
+    # 직선으로 보임(중심을 비껴 통과했거나 애초에 그 문이 불필요한 경우).
+    # 목표가 직선으로 보이면 남은 문 전부 생략 — 문을 지나고도 보상이 문 쪽으로
+    # 되돌아오라고 유인하는 것을 막는다.
+    def _advance_doors(self):
+        if not self.door_wps:
+            return
+        clr = self._clr(self.pos)
+        # 목표 직선 가시 → 남은 웨이포인트 전부 생략. 목표가 멀고 웨이포인트가 많이
+        # 남았으면 어차피 안 보이므로 장거리 레이캐스트를 생략(전체집 에피소드 비용 절약).
+        if (len(self.door_wps) <= 2
+                or float(np.linalg.norm(self.goal - self.pos)) <= 6.0) \
+                and R.is_edge_free(self.pos, self.goal, self.tree, radius=clr):
+            self.door_wps = []
+            return
+        while self.door_wps:
+            if float(np.linalg.norm(self.door_wps[0] - self.pos)) <= self.door_pass_radius:
+                self.door_wps.pop(0)
+                continue
+            if len(self.door_wps) >= 2 and R.is_edge_free(self.pos, self.door_wps[1],
+                                                          self.tree, radius=clr):
+                self.door_wps.pop(0)
+                continue
+            return
+
+    # ── 보조: 위치별 유효 여유반경 — 계단 체인 근처(0.9m)에서만 완화 ──────
+    # 좁은 계단을 기본 여유반경으론 못 지나므로, 계단 구간에서만 '몸을 웅크린' 것처럼
+    # 충돌검사·레이캐스트 반경을 줄인다 (hierarchical_plan 의 stair_radius 와 같은 발상).
+    def _clr(self, p):
+        if self.stair_chain_tree is not None and \
+                float(self.stair_chain_tree.query(p)[0]) < 0.9:
+            return self.stair_clearance
+        return self.clearance
 
     # ── 관측 만들기 ──────────────────────────────────────────
     def _raycast(self, pos):
+        clr = self._clr(pos)
         out = np.empty(len(self.ray_dirs), dtype=np.float32)
         for k, d in enumerate(self.ray_dirs):
             hit = self.ray_max
             t = self.ray_step
             while t <= self.ray_max:
-                if not R.is_point_free(pos + d * t, self.tree, self.clearance):
+                if not R.is_point_free(pos + d * t, self.tree, clr):
                     hit = t
                     break
                 t += self.ray_step
@@ -296,7 +469,10 @@ class DroneHouseEnv(gym.Env):
         return out
 
     def _obs(self):
-        rel = self.goal - self.pos
+        # waypoint_obs: 정책 눈에는 '다음 웨이포인트'가 목표처럼 보인다(서브골).
+        # 도착/성공 판정은 여전히 최종 목표 기준(step() 참조).
+        target = self.door_wps[0] if (self.waypoint_obs and self.door_wps) else self.goal
+        rel = target - self.pos
         dist = float(np.linalg.norm(rel))
         unit = rel / (dist + 1e-8)
         dnorm = min(dist / self.diag, 1.0)
@@ -318,26 +494,25 @@ class DroneHouseEnv(gym.Env):
         opt_s = options.get('start')
         opt_g = options.get('goal')
 
-        door = None
+        doors = None
         if opt_s is not None or opt_g is not None:
             # 평가: 원하는 두 점 직접 지정(막힌 점이면 근처 빈 곳으로 보정)
             self.pos  = self._resolve_point(opt_s) if opt_s is not None else self._sample_free()
             self.goal = self._resolve_point(opt_g) if opt_g is not None else self._sample_free()
         else:
             # 학습: 난이도 옵션(같은 방/거리상한)을 반영한 랜덤 시작·도착 쌍
-            self.pos, self.goal, door = self._sample_pair()
+            self.pos, self.goal, doors = self._sample_pair()
 
         if self.pos is None or self.goal is None:        # 극히 드문 실패 → 폴백
             self.pos = self.coord[0] + np.array([0.5, 0, 0.5])
             self.goal = self.pos + np.array([max(self.min_separation, 1.0), 0, 0])
-            door = None
+            doors = None
 
-        # 문 경유 보상 상태 (문 경유 에피소드가 아니면 둘 다 비활성).
-        # 시작부터 목표가 직선으로 보이면 문 경유가 불필요하므로 바로 직선 진척 모드.
-        self.door_wp = door if (self.door_route_reward and door is not None) else None
-        self.door_passed = bool(
-            self.door_wp is not None and
-            R.is_edge_free(self.pos, self.goal, self.tree, radius=self.clearance))
+        # 문 경유 보상 상태: 남은 문 웨이포인트 큐 (문 경유 에피소드가 아니면 빈 큐).
+        # 시작부터 목표(또는 다음 문)가 직선으로 보이면 그만큼 미리 건너뛴다.
+        self.door_wps = list(doors) if (self.door_route_reward and doors) else []
+        if self.door_wps:
+            self._advance_doors()
 
         self.steps = 0
         self.path = [self.pos.copy()]
@@ -350,8 +525,9 @@ class DroneHouseEnv(gym.Env):
 
         prev_route = self._route_dist(self.pos)
         out_of_bounds = bool(np.any(new < self.bounds_lo) or np.any(new > self.bounds_hi))
+        clr = min(self._clr(self.pos), self._clr(new))   # 계단 근처에서만 완화
         hit = (not out_of_bounds) and (not R.is_edge_free(self.pos, new, self.tree,
-                                                          radius=self.clearance))
+                                                          radius=clr))
 
         terminated = False
         if out_of_bounds or hit:
@@ -360,12 +536,8 @@ class DroneHouseEnv(gym.Env):
         else:
             self.pos = new
             self.path.append(self.pos.copy())
-            # 문 통과 판정: 문 중심 근접 or 목표가 직선으로 보임(중심을 비껴 통과한 경우).
-            # 후자가 없으면 문을 지나고도 보상이 문 쪽으로 되돌아오라고 유인하게 된다.
-            if (self.door_wp is not None and not self.door_passed and
-                    (float(np.linalg.norm(self.door_wp - self.pos)) <= self.door_pass_radius
-                     or R.is_edge_free(self.pos, self.goal, self.tree, radius=self.clearance))):
-                self.door_passed = True    # 이후 진척은 목표 직선거리 기준
+            if self.door_wps:
+                self._advance_doors()      # 지난 문은 큐에서 제거 → 진척 기준 갱신
             new_dist = float(np.linalg.norm(self.goal - self.pos))
             reward = (prev_route - self._route_dist(self.pos)) * self.progress_scale \
                      - self.step_penalty
