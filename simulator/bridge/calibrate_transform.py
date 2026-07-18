@@ -41,15 +41,25 @@ _REPO = _THIS.parents[2]
 DEFAULT_CACHE = _REPO / "3D-segmentation" / "cache"
 
 
-def load_building_coords(cache_dir: Path, building: str, max_points: int, seed: int) -> np.ndarray:
-    feat_root = cache_dir / building / "feat"
+def load_building_coords(cache_dir: Path, building: str, max_points: int, seed: int,
+                         coords_dir: Path | None = None) -> np.ndarray:
     coords = []
-    for region in sorted(p for p in feat_root.iterdir() if p.is_dir()):
-        f = region / "coord.npy"
-        if f.exists():
-            coords.append(np.load(f))
-    if not coords:
-        raise FileNotFoundError(f"no coord.npy under {feat_root}")
+    if coords_dir is not None:
+        # LitePT data layout (data/final_npy): coord.npy at each room-dir root.
+        for region in sorted(coords_dir.glob(f"{building}_*")):
+            f = region / "coord.npy"
+            if f.exists():
+                coords.append(np.load(f))
+        if not coords:
+            raise FileNotFoundError(f"no {building}_*/coord.npy under {coords_dir}")
+    else:
+        feat_root = cache_dir / building / "feat"
+        for region in sorted(p for p in feat_root.iterdir() if p.is_dir()):
+            f = region / "coord.npy"
+            if f.exists():
+                coords.append(np.load(f))
+        if not coords:
+            raise FileNotFoundError(f"no coord.npy under {feat_root}")
     pts = np.concatenate(coords).astype(np.float64)
     if len(pts) > max_points:
         rng = np.random.default_rng(seed)
@@ -118,6 +128,9 @@ def refine_translation(
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--cache-dir", type=Path, default=DEFAULT_CACHE)
+    ap.add_argument("--coords-dir", type=Path, default=None,
+                    help="LitePT data dir (e.g. data/final_npy) with "
+                         "<building>_*/coord.npy — used instead of --cache-dir.")
     ap.add_argument("--building", default="00800_TEEsavR23oF")
     ap.add_argument("--voxel-map", type=Path,
                     default=_THIS.parent / "TEEsavR23oF_voxel_map_3d.json")
@@ -132,7 +145,8 @@ def main() -> int:
                     help="required score ratio best/runner-up")
     args = ap.parse_args()
 
-    pts = load_building_coords(args.cache_dir, args.building, args.max_points, args.seed)
+    pts = load_building_coords(args.cache_dir, args.building, args.max_points,
+                               args.seed, coords_dir=args.coords_dir)
     vm = VoxelMap(args.voxel_map)
     print(f"[calib] {len(pts)} points, voxel map {tuple(vm.size)} @ {vm.voxel_size} u")
 

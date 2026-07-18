@@ -1,0 +1,15 @@
+{
+  "matrix": [
+    [-5.0, 0.0, 0.0],
+    [0.0, 0.0, 5.0],
+    [0.0, -5.0, 0.0]
+  ],
+  "translation": [0.0, 15.5, 0.0],
+  "meta": {
+    "building": "00809_Qpor2mEya8F",
+    "candidate": "x-y+z-",
+    "scale": 5.0,
+    "provisional": true,
+    "note": "Derived from the calibrated 00800_TEEsavR23oF transform (same glTF importer/scene convention), NOT yet verified against a Unity voxel-map export. Assumes the glb is placed at position (0, 15.5, 0), rotation (-90, 0, 0), scale (5, 5, 5) so the lowest floor (mosaic z=-3.09) sits just above Unity y=0. After exporting the 00809 voxel map from Unity, confirm with: python simulator/bridge/calibrate_transform.py --building 00809_Qpor2mEya8F --coords-dir data/final_npy --voxel-map <exported.json> --scale 5 --translation 0 15.5 0"
+  }
+}
