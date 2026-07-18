@@ -16,14 +16,22 @@ Two layers under one repo:
 3. **Unity simulator integration** (`simulator/`, `README-integration.md`) —
    sim-integration branch only: Unity 6 Tello simulator (`simulator/tello_simulator/`,
    from the jiyun-simul branch) + Python UDP bridge (`simulator/bridge/`). The
-   `webapp_llm_v2` server gains a `--sim --unity-host <ip>` mode that flies the
-   planned path in Unity via Tello-style `rc` commands. Coordinates are converted
-   mosaic3d-world → Unity-world by a calibrated affine transform committed at
-   `simulator/bridge/transforms/<building>.json` (regenerate with
-   `simulator/bridge/calibrate_transform.py`; the Unity scene places the house glb
-   at scale 5, −90° about X, offset (1.26,0,0)). Protocol: server → Unity UDP 9000
-   (`command`/`takeoff`/`land`/`rc`/`setpos`/`msg`), Unity → server UDP 9002 JSON
-   state @20 Hz. `simulator/bridge/fake_unity_sim.py` is a protocol stub for
+   `webapp_llm_v2` server (viser-free) uses the **LitePT precomputed detection
+   backend** (`webapp_llm_v2/litept_backend.py` over `data/final_npy/`, from the
+   minyeong-3d branch pipeline — ScanNet-20 closed set, no CLIP/Mosaic3D cache)
+   and a **user-confirm flow**: candidates are previewed by the Unity camera
+   (`preview` command, [이동]/[다음 후보] IMGUI buttons answering as
+   `{"event":"confirm"|"next"}` on the state port) before the drone flies.
+   Camera: 3rd-person chase / 1st-person FPV, C-key toggle (`CameraFollow.cs`).
+   Coordinates are converted mosaic3d-world → Unity-world by an affine transform
+   at `simulator/bridge/transforms/<building>.json` (00800 calibrated;
+   00809 provisional — glb placed at scale 5, −90° about X, position (0,15.5,0)
+   so the lowest floor clears the `minHeight` clamp; confirm with
+   `calibrate_transform.py --coords-dir data/final_npy` after a Unity voxel-map
+   export). Protocol: server → Unity UDP 9000 (`command`/`takeoff`/`land`/`rc`/
+   `setpos`/`msg`/`preview`/`preview_off`), Unity → server UDP 9002 JSON state
+   @20 Hz + button events. `simulator/bridge/fake_unity_sim.py` is a protocol
+   stub (`--auto-next K --auto-confirm-sec N` fakes the button clicks) for
    testing without Unity. See `README-integration.md` for the full run guide.
 
 The 3D localization layer has **two complementary object-finding backends**:
