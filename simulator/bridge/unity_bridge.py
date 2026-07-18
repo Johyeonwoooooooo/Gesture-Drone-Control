@@ -4,6 +4,7 @@ UDP bridge for the Unity-based Tello simulator.
 
 from __future__ import annotations
 
+import collections
 import json
 import socket
 import threading
@@ -43,6 +44,8 @@ class UnityTelloBridge:
         self._stop_event = threading.Event()
         self._state_lock = threading.Lock()
         self._latest_state: Optional[DroneState] = None
+        self._event_lock = threading.Lock()
+        self._events: collections.deque[str] = collections.deque(maxlen=32)
 
     def connect(self) -> None:
         self.command_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -110,6 +113,36 @@ class UnityTelloBridge:
     def request_state(self) -> str:
         return self.send_command("state")
 
+    # ------------------------------------------------------ preview / confirm
+    def preview(self, x: float, y: float, z: float, label: str = "") -> str:
+        """Point the simulator camera at a candidate target (drone stays put).
+
+        Unity shows the on-screen [이동]/[다음 후보] buttons while a preview is
+        active and answers them as events on the state channel.
+        """
+        cmd = f"preview {x} {y} {z}"
+        if label:
+            cmd += f" {label}"
+        return self.send_command(cmd)
+
+    def preview_off(self) -> str:
+        return self.send_command("preview_off")
+
+    def drain_events(self) -> None:
+        """Discard queued user events (call before waiting on a fresh preview)."""
+        with self._event_lock:
+            self._events.clear()
+
+    def wait_for_event(self, timeout: float) -> Optional[str]:
+        """Next user event name ("confirm" / "next"), or None on timeout."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            with self._event_lock:
+                if self._events:
+                    return self._events.popleft()
+            time.sleep(0.05)
+        return None
+
     def get_latest_state(self) -> Optional[DroneState]:
         with self._state_lock:
             return self._latest_state
@@ -130,6 +163,10 @@ class UnityTelloBridge:
             try:
                 payload, _ = self.state_socket.recvfrom(4096)
                 parsed = json.loads(payload.decode("utf-8"))
+                if "event" in parsed:  # user-interaction event, not a state packet
+                    with self._event_lock:
+                        self._events.append(str(parsed["event"]))
+                    continue
                 state = DroneState(
                     x=float(parsed["x"]),
                     y=float(parsed["y"]),
