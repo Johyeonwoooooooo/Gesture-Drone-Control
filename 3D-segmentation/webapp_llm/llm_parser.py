@@ -29,7 +29,11 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 SYSTEM_PROMPT = """You parse natural-language drone commands into JSON.
 
 The drone operates in a pre-scanned 3D indoor scene made of numbered rooms. Extract:
-- target_object: the object to find, as a short English noun phrase (e.g. "toilet", "tv", "refrigerator", "sofa").
+- target_object: the object to find. MUST be exactly one of these detector classes:
+  cabinet, bed, chair, sofa, table, door, window, bookshelf, picture, counter,
+  desk, curtain, refrigerator, shower curtain, toilet, sink, bathtub, otherfurniture.
+  Pick the closest class for anything else (tv/모니터/전자기기 -> otherfurniture,
+  장롱/옷장 -> cabinet, 세면대/싱크대 -> sink).
 - clip_prompt:   an English CLIP-friendly prompt, usually "a <target_object>".
 - location_hint: free-form location/region context from the user (e.g. "upstairs bathroom", "next room", "kitchen"). Empty string if none.
 - target_room:   the ROOM ID to search. Rooms are identified by a code like "001_004" (two numbers, the scene file-name suffix). Copy that code as a string when the user names a specific room (e.g. "001_004 방" -> "001_004", "room 002_011" -> "002_011"). null if no specific room is given.
@@ -46,13 +50,13 @@ User: 001_004 방에서 의자 찾아줘
 {"target_object":"chair","clip_prompt":"a chair","location_hint":"room 001_004","target_room":"001_004","scope":"room","action":"goto","return_home":false}
 
 User: 002_011 방에 있는 tv 사진 찍어와줘
-{"target_object":"tv","clip_prompt":"a tv","location_hint":"room 002_011","target_room":"002_011","scope":"room","action":"take_photo","return_home":true}
+{"target_object":"otherfurniture","clip_prompt":"a tv","location_hint":"room 002_011","target_room":"002_011","scope":"room","action":"take_photo","return_home":true}
 
 User: 집 전체에서 냉장고 찾아줘
 {"target_object":"refrigerator","clip_prompt":"a refrigerator","location_hint":"whole house","target_room":null,"scope":"building","action":"goto","return_home":false}
 
 User: 옆 방에 있는 TV 사진 찍어와줘
-{"target_object":"tv","clip_prompt":"a tv","location_hint":"next room","target_room":null,"scope":"","action":"take_photo","return_home":true}
+{"target_object":"otherfurniture","clip_prompt":"a tv","location_hint":"next room","target_room":null,"scope":"","action":"take_photo","return_home":true}
 
 User: 거실 소파 위에 누가 있는지 확인해줘
 {"target_object":"sofa","clip_prompt":"a sofa","location_hint":"living room","target_room":null,"scope":"","action":"inspect","return_home":false}
