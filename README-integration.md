@@ -250,12 +250,27 @@ simulator/
 
 **00809 최초 세팅** (현재 씬은 00800 기준이므로 1회 필요):
 
-1. **Unity**: `data/final_npy/Qpor2mEya8F.glb` 를 `Assets/` 로 드래그해 임포트.
-2. `Assets/test.unity` 씬에서 기존 00800 집 오브젝트 삭제(또는 비활성화) 후,
-   Qpor2mEya8F 프리팹을 씬에 배치:
-   - Position **(0, 15.5, 0)** ← 필수! (§6의 바닥 오프셋)
-   - Rotation **(−90, 0, 0)**
-   - Scale **(5, 5, 5)**
+1. **glb 임포트**: 파일 탐색기(파인더)에서 `data/final_npy/Qpor2mEya8F.glb` 파일을
+   Unity 하단 **Project 창**의 `Assets` 폴더 안으로 드래그 앤 드롭.
+   임포트가 끝나면 Assets 안에 `Qpor2mEya8F` 프리팹 아이콘이 생깁니다.
+2. **씬에 배치** (`Assets/test.unity` 씬이 열린 상태에서):
+   1. Project 창의 `Qpor2mEya8F` 프리팹을 왼쪽 **Hierarchy 창**으로 드래그 앤 드롭
+      → Hierarchy에 `Qpor2mEya8F` 오브젝트가 생기고 Scene 뷰에 집이 나타남
+      (처음엔 위치/방향이 이상해도 정상 — 다음 단계에서 맞춤).
+   2. Hierarchy에서 `Qpor2mEya8F` 를 클릭해 선택 → 오른쪽 **Inspector 창** 맨 위
+      **Transform** 컴포넌트의 숫자 칸에 아래 값을 **직접 타이핑**:
+
+      | Transform | X | Y | Z |
+      |---|---|---|---|
+      | Position | `0` | `15.5` | `0` |
+      | Rotation | `-90` | `0` | `0` |
+      | Scale | `5` | `5` | `5` |
+
+      Position Y **15.5는 필수**입니다 (§6의 바닥 오프셋).
+   3. 확인: 오브젝트를 선택한 채 Scene 뷰에 마우스를 두고 **F 키** → 카메라가
+      집으로 이동. 집 바닥이 대략 y=0 근처(드론 아래)에 깔려 있으면 성공.
+   4. 기존 00800 집 오브젝트(TEEsavR23oF 계열 이름)는 Hierarchy에서 우클릭 →
+      **Delete** (또는 Inspector 이름 옆 체크박스 해제로 비활성화).
 3. 배치한 집 루트 선택 → 메뉴 `Tools → Add Mesh Colliders to Selected`.
 4. 같은 루트 선택 → `Tools → Export 3D Voxel Map (Selected Root)` →
    생성된 JSON을 레포 `simulator/bridge/` 에 복사.
