@@ -42,10 +42,30 @@ public class CameraFollow : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(toggleKey))
+        if (TogglePressed())
         {
             mode = mode == CamMode.ThirdPerson ? CamMode.FirstPerson : CamMode.ThirdPerson;
         }
+    }
+
+    // Works whether the project's Active Input Handling is the legacy Input
+    // Manager, the new Input System package, or Both.
+    bool TogglePressed()
+    {
+#if ENABLE_INPUT_SYSTEM
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null && kb.cKey.wasPressedThisFrame)
+        {
+            return true;
+        }
+#endif
+#if ENABLE_LEGACY_INPUT_MANAGER
+        if (Input.GetKeyDown(toggleKey))
+        {
+            return true;
+        }
+#endif
+        return false;
     }
 
     void LateUpdate()
