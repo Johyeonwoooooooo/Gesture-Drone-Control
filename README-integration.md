@@ -37,9 +37,46 @@
 
 ---
 
-## 1. 서버 (Linux GPU) 준비
+## 0. 실행 체크리스트 (⭐ 여기부터 읽기)
 
-한 번만:
+무엇을 매번 다시 해야 하고 무엇이 1회성인지 정리했습니다.
+
+### A. 최초 1회만 — 설치 & 씬 준비 (한 번 해두면 끝)
+
+| 위치 | 할 일 | 참고 |
+|---|---|---|
+| 서버 | `git clone`/`checkout sim-integration`, conda `mosaic3d` 환경 구성 | §1 |
+| 서버 | `data/final_npy/` 데이터(detections.json + 방별 npy + glb) 확인 | §1 |
+| 노트북 | Unity Hub + 에디터 `6000.3.12f1` 설치, `simulator/tello_simulator` 열기 | §2 / §3 |
+| 노트북 | 00809 씬 준비: glb 임포트 → 배치(pos 0,15.5,0) → 콜라이더 → 복셀맵 익스포트 | §8 |
+| 서버 | 좌표 캘리브레이션 1회 실행 → `transforms/00809_Qpor2mEya8F.json` 갱신·커밋 | §8-5 |
+
+### B. 매번 다시 실행할 때 — 이 5줄만
+
+**순서대로**. (교내 Wi-Fi/VPN 등으로 서버→노트북 직접 UDP가 안 되면 릴레이 필수 — §4-1.)
+
+```
+[노트북]
+1. Unity 열기 → Assets/test.unity → ▶ Play
+   (Console에 "[Tello] UDP server listening on 9000" 확인)
+2. (릴레이 쓸 때만) python relay.py client --server-host <서버IP>
+
+[서버]
+3. conda activate mosaic3d
+4. (릴레이 쓸 때만, 3번보다 먼저 떠 있어야 함) python simulator/bridge/relay.py server
+5. python 3D-segmentation/webapp_llm_v2/server.py --llm-device cuda:1 \
+       --sim --unity-host <노트북IP 또는 릴레이 시 127.0.0.1>
+```
+
+- 서버가 뜨면 `query>` 프롬프트에 자연어 입력 → Unity에서 후보 확인 → [이동] 클릭 (§5).
+- Unity Play를 껐다 켜면 드론이 씬 초기위치로 돌아갑니다 → 서버 REPL에서 `home` 입력해 동기화.
+- 씬을 안 바꿨으면 A의 캘리브레이션·씬 준비는 다시 할 필요 없습니다.
+
+---
+
+## 1. 서버 (Linux GPU) 준비 — 설치는 (최초 1회), 실행 커맨드는 (매번)
+
+설치·환경 구성은 한 번만:
 
 ```bash
 git clone <repo> && cd Gesture-Drone-Control
@@ -63,7 +100,7 @@ data/final_npy/
 없으면 minyeong-3d 브랜치의 `litept_indoor/` 파이프라인
 (`infer_centers.py` → `export_json.py`)으로 생성하세요.
 
-**실행:**
+**실행 (매번):** 아래는 시스템을 켤 때마다 실행하는 명령입니다.
 
 ```bash
 python 3D-segmentation/webapp_llm_v2/server.py \
@@ -78,7 +115,7 @@ python 3D-segmentation/webapp_llm_v2/server.py \
   `--confirm-timeout 120` (버튼 대기 초), `--sim-no-status` (배너 끄기),
   `--algo astar|rrt`, `--home-xyz X Y Z` (기본: 첫 방 중심, 바닥 위 1 m)
 
-## 2. Windows에서 Unity 시뮬레이터 실행
+## 2. Windows에서 Unity 시뮬레이터 실행 — 설치·씬 준비는 (최초 1회), Play는 (매번)
 
 1. [Unity Hub](https://unity.com/download) 설치.
 2. Unity Hub → Installs → **정확히 `6000.3.12f1`** (Unity 6) 설치.
@@ -98,7 +135,7 @@ python 3D-segmentation/webapp_llm_v2/server.py \
    ```
 7. 노트북 IP 확인: `ipconfig` → IPv4 주소. 이 값을 서버의 `--unity-host`에 넣습니다.
 
-## 3. macOS에서 Unity 시뮬레이터 실행
+## 3. macOS에서 Unity 시뮬레이터 실행 — 설치·씬 준비는 (최초 1회), Play는 (매번)
 
 1. Unity Hub 설치 (Apple Silicon이면 Silicon 버전 에디터 선택).
 2. 이후 §2와 동일: `6000.3.12f1` 설치 → `simulator/tello_simulator` 열기 →
@@ -246,7 +283,7 @@ simulator/
 비행 로직: `takeoff` → 20 Hz PID `rc` 추종 (드론 현 위치에서 출발) → `land`.
 안전장치: 상태 수신 5초 끊기면 정지·착륙, 경로 길이 기반 타임아웃, 충돌 카운트 로깅.
 
-## 8. Scene(집) 준비 / 교체 가이드
+## 8. Scene(집) 준비 / 교체 가이드 (최초 1회)
 
 **00809 최초 세팅** (현재 씬은 00800 기준이므로 1회 필요):
 
