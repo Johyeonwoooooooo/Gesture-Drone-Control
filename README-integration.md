@@ -192,6 +192,7 @@ bathtub otherfurniture` (tv/모니터 등 → otherfurniture).
 |  |  |  | **[다음 후보]** | 다음 후보 |
 |  |  |  | **L** 키 | 호러 연출 on/off (§9) |
 |  |  |  | **F** 키 | 손전등 on/off |
+|  |  |  | **[** / **]** | 밝기 −/+ (어두우면 `]`) |
 
 3인칭 카메라는 드론의 **이동방향 뒤**에서 따라감. `--confirm-timeout`(기본 120초) 내
 버튼 무응답 시 쿼리 취소.
@@ -281,25 +282,38 @@ Play 시 스스로 뜬다. Play만 누르면 어두워짐.
 
 | 켜지는 것 | 값 |
 |---|---|
-| 포그 | Exp2, density `0.012`, 암청색 `(0.02, 0.025, 0.035)` |
-| 앰비언트 | Skybox → Flat `(0.03, 0.035, 0.05)`, 스카이박스 제거 (카메라 clear = 검정) |
-| Directional Light | intensity 1.0 → `0.06`, 따뜻한 백색 → 달빛 청색 |
-| 손전등 | Main Camera에 Spot (range 45, 각 55°, soft shadow) — 3인칭·1인칭 둘 다 자연스럽게 앞을 비춤 |
-| 포스트FX | URP Volume 런타임 생성: Vignette / FilmGrain / ColorAdjustments(노출 −0.5, 채도 −40) / Bloom / ChromaticAberration / 그림자 청색 틸트. 카메라 post-processing + FXAA 자동 on |
+| 포그 | Exp2, density `0.006`, 암청색 `(0.03, 0.035, 0.05)` |
+| 앰비언트 | Skybox → Flat `(0.11, 0.12, 0.16)`, 스카이박스 제거 (카메라 clear = 검정) |
+| Directional Light | intensity 1.0 → `0.25`, 따뜻한 백색 → 달빛 청색 |
+| 손전등 | Main Camera에 Spot (intensity 28, range 70, 각 68°, soft shadow) — 3인칭·1인칭 둘 다 자연스럽게 앞을 비춤 |
+| 드론 필 라이트 | 드론에 약한 Point (intensity 1.6, range 30). 스팟 콘 밖이 완전 암흑이 되는 걸 막아 드론 위치·주변 형태가 읽힌다 |
+| 포스트FX | URP Volume 런타임 생성: Vignette / FilmGrain / ColorAdjustments(노출 −0.1, 채도 −35) / Bloom / ChromaticAberration / 그림자 청색 틸트. 카메라 post-processing + FXAA 자동 on |
 | preview 하이라이트 | `preview` 중 후보 위치에 호박색 Point light — 안 그러면 너무 어두워 [이동]/[다음 후보] 판단 불가 |
 
-**끄기: `L` 키** → 원래 밝기로 즉시 복원 (원본 값을 Start에서 캐시함).
-좌표 캘리브레이션·복셀맵 확인처럼 잘 보여야 하는 작업은 `L` 로 끄고 하면 된다.
-`F` 는 손전등만 토글.
+### 키 (화면 좌하단에 현재 상태가 표시됨)
+
+| 키 | 동작 |
+|---|---|
+| `L` | 호러 연출 전체 on/off — 원래 밝기로 즉시 복원 (원본 값을 Start에서 캐시). 좌표 캘리브레이션·복셀맵 확인처럼 잘 보여야 하는 작업은 끄고 한다 |
+| `F` | 손전등만 토글 |
+| `[` / `]` | **밝기 배율 −/+** (0.25 ~ 6.0, 0.25 스텝). 앰비언트·달빛·손전등·필 라이트에 한꺼번에 곱한다 |
 
 ### 값 튜닝
 
-Hierarchy에서 Play 중 `HorrorAtmosphere` 오브젝트를 골라 Inspector에서 조정.
-값을 **고정**하고 싶으면 씬의 아무 오브젝트에 `HorrorAtmosphere` 컴포넌트를 직접
+**너무 어두우면 `]` 를 눌러 배율을 올린다.** 콘솔에 `[Horror] brightness = 2.25`
+처럼 찍히므로, 마음에 드는 값을 `brightness` 기본값에 그대로 넣으면 고정된다.
+
+Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 조정해도 된다.
+값을 **영구 고정**하려면 씬의 아무 오브젝트에 `HorrorAtmosphere` 컴포넌트를 직접
 붙이고 저장 — 그러면 부트스트랩이 건너뛰고 저장된 값이 쓰인다.
 
-가장 먼저 만질 값은 `fogDensity`. 집 glb가 **scale 5배**라 거리 스케일이 커서
-`0.005 ~ 0.03` 사이에서 "복도 끝은 안 보이는데 방 안은 보이는" 지점을 찾는 게 좋다.
+실내는 Directional Light가 거의 닿지 않으므로 **어두울 때 올릴 값 순서**는
+`brightness` → `ambientColor` → `fillIntensity` → `flashlightIntensity` 다.
+`postExposure` 는 음수면 조명과 무관하게 화면을 더 깎으므로 0 근처로 둔다.
+
+`fogDensity` 는 집 glb가 **scale 5배**라 거리 스케일이 커서 `0.003 ~ 0.02` 사이에서
+"복도 끝은 안 보이는데 방 안은 보이는" 지점을 찾는 게 좋다. 포그는 밝기 배율과
+무관하게 따로 걸리므로, 시야가 답답하면 이 값을 따로 낮춘다.
 
 ### 사운드
 

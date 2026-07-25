@@ -22,16 +22,26 @@ public class HorrorAtmosphere : MonoBehaviour
     public KeyCode toggleKey = KeyCode.L;
     public KeyCode flashlightKey = KeyCode.F;
 
+    [Header("Brightness")]
+    [Tooltip("Master multiplier over ambient, moonlight, flashlight, fill light and " +
+             "exposure. Adjust live with the [ and ] keys — the current value is " +
+             "printed to the Console so it can be pasted back here as the new default.")]
+    [Range(0.25f, 6f)]
+    public float brightness = 1f;
+    public float brightnessStep = 0.25f;
+
     [Header("Fog")]
     [Tooltip("The building GLB is placed at scale 5, so world distances are large — " +
-             "small density values already swallow a corridor. Tune in 0.005 ~ 0.03.")]
-    public float fogDensity = 0.012f;
-    public Color fogColor = new Color(0.02f, 0.025f, 0.035f, 1f);
+             "small density values already swallow a corridor. Tune in 0.003 ~ 0.02.")]
+    public float fogDensity = 0.006f;
+    public Color fogColor = new Color(0.03f, 0.035f, 0.05f, 1f);
 
     [Header("Ambient / Sun")]
-    public Color ambientColor = new Color(0.03f, 0.035f, 0.05f, 1f);
+    [Tooltip("Indoors the directional light barely reaches, so this is what makes the " +
+             "rooms readable at all. Raise it first when the scene is too dark.")]
+    public Color ambientColor = new Color(0.11f, 0.12f, 0.16f, 1f);
     [Tooltip("Intensity the existing Directional Light is dimmed to (was 1.0).")]
-    public float moonIntensity = 0.06f;
+    public float moonIntensity = 0.25f;
     public Color moonColor = new Color(0.55f, 0.65f, 0.9f, 1f);
 
     [Header("Flashlight")]
@@ -39,10 +49,19 @@ public class HorrorAtmosphere : MonoBehaviour
     [Tooltip("Mount on the camera (follows where you look, works in chase AND FPV). " +
              "Off = mount on the drone, which does not yaw, so it always points +Z.")]
     public bool attachToCamera = true;
-    public float flashlightIntensity = 12f;
-    public float flashlightRange = 45f;
-    public float flashlightAngle = 55f;
+    public float flashlightIntensity = 28f;
+    public float flashlightRange = 70f;
+    public float flashlightAngle = 68f;
     public Color flashlightColor = new Color(1f, 0.94f, 0.82f, 1f);
+
+    [Header("Drone Fill Light")]
+    [Tooltip("Dim point light on the drone. The spot cone alone leaves everything " +
+             "outside it pitch black; this reveals the near geometry so you can tell " +
+             "where the drone is without lifting the darkness.")]
+    public bool fillLight = true;
+    public float fillIntensity = 1.6f;
+    public float fillRange = 30f;
+    public Color fillColor = new Color(0.7f, 0.78f, 1f, 1f);
 
     [Header("Preview Highlight")]
     [Tooltip("Light up the candidate during a `preview` command — without it the " +
@@ -54,11 +73,13 @@ public class HorrorAtmosphere : MonoBehaviour
 
     [Header("Post Processing (URP Volume)")]
     public bool postProcessing = true;
-    public float postExposure = -0.5f;
-    public float saturation = -40f;
+    [Tooltip("Negative values darken the image on top of the lighting. Keep it near 0 " +
+             "while the scene is still too dark to read.")]
+    public float postExposure = -0.1f;
+    public float saturation = -35f;
     public float contrast = 15f;
-    public float vignetteIntensity = 0.55f;
-    public float filmGrainIntensity = 0.45f;
+    public float vignetteIntensity = 0.42f;
+    public float filmGrainIntensity = 0.35f;
     public float bloomIntensity = 0.35f;
     public float chromaticAberration = 0.12f;
 
@@ -67,9 +88,11 @@ public class HorrorAtmosphere : MonoBehaviour
     private UniversalAdditionalCameraData camData;
     private Light sun;
     private Light flashlight;
+    private Light fill;
     private Light previewLight;
     private Volume volume;
     private VolumeProfile profile;
+    private ColorAdjustments colorAdjust;
     private HorrorAudio audioRig;
 
     // Original scene state, captured before the first Apply(true) so L can
@@ -143,6 +166,14 @@ public class HorrorAtmosphere : MonoBehaviour
             if (flashlight != null) flashlight.enabled = horrorEnabled && flashlightOn;
         }
 
+        int step = BrightnessStepPressed();
+        if (step != 0 && horrorEnabled)
+        {
+            brightness = Mathf.Clamp(brightness + step * brightnessStep, 0.25f, 6f);
+            ApplyBrightness();
+            Debug.Log($"[Horror] brightness = {brightness:F2}");
+        }
+
         UpdatePreviewLight();
     }
 
@@ -208,6 +239,19 @@ public class HorrorAtmosphere : MonoBehaviour
             flashlight.enabled = false;
         }
 
+        if (sim != null)
+        {
+            GameObject fgo = new GameObject("FillLight");
+            fgo.transform.SetParent(sim.transform, false);
+            fill = fgo.AddComponent<Light>();
+            fill.type = LightType.Point;
+            fill.range = fillRange;
+            fill.intensity = fillIntensity;
+            fill.color = fillColor;
+            fill.shadows = LightShadows.None;
+            fill.enabled = false;
+        }
+
         GameObject pgo = new GameObject("PreviewLight");
         pgo.transform.SetParent(transform, false);
         previewLight = pgo.AddComponent<Light>();
@@ -229,11 +273,11 @@ public class HorrorAtmosphere : MonoBehaviour
         Tonemapping tm = profile.Add<Tonemapping>(true);
         tm.mode.Override(TonemappingMode.Neutral);
 
-        ColorAdjustments ca = profile.Add<ColorAdjustments>(true);
-        ca.postExposure.Override(postExposure);
-        ca.saturation.Override(saturation);
-        ca.contrast.Override(contrast);
-        ca.colorFilter.Override(new Color(0.85f, 0.9f, 1f, 1f));   // cold cast
+        colorAdjust = profile.Add<ColorAdjustments>(true);
+        colorAdjust.postExposure.Override(postExposure);
+        colorAdjust.saturation.Override(saturation);
+        colorAdjust.contrast.Override(contrast);
+        colorAdjust.colorFilter.Override(new Color(0.85f, 0.9f, 1f, 1f));   // cold cast
 
         ShadowsMidtonesHighlights smh = profile.Add<ShadowsMidtonesHighlights>(true);
         smh.shadows.Override(new Vector4(0.85f, 0.92f, 1.15f, 0f)); // blue shadows
@@ -281,13 +325,12 @@ public class HorrorAtmosphere : MonoBehaviour
             RenderSettings.fogColor = fogColor;
             RenderSettings.fogDensity = fogDensity;
             RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientLight = ambientColor;
             RenderSettings.skybox = null;
             if (sun != null)
             {
-                sun.intensity = moonIntensity;
                 sun.color = moonColor;
             }
+            ApplyBrightness();
             if (cam != null)
             {
                 cam.clearFlags = CameraClearFlags.SolidColor;
@@ -300,6 +343,7 @@ public class HorrorAtmosphere : MonoBehaviour
             }
             if (volume != null) volume.enabled = postProcessing;
             if (flashlight != null) flashlight.enabled = flashlightOn;
+            if (fill != null) fill.enabled = fillLight;
         }
         else
         {
@@ -327,10 +371,23 @@ public class HorrorAtmosphere : MonoBehaviour
             }
             if (volume != null) volume.enabled = false;
             if (flashlight != null) flashlight.enabled = false;
+            if (fill != null) fill.enabled = false;
             if (previewLight != null) previewLight.enabled = false;
         }
 
         if (audioRig != null) audioRig.SetActive(on);
+    }
+
+    // Everything the `brightness` multiplier touches, in one place so the [ and ]
+    // keys can re-apply it live. It scales the lights only — postExposure is left
+    // alone so the two knobs stay independent instead of compounding.
+    void ApplyBrightness()
+    {
+        RenderSettings.ambientLight = ambientColor * brightness;
+        if (sun != null) sun.intensity = moonIntensity * brightness;
+        if (flashlight != null) flashlight.intensity = flashlightIntensity * brightness;
+        if (fill != null) fill.intensity = fillIntensity * brightness;
+        if (colorAdjust != null) colorAdjust.postExposure.Override(postExposure);
     }
 
     void UpdatePreviewLight()
@@ -363,6 +420,35 @@ public class HorrorAtmosphere : MonoBehaviour
         if (Input.GetKeyDown(key)) return true;
 #endif
         return false;
+    }
+
+    // -1 = dimmer ([), +1 = brighter (]), 0 = no input this frame.
+    int BrightnessStepPressed()
+    {
+#if ENABLE_INPUT_SYSTEM
+        var kb = UnityEngine.InputSystem.Keyboard.current;
+        if (kb != null)
+        {
+            if (kb.leftBracketKey.wasPressedThisFrame) return -1;
+            if (kb.rightBracketKey.wasPressedThisFrame) return 1;
+        }
+#endif
+#if ENABLE_LEGACY_INPUT_MANAGER
+        if (Input.GetKeyDown(KeyCode.LeftBracket)) return -1;
+        if (Input.GetKeyDown(KeyCode.RightBracket)) return 1;
+#endif
+        return 0;
+    }
+
+    // Bottom-left key hint. TelloSimulator's OnGUI owns the top banner and the
+    // bottom-center confirm buttons, so this corner is free.
+    void OnGUI()
+    {
+        GUI.color = new Color(1f, 1f, 1f, 0.55f);
+        GUI.Label(new Rect(10f, Screen.height - 24f, 520f, 20f),
+                  $"L 호러 {(horrorEnabled ? "ON" : "OFF")}   F 손전등 {(flashlightOn ? "ON" : "OFF")}" +
+                  $"   [ ] 밝기 x{brightness:F2}");
+        GUI.color = Color.white;
     }
 
     void OnDestroy()
