@@ -24,6 +24,19 @@ public class TelloSimulator : MonoBehaviour
     [Tooltip("Clamp the drone so it never drops below this world-space Y value.")]
     public float minHeight = 0.5f;
 
+    [Header("Spawn (Home)")]
+    [Tooltip("Teleport the drone to spawnPosition on Play, so it starts inside the house " +
+             "instead of at the scene origin. Without this the drone only moves in once the " +
+             "server connects and runs its home teleport.")]
+    public bool spawnAtHome = true;
+    [Tooltip("Unity-world home for building 00809: litept_backend.default_home() = " +
+             "mosaic (4.50, -1.04, -2.06), mapped through " +
+             "simulator/bridge/transforms/00809_Qpor2mEya8F.json. The server's `home` " +
+             "command stays authoritative — this is just the pre-connection Play position, " +
+             "so it needs updating if the building or the glb transform changes.")]
+    public Vector3 spawnPosition = new Vector3(-22.51f, 5.2f, 5.22f);
+    public float spawnYaw = 0f;
+
     [Header("Flight Visualization")]
     [Tooltip("Draw a colored trail behind the drone while it flies.")]
     public bool showFlightTrail = true;
@@ -93,6 +106,11 @@ public class TelloSimulator : MonoBehaviour
         Application.runInBackground = true;
         cc = GetComponent<CharacterController>();
         DisableLeftoverPhysics();
+        if (spawnAtHome)
+        {
+            TeleportTo(spawnPosition, spawnYaw);
+            Debug.Log($"[Tello] spawned at home {spawnPosition}");
+        }
         if (showFlightTrail)
         {
             SetupFlightTrail();
@@ -348,17 +366,12 @@ public class TelloSimulator : MonoBehaviour
                 && float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float py)
                 && float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out float pz))
             {
-                // A CharacterController caches its position; disable it around the teleport
-                // so the new transform actually takes effect.
-                bool wasEnabled = cc != null && cc.enabled;
-                if (wasEnabled) cc.enabled = false;
-                transform.position = new Vector3(px, py, pz);
-                if (parts.Length >= 5
-                    && float.TryParse(parts[4], NumberStyles.Float, CultureInfo.InvariantCulture, out float pyaw))
+                float pyaw = transform.eulerAngles.y;
+                if (parts.Length >= 5)
                 {
-                    transform.rotation = Quaternion.Euler(0f, pyaw, 0f);
+                    float.TryParse(parts[4], NumberStyles.Float, CultureInfo.InvariantCulture, out pyaw);
                 }
-                if (wasEnabled) cc.enabled = true;
+                TeleportTo(new Vector3(px, py, pz), pyaw);
                 SendState();
             }
             else
@@ -390,6 +403,18 @@ public class TelloSimulator : MonoBehaviour
         }
 
         Debug.Log($"[Tello] Unknown command: '{cmd}'");
+    }
+
+    // A CharacterController caches its position, so it has to be disabled around a
+    // teleport or the new transform is silently reverted. Used by both `setpos` and
+    // the home spawn.
+    void TeleportTo(Vector3 position, float yaw)
+    {
+        bool wasEnabled = cc != null && cc.enabled;
+        if (wasEnabled) cc.enabled = false;
+        transform.position = position;
+        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        if (wasEnabled) cc.enabled = true;
     }
 
     void SendState()

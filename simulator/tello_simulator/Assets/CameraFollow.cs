@@ -37,6 +37,8 @@ public class CameraFollow : MonoBehaviour
     public float headingSmoothSpeed = 4.0f;
     [Tooltip("Below this speed (u/s) the heading is held (drone hovering).")]
     public float minMoveSpeed = 0.15f;
+    [Tooltip("A single-frame position jump larger than this is a teleport, not motion.")]
+    public float teleportThreshold = 5f;
 
     [Header("Follow Physics")]
     public float smoothSpeed = 5.0f; // 위치 추적 속도
@@ -74,8 +76,17 @@ public class CameraFollow : MonoBehaviour
     {
         if (target == null) return;
 
+        // A `setpos` teleport (home spawn, mission start) moves the drone far in one
+        // frame; treating that as velocity whips the chase cam around. Swallow it.
+        Vector3 delta = target.position - prevTargetPos;
+        if (delta.magnitude > teleportThreshold)
+        {
+            prevTargetPos = target.position;
+            delta = Vector3.zero;
+        }
+
         // Update the heading from horizontal velocity; hold it while hovering.
-        Vector3 vel = (target.position - prevTargetPos) / Mathf.Max(Time.deltaTime, 1e-4f);
+        Vector3 vel = delta / Mathf.Max(Time.deltaTime, 1e-4f);
         vel.y = 0f;
         if (vel.magnitude > minMoveSpeed)
         {

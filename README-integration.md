@@ -54,7 +54,7 @@ LitePT 사전계산 디텍션에서 물체를 찾고 → Unity 카메라가 후�
 ④ [서버]   python simulator/bridge/smoke.py --unity-host 127.0.0.1   # 'ok' 게이트
 ⑤ [서버]   python 3D-segmentation/webapp_llm_v2/server.py \
                --llm-device cuda:1 --sim --unity-host 127.0.0.1
-⑥ [서버]   query> home  → 드론이 집 안으로. 이후 자연어 쿼리.
+⑥ [서버]   query> 자연어 입력. (드론은 Play 시 이미 집 안 홈에 있음 — §5)
 ```
 
 **순서 핵심**: ①relay서버 → ②Unity(9000 열림) → ③relay클라이언트 → **④에서 'ok'
@@ -171,7 +171,7 @@ python 3D-segmentation/webapp_llm_v2/server.py --sim --unity-host 127.0.0.1
 
 `query>` 프롬프트에 자연어 입력 (한국어/영어):
 ```
-query> home                    # 먼저 — 드론을 집 안 홈으로
+query> home                    # 홈으로 리셋 (Play 시 이미 홈에서 시작함)
 query> 거실에 있는 소파로 가줘
 query> 침실 침대 찾아줘
 query> go to the refrigerator
@@ -196,6 +196,23 @@ bathtub otherfurniture` (tv/모니터 등 → otherfurniture).
 
 3인칭 카메라는 드론의 **이동방향 뒤**에서 따라감. `--confirm-timeout`(기본 120초) 내
 버튼 무응답 시 쿼리 취소.
+
+### 홈에서 시작 (Play 즉시)
+
+`TelloSimulator` 의 `spawnAtHome` (기본 켜짐) 이 Play 시 드론을 집 안 홈으로
+텔레포트한다. 서버 없이 Unity만 켜도 드론이 집 안에 있다. 서버도 시작할 때
+같은 지점으로 한 번 더 텔레포트하므로(`server.py` 의 `teleport_home()`), REPL에서
+`home` 을 칠 필요는 없다 — `home` 은 비행 중간에 되돌릴 때 쓴다.
+
+`spawnPosition` 기본값 **(−22.51, 5.20, 5.22)** 는 00809 전용이다. 출처:
+`litept_backend.default_home()` = mosaic `(4.50, −1.04, −2.06)` → §6 변환.
+**건물이나 glb 배치를 바꾸면 이 값도 바꿔야 한다.** 새 값 구하는 법:
+
+```bash
+python 3D-segmentation/webapp_llm_v2/litept_backend.py   # 마지막 줄 home = ... (mosaic)
+```
+그 값을 §6 식에 넣거나, 서버를 한 번 띄워 드론이 멈춘 Unity 좌표를 Inspector에서
+읽어 `spawnPosition` 에 박으면 된다.
 
 ## 6. 좌표계 (00809)
 
@@ -262,8 +279,8 @@ simulator/
 6. **⌘S (Ctrl+S) 저장** ← 빠지면 다시 열 때 사라짐.
 
 확인: Hierarchy에 `tello`(드론) + `Main Camera` + `Qpor2mEya8F` 가 있으면 됨. Scene 뷰에서
-드론은 집에 비해 작고 멀어서 안 보일 수 있는데 정상 — Play 후 서버 `home` 치면 드론이
-집 안으로 순간이동하고 카메라가 따라감.
+Scene 뷰에서 드론은 집에 비해 작고 멀어서 안 보일 수 있는데 정상 — **Play를 누르면**
+드론이 집 안 홈으로 순간이동하고 카메라가 따라감 (§5의 `spawnAtHome`).
 
 **복셀맵 재익스포트가 필요한 경우** (glb를 위 값과 다르게 배치했을 때만):
 Qpor 루트 선택 → `Tools → Export 3D Voxel Map (Selected Root)` → JSON을
@@ -349,12 +366,13 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 | `smoke`/서버 시작: `-> 'timeout'` | Unity가 9000을 안 듣는 중 (§4 ②). Console에 `listening on 9000` 초록 확인 |
 | Unity Console 빨강 `address already in use` | 9000 점유 — `lsof -i :9000` → `kill -9 <PID>` → 재Play |
 | 명령 보내도 드론 안 움직임 / 배너 안 뜸 | 서버→Unity 경로 끊김. §4 ④ smoke로 'ok' 확인부터 |
-| `home` 쳐도 드론이 씬 기본위치 그대로 | setpos 미도달 = 위와 동일. 순서 ①→⑤ 다시 |
+| Play해도 드론이 씬 기본위치 그대로 | `TelloSimulator` 의 `spawnAtHome` 이 꺼졌거나 `spawnPosition` 이 다른 건물 값 (§5) |
+| `home` 쳐도 드론이 안 움직임 | setpos 미도달 = 위와 동일. 순서 ①→⑤ 다시 |
 | 3인칭 카메라가 고정 각도 | 구버전 `CameraFollow.cs` — 최신 pull 후 Unity 재컴파일 (이동방향 추종은 최신 커밋) |
 | `InvalidOperationException ... Input System` | 구버전 `CameraFollow.cs` — 최신 pull. 급하면 Player Settings → Active Input Handling → Both |
 | test.unity 열었는데 집 안 보임 | SampleScene 보는 중일 수 있음. `Assets/test.unity` 로 전환 |
 | `Missing Prefab ... house_scan_v2` | SampleScene의 옛 프리팹 참조 — 무해. test.unity 사용, SampleScene 무시 |
-| Scene 뷰에서 드론 안 보임 | 정상 (집 대비 작고 멂). Play + `home` 이면 집 안으로 |
+| Scene 뷰에서 드론 안 보임 | 정상 (집 대비 작고 멂). Play하면 집 안 홈으로 스폰 |
 | 드론이 벽으로 돌진 / 바닥·천장에 붙음 | glb 배치값 오류 — §8 (0,15.5,0)/(−90,0,0)/(5,5,5) 재확인 |
 | 후보 확인 중 `확인 시간 초과` | `--confirm-timeout` 내 버튼 무클릭 — 쿼리 재입력 |
 | 비행 중 `state lost` | 네트워크 끊김 — 자동 정지·착륙. 복구 후 `home` |
