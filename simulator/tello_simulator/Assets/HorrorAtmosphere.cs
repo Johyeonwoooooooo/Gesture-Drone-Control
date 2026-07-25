@@ -29,6 +29,8 @@ public class HorrorAtmosphere : MonoBehaviour
     [Range(0.25f, 6f)]
     public float brightness = 1f;
     public float brightnessStep = 0.25f;
+    [Tooltip("Extra light multiplier while CamcorderHUD's night shot (N) is on.")]
+    public float nightVisionBoost = 1.9f;
 
     [Header("Fog")]
     [Tooltip("The building GLB is placed at scale 5, so world distances are large — " +
@@ -94,6 +96,7 @@ public class HorrorAtmosphere : MonoBehaviour
     private VolumeProfile profile;
     private ColorAdjustments colorAdjust;
     private HorrorAudio audioRig;
+    private bool nightVision;
 
     // Original scene state, captured before the first Apply(true) so L can
     // restore the daylight look for calibration / voxel-map work.
@@ -149,6 +152,9 @@ public class HorrorAtmosphere : MonoBehaviour
         }
 
         Apply(horrorEnabled);
+        // CamcorderHUD may have flipped night shot on before this Start ran, in
+        // which case the volume did not exist yet to receive the green cast.
+        SetNightVision(nightVision);
     }
 
     void Update()
@@ -383,10 +389,11 @@ public class HorrorAtmosphere : MonoBehaviour
     // alone so the two knobs stay independent instead of compounding.
     void ApplyBrightness()
     {
-        RenderSettings.ambientLight = ambientColor * brightness;
-        if (sun != null) sun.intensity = moonIntensity * brightness;
-        if (flashlight != null) flashlight.intensity = flashlightIntensity * brightness;
-        if (fill != null) fill.intensity = fillIntensity * brightness;
+        float b = brightness * (nightVision ? nightVisionBoost : 1f);
+        RenderSettings.ambientLight = ambientColor * b;
+        if (sun != null) sun.intensity = moonIntensity * b;
+        if (flashlight != null) flashlight.intensity = flashlightIntensity * b;
+        if (fill != null) fill.intensity = fillIntensity * b;
         if (colorAdjust != null) colorAdjust.postExposure.Override(postExposure);
     }
 
@@ -440,15 +447,22 @@ public class HorrorAtmosphere : MonoBehaviour
         return 0;
     }
 
-    // Bottom-left key hint. TelloSimulator's OnGUI owns the top banner and the
-    // bottom-center confirm buttons, so this corner is free.
-    void OnGUI()
+    // Night-shot look, driven by CamcorderHUD's N key: green IR cast plus a light
+    // boost, because a camcorder's IR mode sees further than the naked eye.
+    public void SetNightVision(bool on)
     {
-        GUI.color = new Color(1f, 1f, 1f, 0.55f);
-        GUI.Label(new Rect(10f, Screen.height - 24f, 520f, 20f),
-                  $"L 호러 {(horrorEnabled ? "ON" : "OFF")}   F 손전등 {(flashlightOn ? "ON" : "OFF")}" +
-                  $"   [ ] 밝기 x{brightness:F2}");
-        GUI.color = Color.white;
+        nightVision = on;
+        if (colorAdjust != null)
+        {
+            colorAdjust.colorFilter.Override(on ? new Color(0.55f, 1f, 0.62f, 1f)
+                                                : new Color(0.85f, 0.9f, 1f, 1f));
+            colorAdjust.saturation.Override(on ? -75f : saturation);
+        }
+        if (flashlight != null)
+        {
+            flashlight.color = on ? new Color(0.75f, 1f, 0.8f, 1f) : flashlightColor;
+        }
+        ApplyBrightness();
     }
 
     void OnDestroy()

@@ -37,6 +37,11 @@ public class TelloSimulator : MonoBehaviour
     public Vector3 spawnPosition = new Vector3(-22.51f, 5.2f, 5.22f);
     public float spawnYaw = 0f;
 
+    [Header("Debug HUD")]
+    [Tooltip("Raw telemetry text (state, last command, rc, position, collisions). " +
+             "Off by default — CamcorderHUD draws the in-fiction overlay instead.")]
+    public bool showDebugHud = false;
+
     [Header("Flight Visualization")]
     [Tooltip("Draw a colored trail behind the drone while it flies.")]
     public bool showFlightTrail = true;
@@ -92,6 +97,9 @@ public class TelloSimulator : MonoBehaviour
     [NonSerialized] public Vector3 previewTarget;
     [NonSerialized] public string previewLabel = "";
     private GameObject previewMarker;
+
+    // Read by CamcorderHUD (battery drains faster in flight).
+    public bool IsFlying => isFlying;
 
     private CharacterController cc;
     private TrailRenderer trail;
@@ -651,14 +659,20 @@ public class TelloSimulator : MonoBehaviour
             }
         }
 
-        GUI.color = isFlying ? Color.cyan : Color.yellow;
-        GUI.Label(new Rect(10, 10, 520, 25), $"[Tello] State: {(isFlying ? "Flying" : "Landed")}", style);
-        GUI.color = Color.white;
-        GUI.Label(new Rect(10, 35, 520, 25), $"Last command: {lastCommand}", style);
-        GUI.Label(new Rect(10, 60, 520, 25), $"RC LR:{targetLR:F2} FB:{targetFB:F2} UD:{targetUD:F2} Yaw:{targetYaw:F2}", style);
-        GUI.Label(new Rect(10, 85, 520, 25), $"Position: {transform.position}", style);
-        GUI.Label(new Rect(10, 110, 520, 25), $"State stream: {statePort} @ {stateSendHz:F0}Hz", style);
-        GUI.Label(new Rect(10, 135, 520, 25), $"Collision: {(hadCollision ? "yes" : "no")} ({collisionCount})", style);
+        // Raw telemetry readout. Off by default — CamcorderHUD owns the top-left
+        // corner now — but kept for debugging the link and the collision probe.
+        if (showDebugHud)
+        {
+            GUI.color = isFlying ? Color.cyan : Color.yellow;
+            GUI.Label(new Rect(10, 170, 520, 25), $"[Tello] State: {(isFlying ? "Flying" : "Landed")}", style);
+            GUI.color = Color.white;
+            GUI.Label(new Rect(10, 195, 520, 25), $"Last command: {lastCommand}", style);
+            GUI.Label(new Rect(10, 220, 520, 25), $"RC LR:{targetLR:F2} FB:{targetFB:F2} UD:{targetUD:F2} Yaw:{targetYaw:F2}", style);
+            GUI.Label(new Rect(10, 245, 520, 25), $"Position: {transform.position}", style);
+            GUI.Label(new Rect(10, 270, 520, 25), $"State stream: {statePort} @ {stateSendHz:F0}Hz", style);
+            GUI.Label(new Rect(10, 295, 520, 25), $"Collision: {(hadCollision ? "yes" : "no")} ({collisionCount})", style);
+            GUI.color = Color.white;
+        }
     }
 
     void OnApplicationQuit()
