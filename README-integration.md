@@ -190,6 +190,8 @@ bathtub otherfurniture` (tv/모니터 등 → otherfurniture).
 | `home` | 드론 홈으로 텔레포트 + 미션 리셋 |  | **C** 키 | 1인칭 ↔ 3인칭 |
 | `quit`/`exit` | 종료 |  | **[이동]** | 후보 확정·비행 |
 |  |  |  | **[다음 후보]** | 다음 후보 |
+|  |  |  | **L** 키 | 호러 연출 on/off (§9) |
+|  |  |  | **F** 키 | 손전등 on/off |
 
 3인칭 카메라는 드론의 **이동방향 뒤**에서 따라감. `--confirm-timeout`(기본 120초) 내
 버튼 무응답 시 쿼리 취소.
@@ -215,7 +217,10 @@ unity = ( -5·x,  5·z + 15.5,  -5·y )      # mosaic (x,y,z)
 simulator/
 ├── tello_simulator/Assets/
 │   ├── TelloSimulator.cs   # UDP 수신, 비행, preview/버튼 UI, 이벤트 송신
-│   └── CameraFollow.cs     # 3/1인칭(이동방향 기준)/프리뷰 카메라, C키 토글
+│   ├── CameraFollow.cs     # 3/1인칭(이동방향 기준)/프리뷰 카메라, C키 토글
+│   ├── HorrorAtmosphere.cs # 호러 조명·포그·포스트FX·손전등 (L/F 키)
+│   ├── HorrorAudio.cs      # 앰비언트/스팅어/심박 (클립 없으면 무음)
+│   └── Resources/Audio/    # 사운드 클립 놓는 곳 (README.md 참고)
 ├── bridge/
 │   ├── unity_bridge.py     # UDP 브리지 (명령 + 상태/이벤트 수신)
 │   ├── coord_transform.py  # 좌표 변환 (JSON)
@@ -269,13 +274,60 @@ python simulator/bridge/calibrate_transform.py --building 00809_Qpor2mEya8F \
 ```
 성공 시 `transforms/00809_Qpor2mEya8F.json` 갱신 → 커밋.
 
-## 9. Future work
+## 9. 호러 연출 (조명·포그·사운드)
+
+**씬 편집 불필요.** `HorrorAtmosphere.cs` 가 `[RuntimeInitializeOnLoadMethod]` 로
+Play 시 스스로 뜬다. Play만 누르면 어두워짐.
+
+| 켜지는 것 | 값 |
+|---|---|
+| 포그 | Exp2, density `0.012`, 암청색 `(0.02, 0.025, 0.035)` |
+| 앰비언트 | Skybox → Flat `(0.03, 0.035, 0.05)`, 스카이박스 제거 (카메라 clear = 검정) |
+| Directional Light | intensity 1.0 → `0.06`, 따뜻한 백색 → 달빛 청색 |
+| 손전등 | Main Camera에 Spot (range 45, 각 55°, soft shadow) — 3인칭·1인칭 둘 다 자연스럽게 앞을 비춤 |
+| 포스트FX | URP Volume 런타임 생성: Vignette / FilmGrain / ColorAdjustments(노출 −0.5, 채도 −40) / Bloom / ChromaticAberration / 그림자 청색 틸트. 카메라 post-processing + FXAA 자동 on |
+| preview 하이라이트 | `preview` 중 후보 위치에 호박색 Point light — 안 그러면 너무 어두워 [이동]/[다음 후보] 판단 불가 |
+
+**끄기: `L` 키** → 원래 밝기로 즉시 복원 (원본 값을 Start에서 캐시함).
+좌표 캘리브레이션·복셀맵 확인처럼 잘 보여야 하는 작업은 `L` 로 끄고 하면 된다.
+`F` 는 손전등만 토글.
+
+### 값 튜닝
+
+Hierarchy에서 Play 중 `HorrorAtmosphere` 오브젝트를 골라 Inspector에서 조정.
+값을 **고정**하고 싶으면 씬의 아무 오브젝트에 `HorrorAtmosphere` 컴포넌트를 직접
+붙이고 저장 — 그러면 부트스트랩이 건너뛰고 저장된 값이 쓰인다.
+
+가장 먼저 만질 값은 `fogDensity`. 집 glb가 **scale 5배**라 거리 스케일이 커서
+`0.005 ~ 0.03` 사이에서 "복도 끝은 안 보이는데 방 안은 보이는" 지점을 찾는 게 좋다.
+
+### 사운드
+
+`Assets/Resources/Audio/` 에 클립을 넣으면 자동 로드 —
+`ambient.wav`(룸톤 루프), `heartbeat.wav`(후보 접근 시 볼륨·피치 상승),
+`Stingers/*.wav`(12~35초 랜덤 간격, 드론 주변 3D 랜덤 위치에서 재생).
+자세한 규격·무료 출처는 `Assets/Resources/Audio/README.md`.
+**클립이 하나도 없어도 정상 동작한다** (해당 레이어만 조용히 꺼짐).
+
+### 참고
+
+- 비행 트레일·경로선·충돌 마커·preview 마커는 `Sprites/Default` unlit 셰이더라
+  어두워져도 그대로 보인다. 트레일이 분위기를 깨면 `TelloSimulator` 의
+  `showFlightTrail` 을 끄면 된다.
+- 집 glb는 머티리얼 41개가 파일 안에 임베드돼 있어 개별 편집이 안 된다.
+  어둡게 만드는 수단은 조명/앰비언트/포그뿐이라 전부 이 스크립트에 모아뒀다.
+- UDP 프로토콜은 건드리지 않았다. 서버에서 원격으로 연출을 트리거하려면
+  (`fx blackout` 같은 것) `unity_bridge.py` 의 `send_command` 래퍼 1개 +
+  `TelloSimulator.ProcessCommand` 분기 1개면 된다. 모르는 verb는 Unity·스텁 양쪽에서
+  `ok` 후 무시되므로 하위 호환은 안전.
+
+## 10. Future work
 
 - Unity 프론트에서 프롬프트 직접 입력 (현재는 서버 터미널).
 - `return_home` 시뮬레이터 왕복 비행 (현재 SDK JSON에만).
 - 다층(cross-floor) 경로 개선 (A* max_iters 한계).
 
-## 10. 트러블슈팅
+## 11. 트러블슈팅
 
 | 증상 | 원인 / 해결 |
 |---|---|
