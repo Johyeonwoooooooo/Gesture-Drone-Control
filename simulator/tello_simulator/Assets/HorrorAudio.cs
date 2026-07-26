@@ -18,6 +18,9 @@ public class HorrorAudio : MonoBehaviour
     public AudioClip ambientLoop;
     public AudioClip[] stingers;
     public AudioClip heartbeat;
+    public AudioClip droneLoop;
+    public AudioClip droneTakeoff;
+    public AudioClip droneLand;
 
     [Header("Ambient")]
     public float ambientVolume = 0.35f;
@@ -36,10 +39,28 @@ public class HorrorAudio : MonoBehaviour
     public float heartbeatNearDistance = 6f;
     public float heartbeatMaxVolume = 0.6f;
 
+    [Header("Drone")]
+    [Tooltip("Rotor loop volume while hovering. Rises toward droneVolumeMax at full speed.")]
+    public float droneVolumeIdle = 0.25f;
+    public float droneVolumeMax = 0.55f;
+    public float dronePitchIdle = 0.85f;
+    public float dronePitchMax = 1.3f;
+    [Tooltip("Speed (u/s) treated as full throttle for the pitch/volume ramp. " +
+             "TelloSimulator.moveSpeed is 15 by default.")]
+    public float droneFullSpeed = 15f;
+    [Tooltip("Distance at which the rotors stop getting louder as you approach. " +
+             "The chase camera sits ~4 u behind the drone, FPV sits on it.")]
+    public float droneMinDistance = 3f;
+    public float droneMaxDistance = 60f;
+
     private TelloSimulator sim;
     private AudioSource ambientSource;
     private AudioSource heartbeatSource;
     private AudioSource stingerSource;
+    private AudioSource droneSource;
+    private Vector3 dronePrevPos;
+    private float droneSpeed;
+    private bool droneWasFlying;
     private float nextStingerTime;
     private bool active = true;
     private bool initialized;
@@ -71,6 +92,21 @@ public class HorrorAudio : MonoBehaviour
         stingerSource.loop = false;
         stingerSource.volume = 1f;   // PlayOneShot applies stingerVolume as the scale
 
+        if (sim != null)
+        {
+            // Parented to the drone so the rotors pan and fall off with distance —
+            // audible behind you in chase view, right on top of you in FPV.
+            droneSource = MakeSource("DroneSource", spatial: true, parent: sim.transform);
+            droneSource.loop = true;
+            droneSource.volume = 0f;
+            droneSource.pitch = dronePitchIdle;
+            droneSource.minDistance = droneMinDistance;
+            droneSource.maxDistance = droneMaxDistance;
+            droneSource.clip = droneLoop;
+            dronePrevPos = sim.transform.position;
+            droneWasFlying = sim.IsFlying;
+        }
+
         ScheduleNextStinger();
         SetActive(active);
     }
@@ -82,16 +118,19 @@ public class HorrorAudio : MonoBehaviour
     {
         if (ambientLoop == null) ambientLoop = Resources.Load<AudioClip>("Audio/ambient");
         if (heartbeat == null) heartbeat = Resources.Load<AudioClip>("Audio/heartbeat");
+        if (droneLoop == null) droneLoop = Resources.Load<AudioClip>("Audio/drone");
+        if (droneTakeoff == null) droneTakeoff = Resources.Load<AudioClip>("Audio/drone_takeoff");
+        if (droneLand == null) droneLand = Resources.Load<AudioClip>("Audio/drone_land");
         if (stingers == null || stingers.Length == 0)
         {
             stingers = Resources.LoadAll<AudioClip>("Audio/Stingers");
         }
     }
 
-    AudioSource MakeSource(string sourceName, bool spatial)
+    AudioSource MakeSource(string sourceName, bool spatial, Transform parent = null)
     {
         GameObject go = new GameObject(sourceName);
-        go.transform.SetParent(transform, false);
+        go.transform.SetParent(parent != null ? parent : transform, false);
         AudioSource src = go.AddComponent<AudioSource>();
         src.playOnAwake = false;
         src.spatialBlend = spatial ? 1f : 0f;
@@ -114,6 +153,10 @@ public class HorrorAudio : MonoBehaviour
         {
             if (ambientSource.clip != null && !ambientSource.isPlaying) ambientSource.Play();
             if (heartbeatSource.clip != null && !heartbeatSource.isPlaying) heartbeatSource.Play();
+            if (droneSource != null && droneSource.clip != null && !droneSource.isPlaying)
+            {
+                droneSource.Play();
+            }
             ScheduleNextStinger();
         }
         else
@@ -121,6 +164,7 @@ public class HorrorAudio : MonoBehaviour
             ambientSource.Stop();
             heartbeatSource.Stop();
             stingerSource.Stop();
+            if (droneSource != null) droneSource.Stop();
         }
     }
 
@@ -129,6 +173,41 @@ public class HorrorAudio : MonoBehaviour
         if (!active || !initialized) return;
         UpdateStingers();
         UpdateHeartbeat();
+        UpdateDrone();
+    }
+
+    // Rotor loop: pitch and volume ride the drone's speed, so an rc burst is
+    // audible as a spin-up. Landed the rotors wind down to silence.
+    void UpdateDrone()
+    {
+        if (droneSource == null || sim == null) return;
+
+        float dt = Mathf.Max(Time.deltaTime, 1e-4f);
+        Vector3 pos = sim.transform.position;
+        float instant = (pos - dronePrevPos).magnitude / dt;
+        dronePrevPos = pos;
+        // A `setpos` teleport would read as an enormous speed; ignore those frames.
+        if (instant < droneFullSpeed * 4f)
+        {
+            droneSpeed = Mathf.Lerp(droneSpeed, instant, dt * 6f);
+        }
+
+        bool flying = sim.IsFlying;
+        if (flying != droneWasFlying)
+        {
+            AudioClip accent = flying ? droneTakeoff : droneLand;
+            // Not droneSource.PlayOneShot: that scales by the source volume, which
+            // is still ramping up from zero at the moment of takeoff.
+            if (accent != null) AudioSource.PlayClipAtPoint(accent, pos, 0.9f);
+            droneWasFlying = flying;
+        }
+
+        float t = Mathf.Clamp01(droneSpeed / Mathf.Max(droneFullSpeed, 0.01f));
+        float targetVolume = flying ? Mathf.Lerp(droneVolumeIdle, droneVolumeMax, t) : 0f;
+        droneSource.volume = Mathf.Lerp(droneSource.volume, targetVolume, dt * 3f);
+        droneSource.pitch = Mathf.Lerp(droneSource.pitch,
+                                       Mathf.Lerp(dronePitchIdle, dronePitchMax, t),
+                                       dt * 3f);
     }
 
     void UpdateStingers()

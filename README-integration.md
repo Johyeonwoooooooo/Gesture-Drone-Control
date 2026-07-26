@@ -358,7 +358,9 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 
 `Assets/Resources/Audio/` 에 클립을 넣으면 자동 로드 —
 `ambient.wav`(룸톤 루프), `heartbeat.wav`(후보 접근 시 볼륨·피치 상승),
-`Stingers/*.wav`(12~35초 랜덤 간격, 드론 주변 3D 랜덤 위치에서 재생).
+`Stingers/*.wav`(12~35초 랜덤 간격, 드론 주변 3D 랜덤 위치에서 재생),
+`drone.wav`(로터 루프, 속도에 따라 피치·볼륨 상승) + `drone_takeoff.wav` /
+`drone_land.wav`(이·착륙 1회).
 자세한 규격·무료 출처는 `Assets/Resources/Audio/README.md`.
 **클립이 하나도 없어도 정상 동작한다** (해당 레이어만 조용히 꺼짐).
 
