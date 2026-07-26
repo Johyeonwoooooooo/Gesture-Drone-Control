@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using UnityEngine;
 
 // Found-footage camcorder overlay (Paranormal Activity style): blinking REC dot,
@@ -41,6 +42,10 @@ public class CamcorderHUD : MonoBehaviour
     private Texture2D px;
     private GUIStyle text;
     private GUIStyle textBold;
+    private GUIStyle textRight;
+    private GUIStyle textBoldRight;
+    private GUIStyle textCenter;
+    private GUIStyle hintStyle;
     private float battery;
     private float tapeSeconds;
     private float nextGlitchTime;
@@ -99,19 +104,22 @@ public class CamcorderHUD : MonoBehaviour
         if (atmosphere != null) atmosphere.SetNightVision(nightVision);
     }
 
+    // Styles are built once and reused. Deliberately NOT
+    // Font.CreateDynamicFontFromOSFont: an OS mono font (Consolas, Menlo) carries no
+    // Korean glyphs, and IMGUI's dynamic font atlas rebuilds the moment it meets a
+    // missing one. That rebuild invalidates the glyph UVs of labels already queued
+    // in the same frame, so labels render each other's characters and the text
+    // tears. GUI.skin's own font covers both scripts and never triggers it.
     void EnsureStyles()
     {
         if (text != null) return;
-        Font mono = null;
-        foreach (string candidate in new[] { "Consolas", "Menlo", "DejaVu Sans Mono", "Courier New" })
-        {
-            mono = Font.CreateDynamicFontFromOSFont(candidate, 15);
-            if (mono != null) break;
-        }
-        text = new GUIStyle(GUI.skin.label) { fontSize = 15, richText = false };
-        if (mono != null) text.font = mono;
+        text = new GUIStyle(GUI.skin.label) { fontSize = 15, richText = false, wordWrap = false };
         text.normal.textColor = Color.white;
         textBold = new GUIStyle(text) { fontSize = 17, fontStyle = FontStyle.Bold };
+        textRight = new GUIStyle(text) { alignment = TextAnchor.MiddleRight };
+        textBoldRight = new GUIStyle(textBold) { alignment = TextAnchor.MiddleRight };
+        textCenter = new GUIStyle(text) { alignment = TextAnchor.MiddleCenter };
+        hintStyle = new GUIStyle(text) { fontSize = 12, alignment = TextAnchor.MiddleCenter };
     }
 
     void OnGUI()
@@ -141,28 +149,35 @@ public class CamcorderHUD : MonoBehaviour
         // --- top-right: battery ---------------------------------------------
         DrawBattery(w - m - 74f, m + 1f, tint);
 
+        // Bottom row: half the free width each, so the two columns cannot collide
+        // on a narrow Game view (a fixed 320 px each overlapped below ~700 px).
+        float col = Mathf.Max(90f, (w - 2f * m - 30f) / 2f);
+
         // --- bottom-left: date + wall clock ----------------------------------
+        // InvariantCulture on purpose: on a Korean Windows the "tt" designator
+        // returns 오전/오후, which is not what a US camcorder overlay shows.
         DateTime now = DateTime.Now;
         GUI.color = tint;
-        GUI.Label(new Rect(m, h - m - 46f, 320f, 24f), now.ToString("yyyy. MM. dd."), text);
-        GUI.Label(new Rect(m, h - m - 24f, 320f, 24f),
-                  now.ToString("tt hh:mm:ss").ToUpperInvariant(), textBold);
+        GUI.Label(new Rect(m, h - m - 46f, col, 24f),
+                  now.ToString("yyyy. MM. dd.", CultureInfo.InvariantCulture), text);
+        GUI.Label(new Rect(m, h - m - 24f, col, 24f),
+                  now.ToString("tt hh:mm:ss", CultureInfo.InvariantCulture), textBold);
 
         // --- bottom-right: camera id + night shot -----------------------------
-        GUIStyle right = new GUIStyle(text) { alignment = TextAnchor.MiddleRight };
-        GUI.Label(new Rect(w - m - 320f, h - m - 46f, 320f, 24f), cameraId, right);
+        GUI.Label(new Rect(w - m - col, h - m - 46f, col, 24f), cameraId, textRight);
         if (nightVision)
         {
             GUI.color = new Color(0.55f, 1f, 0.6f, 0.95f);
-            GUIStyle nv = new GUIStyle(textBold) { alignment = TextAnchor.MiddleRight };
-            GUI.Label(new Rect(w - m - 320f, h - m - 24f, 320f, 24f), "◉ NIGHT SHOT", nv);
+            GUI.Label(new Rect(w - m - col, h - m - 24f, col, 24f), "* NIGHT SHOT", textBoldRight);
         }
 
-        // --- key hints, dim, above the confirm buttons ------------------------
-        GUI.color = new Color(tint.r, tint.g, tint.b, 0.4f);
-        GUIStyle hint = new GUIStyle(text) { fontSize = 12, alignment = TextAnchor.MiddleCenter };
-        GUI.Label(new Rect(0f, h - 20f, w, 18f),
-                  "C 시점   L 호러   F 손전등   N 나이트샷   [ ] 밝기   H HUD", hint);
+        // --- key hints, dim, below everything else ---------------------------
+        if (w >= 520f)
+        {
+            GUI.color = new Color(tint.r, tint.g, tint.b, 0.4f);
+            GUI.Label(new Rect(0f, h - 20f, w, 18f),
+                      "C 시점   L 호러   F 손전등   N 나이트샷   [ ] 밝기   H HUD", hintStyle);
+        }
 
         if (Time.unscaledTime < glitchUntil) DrawTracking(w, h);
 
@@ -192,8 +207,7 @@ public class CamcorderHUD : MonoBehaviour
         GUI.DrawTexture(new Rect(x + 3f, y + 3f, fill, bh - 6f), px);
 
         GUI.color = low && blink ? new Color(1f, 0.4f, 0.35f) : tint;
-        GUIStyle right = new GUIStyle(text) { alignment = TextAnchor.MiddleRight };
-        GUI.Label(new Rect(x - 66f, y - 2f, 60f, 22f), $"{Mathf.CeilToInt(battery)}%", right);
+        GUI.Label(new Rect(x - 66f, y - 2f, 60f, 22f), $"{Mathf.CeilToInt(battery)}%", textRight);
     }
 
     void DrawOutline(Rect r, float t)
@@ -260,8 +274,7 @@ public class CamcorderHUD : MonoBehaviour
         UnityEngine.Random.state = state;
 
         GUI.color = new Color(1f, 1f, 1f, 0.55f);
-        GUIStyle c = new GUIStyle(text) { alignment = TextAnchor.MiddleCenter };
-        GUI.Label(new Rect(0f, h * 0.5f + 60f, w, 22f), "-- TRACKING --", c);
+        GUI.Label(new Rect(0f, h * 0.5f + 60f, w, 22f), "-- TRACKING --", textCenter);
     }
 
     // Same dual-backend guard as CameraFollow.TogglePressed.

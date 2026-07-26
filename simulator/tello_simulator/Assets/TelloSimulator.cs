@@ -621,7 +621,9 @@ public class TelloSimulator : MonoBehaviour
             float age = Time.unscaledTime - statusMessageTime;
             GUI.color = age > 30f ? new Color(1f, 1f, 1f, 0.5f) : Color.white;
             float width = Mathf.Min(Screen.width - 40f, 720f);
-            GUI.Box(new Rect((Screen.width - width) / 2f, 12f, width, 44f), statusMessage, banner);
+            // y=72, not 12: on a narrow Game view the centered banner reaches far
+            // enough left to sit on top of CamcorderHUD's REC block.
+            GUI.Box(new Rect((Screen.width - width) / 2f, 72f, width, 44f), statusMessage, banner);
         }
 
         // Candidate-preview UI: label + [이동]/[다음 후보] buttons, bottom-center.
