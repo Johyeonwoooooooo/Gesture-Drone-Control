@@ -148,3 +148,5 @@ simulator/tello_simulator/*.sln*
 simulator/tello_simulator/.vs/
 simulator/tello_simulator/.vsconfig
 simulator/tello_simulator/UpgradeLog*.htm
+
+.vscode/

@@ -141,7 +141,7 @@
       }
     },
     "com.unity.robotics.urdf-importer": {
-      "version": "https://github.com/Unity-Technologies/URDF-Importer.git?path=/com.unity.robotics.urdf-importer",
+      "version": "https://github.com/Unity-Technologies/URDF-Importer.git?path=/com.unity.robotics.urdf-importer#90f353e4352aae4df52fa2c05e49b804631d2a63",
       "depth": 0,
       "source": "git",
       "dependencies": {
@@ -217,7 +217,7 @@
       "url": "https://packages.unity.com"
     },
     "org.khronos.unitygltf": {
-      "version": "https://github.com/KhronosGroup/UnityGLTF.git",
+      "version": "https://github.com/KhronosGroup/UnityGLTF.git#ce6a5dce952d84cfd47c81755e7e1b0bc69fefe5",
       "depth": 0,
       "source": "git",
       "dependencies": {
