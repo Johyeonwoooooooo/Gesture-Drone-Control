@@ -24,6 +24,11 @@ public class HorrorAudio : MonoBehaviour
 
     [Header("Ambient")]
     public float ambientVolume = 0.35f;
+    [Tooltip("Seconds of overlap between one pass of the ambient clip and the next. " +
+             "Two sources play the clip staggered and cross-fade, so a clip whose " +
+             "start and end do not match still loops without an audible seam. " +
+             "Clamped to 40% of the clip length.")]
+    public float ambientCrossfade = 3f;
 
     [Header("Stingers")]
     public float stingerMinDelay = 12f;
@@ -54,7 +59,10 @@ public class HorrorAudio : MonoBehaviour
     public float droneMaxDistance = 60f;
 
     private TelloSimulator sim;
-    private AudioSource ambientSource;
+    private readonly AudioSource[] ambientSources = new AudioSource[2];
+    private readonly double[] ambientStart = new double[2];
+    private double ambientNextTime;
+    private int ambientNext;
     private AudioSource heartbeatSource;
     private AudioSource stingerSource;
     private AudioSource droneSource;
@@ -78,10 +86,13 @@ public class HorrorAudio : MonoBehaviour
         sim = FindFirstObjectByType<TelloSimulator>();
         LoadFallbackClips();
 
-        ambientSource = MakeSource("AmbientSource", spatial: false);
-        ambientSource.loop = true;
-        ambientSource.volume = ambientVolume;
-        ambientSource.clip = ambientLoop;
+        for (int i = 0; i < ambientSources.Length; i++)
+        {
+            ambientSources[i] = MakeSource($"AmbientSource{i}", spatial: false);
+            ambientSources[i].loop = false;   // the cross-fade schedules each pass
+            ambientSources[i].volume = 0f;
+            ambientSources[i].clip = ambientLoop;
+        }
 
         heartbeatSource = MakeSource("HeartbeatSource", spatial: false);
         heartbeatSource.loop = true;
@@ -151,7 +162,7 @@ public class HorrorAudio : MonoBehaviour
 
         if (on)
         {
-            if (ambientSource.clip != null && !ambientSource.isPlaying) ambientSource.Play();
+            StartAmbient();
             if (heartbeatSource.clip != null && !heartbeatSource.isPlaying) heartbeatSource.Play();
             if (droneSource != null && droneSource.clip != null && !droneSource.isPlaying)
             {
@@ -161,7 +172,10 @@ public class HorrorAudio : MonoBehaviour
         }
         else
         {
-            ambientSource.Stop();
+            foreach (AudioSource src in ambientSources)
+            {
+                if (src != null) src.Stop();
+            }
             heartbeatSource.Stop();
             stingerSource.Stop();
             if (droneSource != null) droneSource.Stop();
@@ -171,9 +185,7 @@ public class HorrorAudio : MonoBehaviour
     void Update()
     {
         if (!active || !initialized) return;
-        // Re-applied every frame so SettingsPanel's slider takes effect live; the
-        // other layers already recompute their volume from the public fields.
-        ambientSource.volume = ambientVolume;
+        UpdateAmbient();
         UpdateStingers();
         UpdateHeartbeat();
         UpdateDrone();
@@ -218,6 +230,79 @@ public class HorrorAudio : MonoBehaviour
         droneSource.pitch = Mathf.Lerp(droneSource.pitch,
                                        Mathf.Lerp(dronePitchIdle, dronePitchMax, t),
                                        dt * 3f);
+    }
+
+    // --------------------------------------------------------------- ambient
+    // A room tone downloaded from a sound library rarely has matching start and
+    // end samples, so plain loop=true clicks once per pass. Instead two sources
+    // play the same clip staggered by (length - crossfade) and equal-power
+    // cross-fade into each other, which hides the seam whatever the clip does.
+    //
+    // Timing runs on AudioSettings.dspTime with PlayScheduled, not on Update:
+    // the audio thread honours the schedule exactly even if a frame hitches,
+    // where a frame-timed Play() would leave an audible gap.
+    float AmbientCrossfade()
+    {
+        if (ambientLoop == null) return 0f;
+        return Mathf.Clamp(ambientCrossfade, 0.05f, ambientLoop.length * 0.4f);
+    }
+
+    void StartAmbient()
+    {
+        if (ambientLoop == null || ambientSources[0] == null) return;
+        if (ambientSources[0].isPlaying || ambientSources[1].isPlaying) return;
+
+        ambientNext = 0;
+        // Small lead-in so the first schedule is comfortably in the future.
+        ambientNextTime = AudioSettings.dspTime + 0.15;
+        ScheduleAmbient();   // this pass
+        ScheduleAmbient();   // and the one it will fade into
+    }
+
+    void ScheduleAmbient()
+    {
+        if (ambientLoop == null) return;
+        AudioSource src = ambientSources[ambientNext];
+        src.clip = ambientLoop;
+        src.volume = 0f;
+        src.PlayScheduled(ambientNextTime);
+        ambientStart[ambientNext] = ambientNextTime;
+
+        ambientNextTime += Mathf.Max(0.1f, ambientLoop.length - AmbientCrossfade());
+        ambientNext ^= 1;
+    }
+
+    void UpdateAmbient()
+    {
+        if (ambientLoop == null || ambientSources[0] == null) return;
+
+        double now = AudioSettings.dspTime;
+        float len = ambientLoop.length;
+        float fade = AmbientCrossfade();
+
+        for (int i = 0; i < ambientSources.Length; i++)
+        {
+            double elapsed = now - ambientStart[i];
+            if (elapsed < 0.0 || elapsed > len)
+            {
+                ambientSources[i].volume = 0f;
+                continue;
+            }
+            ambientSources[i].volume = Envelope((float)elapsed, len, fade) * ambientVolume;
+        }
+
+        // Queue the next pass once the source it will reuse has finished.
+        if (now >= ambientStart[ambientNext] + len - 0.05) ScheduleAmbient();
+    }
+
+    // Equal-power ramp (sin/cos): a linear cross-fade dips in the middle because
+    // two uncorrelated signals sum in power, not amplitude.
+    static float Envelope(float elapsed, float length, float fade)
+    {
+        if (elapsed < fade) return Mathf.Sin(elapsed / fade * Mathf.PI * 0.5f);
+        float remaining = length - elapsed;
+        if (remaining < fade) return Mathf.Sin(remaining / fade * Mathf.PI * 0.5f);
+        return 1f;
     }
 
     void UpdateStingers()
