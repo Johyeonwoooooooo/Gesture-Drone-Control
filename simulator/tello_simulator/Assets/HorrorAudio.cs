@@ -177,10 +177,11 @@ public class HorrorAudio : MonoBehaviour
     }
 
     // Rotor loop: pitch and volume ride the drone's speed, so an rc burst is
-    // audible as a spin-up. Landed the rotors wind down to silence.
+    // audible as a spin-up. On the ground the rotors wind down to silence.
     void UpdateDrone()
     {
         if (droneSource == null || sim == null) return;
+
 
         float dt = Mathf.Max(Time.deltaTime, 1e-4f);
         Vector3 pos = sim.transform.position;
@@ -192,7 +193,13 @@ public class HorrorAudio : MonoBehaviour
             droneSpeed = Mathf.Lerp(droneSpeed, instant, dt * 6f);
         }
 
+        // isFlying only goes true on the server's `takeoff`. But spawnAtHome drops
+        // the drone in mid-air, so with Unity alone it visibly hovers with the
+        // rotors silent. Anything off the floor counts as powered.
+        bool airborne = pos.y > sim.minHeight + 0.25f;
         bool flying = sim.IsFlying;
+        bool powered = flying || airborne;
+
         if (flying != droneWasFlying)
         {
             AudioClip accent = flying ? droneTakeoff : droneLand;
@@ -203,7 +210,7 @@ public class HorrorAudio : MonoBehaviour
         }
 
         float t = Mathf.Clamp01(droneSpeed / Mathf.Max(droneFullSpeed, 0.01f));
-        float targetVolume = flying ? Mathf.Lerp(droneVolumeIdle, droneVolumeMax, t) : 0f;
+        float targetVolume = powered ? Mathf.Lerp(droneVolumeIdle, droneVolumeMax, t) : 0f;
         droneSource.volume = Mathf.Lerp(droneSource.volume, targetVolume, dt * 3f);
         droneSource.pitch = Mathf.Lerp(droneSource.pitch,
                                        Mathf.Lerp(dronePitchIdle, dronePitchMax, t),
