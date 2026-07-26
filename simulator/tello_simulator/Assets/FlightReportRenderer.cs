@@ -73,6 +73,17 @@ public class FlightReportRenderer : MonoBehaviour
     }
 
     [ContextMenu("Reload Flight Report")]
+    // Same as PlannedPathRenderer.SetVisible, plus the intrusion spheres — they
+    // are parented to this transform, so SetActive on each is enough.
+    public void SetVisible(bool value)
+    {
+        if (lineRenderer != null) lineRenderer.enabled = value;
+        foreach (GameObject marker in markers)
+        {
+            if (marker != null) marker.SetActive(value);
+        }
+    }
+
     public void TryReloadReport()
     {
         string fullPath = Path.Combine(Application.dataPath, relativePathFromAssets);

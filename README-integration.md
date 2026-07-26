@@ -195,6 +195,7 @@ bathtub otherfurniture` (tv/모니터 등 → otherfurniture).
 |  |  |  | **[** / **]** | 밝기 −/+ (어두우면 `]`) |
 |  |  |  | **N** 키 | 나이트샷(IR 초록 화면) |
 |  |  |  | **H** 키 | 캠코더 HUD 숨김/표시 |
+|  |  |  | **Tab** 키 | 설정 패널 (경로 표시·사운드) |
 
 3인칭 카메라는 드론의 **이동방향 뒤**에서 따라감. `--confirm-timeout`(기본 120초) 내
 버튼 무응답 시 쿼리 취소.
@@ -240,6 +241,7 @@ simulator/
 │   ├── CameraFollow.cs     # 3/1인칭(이동방향 기준)/프리뷰 카메라, C키 토글
 │   ├── HorrorAtmosphere.cs # 호러 조명·포그·포스트FX·손전등 (L/F/[/] 키)
 │   ├── CamcorderHUD.cs     # 캠코더 UI: REC·배터리·시계·글리치 (N/H 키)
+│   ├── SettingsPanel.cs    # 설정 패널: 경로 표시·사운드 (Tab, PlayerPrefs 저장)
 │   ├── HorrorAudio.cs      # 앰비언트/스팅어/심박 (클립 없으면 무음)
 │   └── Resources/Audio/    # 사운드 클립 놓는 곳 (README.md 참고)
 ├── bridge/
@@ -333,6 +335,7 @@ Play 시 스스로 뜬다. Play만 누르면 어두워짐.
 | `F` | 손전등만 토글 |
 | `N` | **나이트샷** — 초록 IR 화면 + 광량 1.9배. 캠코더 야간 모드가 육안보다 멀리 보는 걸 흉내낸 것 |
 | `H` | 캠코더 HUD 숨김/표시 (스크린샷 찍을 때) |
+| `Tab` | **설정 패널** — 아래 참고 |
 | `[` / `]` | **밝기 배율 −/+** (0.25 ~ 6.0, 0.25 스텝). 앰비언트·달빛·손전등·필 라이트에 한꺼번에 곱한다 |
 
 키 목록은 화면 최하단에 흐리게 상시 표시된다.
@@ -354,7 +357,27 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 "복도 끝은 안 보이는데 방 안은 보이는" 지점을 찾는 게 좋다. 포그는 밝기 배율과
 무관하게 따로 걸리므로, 시야가 답답하면 이 값을 따로 낮춘다.
 
-### 사운드
+### 설정 패널 (`SettingsPanel.cs`, Tab)
+
+드래그 가능한 창. 바꾸면 즉시 적용되고 **PlayerPrefs에 저장**돼 다음 Play에도 남는다.
+
+**경로 표시** — 전부 켜짐이 기본. 어두운 집 안에서 unlit 라인이 밝게 떠서 분위기를
+깨므로, 연출 확인할 땐 끄고 디버깅할 땐 켜는 식으로 쓴다.
+
+| 항목 | 대상 |
+|---|---|
+| 비행 트레일 | `TelloSimulator` 의 `TrailRenderer` (지나온 경로). **숨겨도 기록은 계속**되므로 다시 켜면 전체 궤적이 나온다 |
+| 계획 경로 | `PlannedPathRenderer` — A* 결과 (`Resources/planned_path_3d.json`) |
+| 비행 리포트 | `FlightReportRenderer` — 실제 궤적 + 침범 마커 (`flight_trajectory_3d.json`) |
+| 충돌 마커 | 충돌 지점 빨간 구 |
+
+씬에 `PlannedPathRenderer`/`FlightReportRenderer` 가 없으면 그 토글은 아무 일도
+하지 않는다(에러 없음).
+
+**사운드** — 마스터(=`AudioListener.volume`), 전체 음소거, 그리고 레이어별 볼륨:
+앰비언트 / 로터(호버링·전속) / 스팅어 / 심박.
+
+### 사운드 파일
 
 `Assets/Resources/Audio/` 에 클립을 넣으면 자동 로드 —
 `ambient.wav`(룸톤 루프), `heartbeat.wav`(후보 접근 시 볼륨·피치 상승),

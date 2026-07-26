@@ -171,6 +171,9 @@ public class HorrorAudio : MonoBehaviour
     void Update()
     {
         if (!active || !initialized) return;
+        // Re-applied every frame so SettingsPanel's slider takes effect live; the
+        // other layers already recompute their volume from the public fields.
+        ambientSource.volume = ambientVolume;
         UpdateStingers();
         UpdateHeartbeat();
         UpdateDrone();

@@ -75,6 +75,13 @@ public class PlannedPathRenderer : MonoBehaviour
     }
 
     [ContextMenu("Reload Planned Path")]
+    // Hide the drawn line without stopping the JSON polling, so re-enabling it
+    // shows the current path rather than a stale one. Driven by SettingsPanel.
+    public void SetVisible(bool value)
+    {
+        if (lineRenderer != null) lineRenderer.enabled = value;
+    }
+
     public void TryReloadPath()
     {
         string fullPath = Path.Combine(Application.dataPath, relativePathFromAssets);

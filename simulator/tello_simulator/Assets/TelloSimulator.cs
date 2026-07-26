@@ -101,6 +101,21 @@ public class TelloSimulator : MonoBehaviour
     // Read by CamcorderHUD (battery drains faster in flight).
     public bool IsFlying => isFlying;
 
+    // Path/marker visibility, driven by SettingsPanel. The trail keeps recording
+    // while hidden so toggling it back on shows the whole flight, not a stub.
+    public void SetTrailVisible(bool value)
+    {
+        if (trail != null) trail.enabled = value;
+    }
+
+    public void SetCollisionMarkersVisible(bool value)
+    {
+        foreach (GameObject marker in collisionMarkers)
+        {
+            if (marker != null) marker.SetActive(value);
+        }
+    }
+
     private CharacterController cc;
     private TrailRenderer trail;
     private readonly System.Collections.Generic.List<GameObject> collisionMarkers =
