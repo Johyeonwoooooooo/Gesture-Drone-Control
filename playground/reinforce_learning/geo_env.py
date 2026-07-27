@@ -123,6 +123,22 @@ class DroneGeoEnv(gym.Env):
                  people_penalty=None,  # 사람 접촉 페널티(기본 bump_penalty 와 동일).
                                        # 벽 범프보다 크게(예: 5) 줘야 '사람은 밀고
                                        # 지나가면 안 된다'를 학습한다
+                 people_terminate=False,  # ★ True 면 사람 접촉 = 그 자리에서 즉시
+                                       # 실패 종료(벽 범프 물리보다 우선). success 는
+                                       # '안 닿고 도착'을 뜻하게 됨 → 완전 회피(0접촉)
+                                       # 를 커리큘럼·정책이 직접 최적화. (밀고가기 차단)
+                 people_berth=0.0,     # >0 이면 사람 중심에서 이 반경(m) 안에 들어올 때
+                                       # 거리비례 페널티 — 아슬아슬하지 말고 여유 두고
+                                       # 피하도록 dense 그래디언트 제공(예: 0.6)
+                 people_berth_scale=2.0,  # berth 페널티 스케일(m당)
+                 people_max=None,      # >people 이면 에피소드마다 사람 수를
+                                       # [people, people_max] 균등 무작위로 뽑음.
+                                       # 1~8 섞으면 모든 밀도에 일반화(붐빔↔한산).
+                 shield=False,         # ★ 런타임 안전막. True 면 step 에서 사람이
+                                       # shield_react 안이면 정책 행동을 무시하고
+                                       # 안전 방향으로 후퇴 → 접촉 0 '보장'(배포/데모용).
+                                       # 학습엔 쓰지 말 것(회피 학습 신호를 가림).
+                 shield_react=1.2,     # 안전막 발동 거리(m). 이 안에 사람 들어오면 개입
                  obstacles=None):
         super().__init__()
         self.coord = load_obstacles(voxel) if obstacles is None else obstacles
@@ -162,6 +178,13 @@ class DroneGeoEnv(gym.Env):
         self.people_speed      = float(people_speed)
         self.people_penalty    = (self.bump_penalty if people_penalty is None
                                   else float(people_penalty))
+        self.people_terminate   = bool(people_terminate)
+        self.people_berth       = float(people_berth)
+        self.people_berth_scale = float(people_berth_scale)
+        self.people_max         = None if people_max is None else int(people_max)
+        self._n_people_ep       = int(people)   # 이번 에피소드 실제 목표 수
+        self.shield             = bool(shield)
+        self.shield_react       = float(shield_react)
         self._people           = []   # [{pos, a, b, tgt}]  에피소드마다 리셋
 
         # 계단 체인(grid A* 캐시, drone_env 가 만든 것 재사용 — 없으면 한 번 생성)
@@ -532,17 +555,26 @@ class DroneGeoEnv(gym.Env):
 
     def _spawn_people(self):
         self._people = []
-        if self.n_people <= 0:
+        n_req = self._n_people_ep
+        if n_req <= 0:
             return
         chain = self._greedy_path_cells(self.pos)
         if len(chain) < 6:
             return
-        anchors = np.linspace(0.30, 0.85, self.n_people)
-        for u in anchors:
+        # 예정 경로를 따라 n_req 명을 '요청 수만큼' 채운다(밀집도 = 요청 수).
+        # 균등 앵커를 우선 쓰되, 시작/목표 근처·후보 없음·기존 사람과 겹침으로
+        # 건너뛴 자리는 무작위 위치로 backfill 재시도해 실제 스폰 수가 요청에 근접.
+        targets = list(np.linspace(0.30, 0.85, n_req))
+        attempts = 0
+        while len(self._people) < n_req and attempts < n_req * 8:
+            attempts += 1
+            u = targets.pop(0) if targets else float(self.np_random.uniform(0.20, 0.88))
             a = self.node_pos[chain[int(u * (len(chain) - 1))]].copy()
             if np.linalg.norm(a - self.goal) < 1.5 or \
                     np.linalg.norm(a - self.pos) < 2.0:
                 continue
+            if any(np.linalg.norm(a - h['a']) < 0.6 for h in self._people):
+                continue                                # 서로 겹치지 않게(같은 셀 방지)
             # 왕복 반대 끝점: 같은 높이(|dz|<0.4)의 0.8~2.5m 떨어진 유효 셀
             d = np.linalg.norm(self.node_pos - a, axis=1)
             cand = np.where((d > 0.8) & (d < 2.5) &
@@ -565,6 +597,15 @@ class DroneGeoEnv(gym.Env):
                 return True
         return False
 
+    def _person_dist(self, p):
+        """점 p 에서 가장 가까운 사람 중심까지의 수평거리(높이 ±1m 내). 없으면 inf."""
+        d = np.inf
+        for h in self._people:
+            q = h['pos']
+            if abs(p[2] - q[2]) <= 1.0:
+                d = min(d, float(np.hypot(p[0] - q[0], p[1] - q[1])))
+        return d
+
     def _person_seg_hit(self, p0, p1):
         if not self._people:
             return False
@@ -585,6 +626,58 @@ class DroneGeoEnv(gym.Env):
                 h['tgt'] = 1 - h['tgt']
             else:
                 h['pos'] = h['pos'] + v / n * self.people_speed
+
+    def _shield(self, action):
+        """런타임 안전막(배포/데모용, velocity-obstacle 식 최소개입):
+        · 사람이 shield_react(m) 밖이면 정책 그대로.
+        · 정책 행동이 이미 안전(이동 후 모든 사람과 중심거리 ≥ safe, 벽·사람 미관통)이면
+          그대로 둔다 → 안전거리에서 스쳐 지나가는 정상 통과는 방해하지 않음(디더링 방지).
+        · 위험할 때만: 안전거리를 지키는 후보 중 '목표 방향과 가장 정렬된'(계속 전진하되
+          살짝 비켜가는) 방향 선택. 안전거리를 못 지키면 가장 멀어지는 후퇴.
+        접촉을 크게 줄이지만 벽 구석에 몰려 사람이 걸어 들어오는 트랩은 물리적으로
+        회피 불가라 '수학적 0 보장'은 아님(near-zero)."""
+        pos = self.pos
+        mstep = self.max_step
+        near = any(abs(pos[2] - h['pos'][2]) <= 1.0 and
+                   np.hypot(pos[0]-h['pos'][0], pos[1]-h['pos'][1]) < self.shield_react
+                   for h in self._people)
+        if not near:
+            return action
+        safe = self.people_radius + self.clearance + 0.15   # 유지할 최소 중심거리
+        gdir = self.goal - pos
+        gn = float(np.linalg.norm(gdir))
+        gdir = gdir / gn if gn > 1e-9 else np.zeros(3)
+
+        def ev(c):
+            c = np.clip(np.asarray(c, np.float64), -1.0, 1.0)
+            newp = pos + c * mstep
+            if np.any(newp < self.bounds_lo) or np.any(newp > self.bounds_hi):
+                return None
+            if not R.is_edge_free(pos, newp, self.tree,
+                                  radius=min(self._clr(pos), self._clr(newp))):
+                return None
+            if self._person_seg_hit(pos, newp):
+                return None
+            zq = [q for q in (h['pos'] for h in self._people)
+                  if abs(newp[2] - q[2]) <= 1.0]
+            dmin = min((np.hypot(newp[0]-q[0], newp[1]-q[1]) for q in zq), default=1e9)
+            return dmin, c
+
+        e = ev(action)                                   # 정책이 이미 안전하면 개입 안 함
+        if e is not None and e[0] >= safe:
+            return action
+        cands = [action, np.zeros(3)]
+        for k in range(24):
+            th = 2.0 * np.pi * k / 24.0
+            cands.append(np.array([np.cos(th), np.sin(th), 0.0]))
+        scored = [r for r in (ev(c) for c in cands) if r is not None]
+        if not scored:
+            return np.zeros(3)                           # 완전히 갇힘(드묾)
+        ok = [(d, c) for d, c in scored if d >= safe]
+        if ok:                                           # 안전거리 지키며 최대한 전진
+            return max(ok, key=lambda dc: float(np.dot(
+                dc[1] / (np.linalg.norm(dc[1]) + 1e-9), gdir)))[1]
+        return max(scored, key=lambda dc: dc[0])[1]      # 못 지키면 최대 후퇴
 
     # ── 관측 ────────────────────────────────────────────────
     def _raycast(self, pos):
@@ -666,6 +759,10 @@ class DroneGeoEnv(gym.Env):
         self._bumps = 0
         self._person_hits = 0
         self._carrot_prev = None
+        self._n_people_ep = (self.n_people if self.people_max is None or
+                             self.people_max <= self.n_people
+                             else int(self.np_random.integers(self.n_people,
+                                                              self.people_max + 1)))
         self._spawn_people()
         self.path = [self.pos.copy()]
         self._phi_prev = self._phi(self.pos)
@@ -673,22 +770,31 @@ class DroneGeoEnv(gym.Env):
 
     def step(self, action):
         action = np.clip(np.asarray(action, np.float64), -1.0, 1.0)
-        new = self.pos + action * self.max_step
         self.steps += 1
         if self._people:
             self._step_people()                       # 사람이 먼저 움직인다
+            if self.shield:
+                action = self._shield(action)         # 안전막: 접촉 0 보장(배포용)
+        new = self.pos + action * self.max_step
 
         out_of_bounds = bool(np.any(new < self.bounds_lo) or np.any(new > self.bounds_hi))
         clr = min(self._clr(self.pos), self._clr(new))
         p_hit = (not out_of_bounds) and self._person_seg_hit(self.pos, new)
         if p_hit:
             self._person_hits += 1
+        # 사람 접촉 = 즉시 실패 종료(완전 회피 학습). 벽 범프 물리보다 우선.
+        person_fail = p_hit and self.people_terminate
         hit = (not out_of_bounds) and (p_hit or
                                        not R.is_edge_free(self.pos, new, self.tree,
                                                           radius=clr))
         terminated = False
         success = False
-        if out_of_bounds or hit:
+        if person_fail:
+            self.prev_a = action
+            reward = -(self.people_penalty if self.people_penalty is not None
+                       else self.collision_penalty)
+            terminated = True
+        elif out_of_bounds or hit:
             if self.bump_penalty is not None:
                 # 범퍼 물리 + 슬라이드: 부딪히면 행동의 축 성분 중 갈 수 있는 가장 큰
                 # 성분만 적용(프로펠러 가드가 벽을 타듯). 완전 제자리 정지는 결정론
@@ -739,6 +845,12 @@ class DroneGeoEnv(gym.Env):
                 reward += self.goal_bonus
                 terminated = True
                 success = True
+
+        # berth: 사람 너무 가까이(닿기 전) 붙으면 거리비례 페널티 — 여유 두고 회피 유도
+        if self.people_berth > 0.0 and self._people and not terminated:
+            gap = self._person_dist(self.pos) - self.people_radius
+            if gap < self.people_berth:
+                reward -= self.people_berth_scale * (self.people_berth - max(gap, 0.0))
 
         truncated = (self.steps >= self.max_steps)
         if truncated and not terminated:

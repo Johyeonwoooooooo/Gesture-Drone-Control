@@ -3,7 +3,8 @@
 People are visible to rays/physics but NOT to the geodesic field -> avoidance
 must come from the policy's reactive skill. (ASCII output)
 
-Usage: conda run -n tello python _test_people_eval.py [model] [n_eps] [n_people]
+Usage: conda run -n tello python _test_people_eval.py [model] [n_eps] [n_people] [shield]
+  shield=1 : also evaluate WITH the runtime safety shield (proves contact-0)
 """
 import os
 import sys
@@ -15,6 +16,7 @@ _BASE = os.path.dirname(os.path.abspath(__file__))
 MODEL = sys.argv[1] if len(sys.argv) > 1 else "model_geo_best"
 N = int(sys.argv[2]) if len(sys.argv) > 2 else 100
 K = int(sys.argv[3]) if len(sys.argv) > 3 else 2
+SHIELD = len(sys.argv) > 4 and sys.argv[4] not in ("0", "", "false", "no")
 
 KW = dict(curriculum=False, priv_obs=True, ray_max=4.0, ray_layout="horiz14",
           subgoal_dist=2.5, bump_penalty=2.0, clearance=0.12, max_steps=700)
@@ -34,19 +36,27 @@ def run(env, seed):
 
 
 env0 = DroneGeoEnv(**KW)                      # baseline
-envP = DroneGeoEnv(people=K, **KW)            # with people
-print(f"[people eval] model={MODEL} n={N} people={K}", flush=True)
+envP = DroneGeoEnv(people=K, **KW)            # with people (policy only)
+envS = DroneGeoEnv(people=K, shield=True, **KW) if SHIELD else None  # + safety shield
+print(f"[people eval] model={MODEL} n={N} people={K} shield={SHIELD}", flush=True)
 
-base, ppl = [], []
+base, ppl, shd = [], [], []
 for i in range(N):
     s = 8000 + i
     base.append(run(env0, s))
     ppl.append(run(envP, s))
+    if SHIELD:
+        shd.append(run(envS, s))
     if (i + 1) % 20 == 0:
         b = np.mean([e["success"] for e in base])
         p = np.mean([e["success"] for e in ppl])
         pc = np.mean([e["success"] and e["phits"] == 0 for e in ppl])
-        print(f"  {i+1}/{N}  base {b:.2f} | people {p:.2f} (contact-free {pc:.2f})",
+        extra = ""
+        if SHIELD:
+            sc = np.mean([e["success"] for e in shd])
+            scf = np.mean([e["success"] and e["phits"] == 0 for e in shd])
+            extra = f" || shield {sc:.2f} (contact-free {scf:.2f})"
+        print(f"  {i+1}/{N}  base {b:.2f} | people {p:.2f} (contact-free {pc:.2f}){extra}",
               flush=True)
 
 spawned = [e for e in ppl if e["n_people"] > 0]
@@ -70,3 +80,16 @@ print(f"  success->fail flips    : {len(flip)}  seeds {flip[:20]}")
 st0 = np.mean([e["steps"] for e in base if e["success"]])
 st1 = np.mean([e["steps"] for e in ppl if e["success"]])
 print(f"  success steps          : base {st0:.0f} -> people {st1:.0f} (우회 비용)")
+
+if SHIELD:
+    scf = [e["success"] and e["phits"] == 0 for e in shd]
+    stouch = [e for e in shd if e["phits"] > 0]
+    sarr = [e["success"] for e in shd]
+    st2 = np.mean([e["steps"] for e in shd if e["success"]]) if any(sarr) else 0
+    print(f"\n  ----- WITH SAFETY SHIELD -----")
+    print(f"  shield arrival success : {sum(sarr)}/{N} = {np.mean(sarr):.3f}")
+    print(f"  shield contact-free    : {sum(scf)}/{N} = {np.mean(scf):.3f}")
+    print(f"  shield episodes w/ contact: {len(stouch)}/{N}"
+          f"  (avg hits {np.mean([e['phits'] for e in stouch]):.1f})"
+          if stouch else "  shield episodes w/ contact: 0  <-- 접촉 0 달성")
+    print(f"  shield success steps   : {st2:.0f} (안전 우회 비용)")

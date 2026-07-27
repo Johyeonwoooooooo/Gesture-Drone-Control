@@ -28,7 +28,8 @@ _BASE = os.path.dirname(os.path.abspath(__file__))
 
 def make_env(rank, curriculum=True, d_init=4.0, ray_max=2.0, ray_layout='axes14',
              subgoal=None, bump=None, clearance=None, max_steps=400, stair_mix=0.0,
-             guide=0.20, people=0, people_penalty=None):
+             guide=0.20, people=0, people_penalty=None, people_terminate=False,
+             people_berth=0.0, people_max=None):
     def _f():
         from stable_baselines3.common.monitor import Monitor
         from geo_env import DroneGeoEnv
@@ -37,7 +38,9 @@ def make_env(rank, curriculum=True, d_init=4.0, ray_max=2.0, ray_layout='axes14'
                           ray_max=ray_max, ray_layout=ray_layout, subgoal_dist=subgoal,
                           bump_penalty=bump, max_steps=max_steps, stair_mix=stair_mix,
                           guide_clearance=guide, people=people,
-                          people_penalty=people_penalty, **kw)
+                          people_penalty=people_penalty,
+                          people_terminate=people_terminate,
+                          people_berth=people_berth, people_max=people_max, **kw)
         env.reset(seed=1000 + rank)
         return Monitor(env, info_keywords=('d_max',))
     return _f
@@ -88,6 +91,16 @@ def main():
     ap.add_argument('--people-penalty', type=float, default=None,
                     help='사람 접촉 페널티(기본 bump 와 동일). 회피를 가르치려면'
                          ' 벽 범프보다 크게 — 5 권장')
+    ap.add_argument('--people-terminate', action='store_true',
+                    help='사람 접촉 시 에피소드 즉시 실패 종료 — 완전 회피(0접촉) 학습용.'
+                         ' success 가 "안 닿고 도착"이 되어 커리큘럼이 회피를 직접 최적화.'
+                         ' (물리/보상 체제 변경 → fresh 재학습 필수). 평가도 동일 지정')
+    ap.add_argument('--people-berth', type=float, default=0.0,
+                    help='사람 중심 이 반경(m) 안에 들어오면 거리비례 페널티 — 여유 두고'
+                         ' 피하도록 유도(0.6 권장). 평가엔 영향 없음')
+    ap.add_argument('--people-max', type=int, default=None,
+                    help='설정 시 에피소드마다 사람 수를 [people, people_max] 무작위.'
+                         ' 예: --people 1 --people-max 8 → 한산~붐빔 모두 학습해 일반화')
     ap.add_argument('--out', default='model_geo')
     ap.add_argument('--init-from', default=None, help='이어받을 모델(.zip 제외)')
     ap.add_argument('--seed', type=int, default=0)
@@ -115,7 +128,9 @@ def main():
                     subgoal=a.subgoal, bump=a.bump, clearance=a.clearance,
                     max_steps=a.max_steps, stair_mix=a.stair_mix,
                     guide=a.guide_clearance, people=a.people,
-                    people_penalty=a.people_penalty)
+                    people_penalty=a.people_penalty,
+                    people_terminate=a.people_terminate, people_berth=a.people_berth,
+                    people_max=a.people_max)
            for i in range(a.n_envs)]
     venv = SubprocVecEnv(fns) if a.n_envs > 1 else DummyVecEnv(fns)
 
@@ -207,7 +222,10 @@ def main():
                                    ray_layout=a.rays, subgoal_dist=a.subgoal,
                                    bump_penalty=a.bump, max_steps=a.max_steps,
                                    guide_clearance=a.guide_clearance, people=a.people,
-                                   people_penalty=a.people_penalty, **_ckw))
+                                   people_penalty=a.people_penalty,
+                                   people_terminate=a.people_terminate,
+                                   people_berth=a.people_berth,
+                                   people_max=a.people_max, **_ckw))
     cbs = [
         CheckpointCallback(save_freq=max(1, 100_000 // a.n_envs),
                            save_path=os.path.join(_BASE, 'ckpt'),
@@ -245,7 +263,9 @@ def main():
         e = DroneGeoEnv(curriculum=False, priv_obs=True, ray_max=a.ray_max,
                         ray_layout=a.rays, subgoal_dist=a.subgoal, bump_penalty=a.bump,
                         max_steps=a.max_steps, guide_clearance=a.guide_clearance,
-                        people=a.people, people_penalty=a.people_penalty, **_ckw)
+                        people=a.people, people_penalty=a.people_penalty,
+                        people_terminate=a.people_terminate,
+                        people_berth=a.people_berth, people_max=a.people_max, **_ckw)
         succ = 0
         for i in range(30):
             obs, _ = e.reset(seed=7000 + i)
