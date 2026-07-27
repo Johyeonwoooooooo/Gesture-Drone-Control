@@ -112,3 +112,9 @@ playground/reinforce_learning/ckpt/
 playground/reinforce_learning/best/
 playground/reinforce_learning/progress.png
 playground/reinforce_learning/curriculum_progress.png
+
+# 단, 추론(reinforce_inference.py)에 필요한 모델 파라미터·환경 캐시는 커밋
+!playground/reinforce_learning/model_geo_best.zip
+!playground/reinforce_learning/obstacles_cache.npz
+!playground/reinforce_learning/geo_graph_cache.npz
+!playground/reinforce_learning/stair_chains_cache.npz
