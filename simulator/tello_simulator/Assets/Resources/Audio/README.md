@@ -5,7 +5,7 @@ Inspector에서 직접 드래그해 넣으면 그 값이 우선이고, 이 폴�
 
 | 파일 | 역할 | 권장 길이 / 성격 |
 |---|---|---|
-| `ambient.wav` | 2D 룸톤. 계속 루프 | 30~120초, 이음매 없는 loop. 저주파 웅웅거림 / 바람 / 빈 건물 공조음 |
+| `ambient.wav` | 2D 룸톤. 계속 루프 | 30~120초. **loop-ready가 아니어도 된다** — 소스 2개로 크로스페이드해서 이음매를 덮는다. 저주파 웅웅거림 / 바람 / 빈 건물 공조음 |
 | `heartbeat.wav` | 2D 심박. 후보(preview)에 가까워질수록 볼륨·피치 상승 | 1~2초, loop 가능한 두근 1~2회 |
 | `Stingers/*.wav` | 12~35초 랜덤 간격으로 드론 주변 3D 랜덤 위치에서 재생 | 0.5~3초 one-shot. 삐걱, 발소리, 문 닫힘, 속삭임, 금속 긁힘 등 여러 개 |
 | `drone.wav` | 드론 로터 루프. 드론에 붙은 3D 소스라 거리·방향에 따라 들린다. 속도에 따라 피치·볼륨 상승, 착륙하면 잦아든다 | 2~5초, 이음매 없는 loop. 프로펠러 웅웅거림 |
@@ -35,6 +35,9 @@ Inspector에서 직접 드래그해 넣으면 그 값이 우선이고, 이 폴�
 `ambientVolume`, `stingerVolume`, `heartbeatMaxVolume`,
 `stingerMinDelay`/`stingerMaxDelay` (스팅어 빈도),
 `heartbeatFarDistance`/`heartbeatNearDistance` (심박이 붙는 거리 범위).
+
+앰비언트 이음매가 여전히 들리면 `ambientCrossfade`(기본 3초)를 늘린다.
+클립 길이의 40%까지 자동으로 제한된다.
 
 드론 로터: `droneVolumeIdle`(호버링 0.25) / `droneVolumeMax`(전속 0.55),
 `dronePitchIdle` 0.85 / `dronePitchMax` 1.3, `droneFullSpeed`(전속 기준 15 u/s,
