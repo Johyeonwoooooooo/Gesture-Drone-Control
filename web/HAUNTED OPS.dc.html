@@ -83,12 +83,12 @@ input[type=range]{accent-color:#ef4444}
       </div>
       <div style="display:flex;gap:14px;margin-top:22px;z-index:2">
         <div style="width:150px;padding:12px 14px;background:#10070ae6;border:1px solid #2a1015;border-radius:9px;text-align:center">
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:#e8dde0">27</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:#e8dde0">{{runCount}}</div>
           <div style="font-size:10px;color:#8a7478;margin-top:2px">누적 작전 수</div>
         </div>
         <div style="width:150px;padding:12px 14px;background:#10070ae6;border:1px solid #2a1015;border-radius:9px;text-align:center">
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:#57c4b8">3,240</div>
-          <div style="font-size:10px;color:#8a7478;margin-top:2px">최고 점수</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:{{bestColor}}">{{bestScore}}</div>
+          <div style="font-size:10px;color:#8a7478;margin-top:2px">최고 점수 {{bestTag}}</div>
         </div>
         <div style="width:230px;padding:12px 14px;background:#10070ae6;border:1px solid #2a1015;border-radius:9px">
           <div style="font-size:10px;color:#8a7478;margin-bottom:5px">최근 작전</div>
@@ -639,7 +639,23 @@ class Component extends DCLogic {
   opsRef = React.createRef();
   toastSeq = 0;
 
+  STORE_KEY = 'hauntedOps.banked';
+  loadBanked() {
+    try { return JSON.parse(localStorage.getItem(this.STORE_KEY) || '[]'); }
+    catch (e) { return []; }
+  }
+  saveBanked(list) {
+    try { localStorage.setItem(this.STORE_KEY, JSON.stringify(list.slice(0, 50))); }
+    catch (e) { /* 사생활 모드 등 - 저장만 못 할 뿐 동작엔 지장 없다 */ }
+  }
+  // 최고 점수 = 회수해서 등록된 기록 + 기본 아카이브 중 최대.
+  // 회수하지 않고 잃은 점수는 여기 안 들어간다(그게 회수의 의미다).
+  bestOf(banked) {
+    return Math.max(0, ...banked.map(b => b.score), ...this.RECORDS.map(r => r.score));
+  }
+
   componentDidMount() {
+    this.setState({ banked: this.loadBanked() });
     Promise.all([
       fetch('uploads/web_meta.json').then(r => r.json()),
       fetch('uploads/detections.json').then(r => r.json()).catch(() => []),
@@ -946,9 +962,13 @@ class Component extends DCLogic {
       grade: total >= 8000 ? 'S' : total >= 5000 ? 'A' : total >= 3000 ? 'B' : total >= 1500 ? 'C' : 'D',
       cmd: this.state.cmd.trim() || this.MISSION.cmd,
     };
-    this.setState({ banked: [rec, ...this.state.banked], totalScore: 0, streak: 0,
-                    screen: 'lobby', sim: null });
-    this.toast(`🏆 ${total.toLocaleString()}점 등록 (${rec.rounds}연속, 등급 ${rec.grade}) - 누적 초기화`);
+    const banked = [rec, ...this.state.banked];
+    const isBest = total >= this.bestOf(this.state.banked);
+    this.saveBanked(banked);
+    this.setState({ banked, totalScore: 0, streak: 0, screen: 'lobby', sim: null });
+    this.toast(isBest
+      ? `🏆 신기록! ${total.toLocaleString()}점 등록 (${rec.rounds}연속, 등급 ${rec.grade})`
+      : `${total.toLocaleString()}점 등록 (${rec.rounds}연속, 등급 ${rec.grade}) - 누적 초기화`);
   }
 
   gameOver(sim, cause) {
@@ -1037,6 +1057,12 @@ class Component extends DCLogic {
     };
 
     if (scr === 'lobby') {
+      const best = this.bestOf(st.banked);
+      const mine = st.banked.length ? Math.max(...st.banked.map(b => b.score)) : 0;
+      vals.bestScore = best.toLocaleString();
+      vals.bestColor = mine >= best && mine > 0 ? '#4ade80' : '#57c4b8';
+      vals.bestTag = mine >= best && mine > 0 ? '· 내 기록' : '';
+      vals.runCount = `${this.RECORDS.length + st.banked.length}`;
       vals.lobbyBlips = [
         { left: '30%', top: '36%', color: '#4ade80', dur: '2.2s' },
         { left: '62%', top: '58%', color: '#ef4444', dur: '3.4s' },
