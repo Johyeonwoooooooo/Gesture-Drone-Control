@@ -86,7 +86,7 @@ input[type=range]{accent-color:#ef4444}
         </div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:30px;z-index:2">
-        <button onClick="{{goCreate}}" style="width:340px;height:52px;border:1px solid #ef4444;border-radius:9px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:700;font-size:16px;letter-spacing:.06em;cursor:pointer;box-shadow:0 0 22px #dc262655" style-hover="background:#7f1d1d;box-shadow:0 0 30px #dc262699">새로운 회수 작전 시작</button>
+        <button onClick="{{onStartMission}}" style="width:340px;height:52px;border:1px solid #ef4444;border-radius:9px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:700;font-size:16px;letter-spacing:.06em;cursor:pointer;box-shadow:0 0 22px #dc262655" style-hover="background:#7f1d1d;box-shadow:0 0 30px #dc262699">새로운 회수 작전 시작</button>
         <div style="display:flex;gap:10px">
           <button onClick="{{goRecords}}" style="width:165px;height:38px;border:1px solid #3a161c;border-radius:8px;background:#170a0dcc;color:#cfc2c5;font-family:'IBM Plex Sans KR',sans-serif;font-size:13px;cursor:pointer" style-hover="border-color:#ef4444">미션 기록</button>
           <button onClick="{{goSettings}}" style="width:165px;height:38px;border:1px solid #3a161c;border-radius:8px;background:#170a0dcc;color:#cfc2c5;font-family:'IBM Plex Sans KR',sans-serif;font-size:13px;cursor:pointer" style-hover="border-color:#ef4444">설정</button>
@@ -186,12 +186,22 @@ input[type=range]{accent-color:#ef4444}
         <div style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;padding:5px 11px;border:1px solid #1e3a2a;background:#101d16;border-radius:6px;color:#4ade80">{{streakChip}}</div>
       </div>
       <div style="flex:1;position:relative;background:repeating-linear-gradient(135deg,#0d0608 0 18px,#120709 18px 36px)">
-        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px">
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:20px;letter-spacing:.2em;color:#8a7478">UNITY WEBGL FEED</span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5f4a4e;text-align:center;line-height:1.9">여기에 Unity 시뮬레이션 화면이 들어갑니다<br>(iframe / WebGL 빌드 자리 — 게임 플레이는 Unity에서 진행)</span>
-        </div>
+        <sc-if value="{{simShareOn}}" hint-placeholder-val="{{false}}">
+          <div style="position:absolute;inset:0">{{simVideoEl}}</div>
+        </sc-if>
+        <sc-if value="{{simShareOff}}" hint-placeholder-val="{{true}}">
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:20px;letter-spacing:.2em;color:#8a7478">SIM FEED · 미연결</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5f4a4e;text-align:center;line-height:1.9">시뮬레이터(Unity) 창을 이 화면에 띄우려면<br>아래 버튼을 눌러 그 창을 공유해 주세요</span>
+            <button onClick="{{onSimShare}}" style="margin-top:6px;height:38px;padding:0 20px;border:1px solid #ef4444;border-radius:8px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:700;font-size:13px;cursor:pointer" style-hover="background:#7f1d1d">시뮬레이터 화면 연결</button>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f59e0b">{{simShareErr}}</span>
+          </div>
+        </sc-if>
         <span style="position:absolute;left:16px;top:14px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#f87171;animation:blinkDot 1.4s infinite">REC ●</span>
         <span style="position:absolute;right:16px;top:14px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#8a7478">CAM 01 · 3RD PERSON</span>
+        <sc-if value="{{simShareOn}}" hint-placeholder-val="{{false}}">
+          <button onClick="{{onSimShareStop}}" style="position:absolute;right:16px;bottom:14px;height:26px;padding:0 12px;border:1px solid #4a1d24;border-radius:6px;background:#10070ae6;color:#a8969a;font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer" style-hover="border-color:#ef4444;color:#f87171">화면 공유 해제</button>
+        </sc-if>
         <div style="position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 2px,#00000025 2px 4px)"></div>
       </div>
       <div style="flex:none;display:flex;align-items:center;gap:10px;padding:10px 18px;background:#10070a;border-top:1px solid #2a1015">
@@ -537,6 +547,53 @@ input[type=range]{accent-color:#ef4444}
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script>
+// ── Unity 창 화면 공유 (getDisplayMedia) ─────────────────────────
+// exe 는 네이티브 창이라 브라우저에 임베드할 수 없다. 대신 사용자가 한 번
+// 허용해 주면 그 창을 캡처해 <video> 로 페이지 안에 그린다. localhost 는
+// secure context 라 http 로도 동작하고, 권한 요청은 클릭(사용자 제스처)
+// 안에서만 뜬다. 스트림은 두 컴포넌트(셸/지도)가 같이 쓰므로 window 에 둔다.
+if (!window.__simShare) {
+  window.__simShare = {
+    stream: null, error: null, subs: new Set(),
+    notify() { for (const f of this.subs) { try { f(); } catch (e) {} } },
+    supported() { return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia); },
+    start() {
+      if (!this.supported()) {
+        this.error = '이 브라우저는 화면 공유를 지원하지 않습니다 (Chrome/Edge 권장)';
+        this.notify(); return;
+      }
+      // await 하지 않는다 — 사용자 제스처 안에서 바로 호출해야 권한창이 뜬다.
+      navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: false })
+        .then(s => {
+          this.stream = s; this.error = null;
+          const t = s.getVideoTracks()[0];
+          if (t) t.addEventListener('ended', () => { this.stream = null; this.notify(); });
+          this.notify();
+        })
+        .catch(e => {
+          this.error = (e && e.name === 'NotAllowedError')
+            ? '화면 공유가 취소되었습니다' : String((e && e.message) || e);
+          this.notify();
+        });
+    },
+    stop() {
+      if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
+      this.error = null; this.notify();
+    },
+  };
+}
+// 공유 스트림을 그리는 <video>. srcObject 는 props 로 못 넘겨서 ref 로 꽂는다.
+function simVideo(extra) {
+  const s = window.__simShare.stream;
+  if (!s) return null;
+  return React.createElement('video', {
+    autoPlay: true, muted: true, playsInline: true,
+    ref: el => { if (el && el.srcObject !== s) el.srcObject = s; },
+    style: Object.assign({ position: 'absolute', inset: 0, width: '100%', height: '100%',
+                           objectFit: 'contain', background: '#000' }, extra || {}),
+  });
+}
+
 class Component extends DCLogic {
   LABELS = {
     "002": "현우의 수상한 지하 벙커", "003": "규철이 숨겨둔 비밀 무기고",
@@ -594,6 +651,8 @@ class Component extends DCLogic {
       this.setState({ meta, screen: 'lobby' });
     });
     window.addEventListener('resize', this.onResize);
+    this._shareSub = () => this.setState(st => ({ shareTick: (st.shareTick || 0) + 1 }));
+    window.__simShare.subs.add(this._shareSub);
     this.introT1 = setTimeout(() => this.setState({ introFade: true }), 2600);
     this.introT2 = setTimeout(() => this.setState({ intro: false }), 3200);
   }
@@ -602,6 +661,7 @@ class Component extends DCLogic {
     cancelAnimationFrame(this.raf);
     clearInterval(this.prepIv); clearInterval(this.tallyIv);
     clearTimeout(this.introT1); clearTimeout(this.introT2);
+    window.__simShare.subs.delete(this._shareSub);
   }
   componentDidUpdate(pp, ps) {
     if (ps && ps.screen !== this.state.screen && (this.state.screen === 'ops' || this.state.screen === 'chase')) requestAnimationFrame(() => this.measureOps());
@@ -857,6 +917,19 @@ class Component extends DCLogic {
       goLobby: () => { cancelAnimationFrame(this.raf); this.setState({ screen: 'lobby', sim: null }); },
       goCreate: () => this.setState({ screen: 'create', sim: null }),
       goRecords: () => this.go('records'), goSettings: () => this.go('settings'),
+      // 작전 시작 = 시뮬레이터 화면 공유 요청 + 관제 화면 진입.
+      // 권한창은 클릭 안에서만 뜨므로 여기서 바로 호출하고, 화면은 기다리지
+      // 않고 넘어간다(거절해도 지도는 그대로 쓸 수 있다).
+      onStartMission: () => {
+        if (!window.__simShare.stream) window.__simShare.start();
+        this.setState({ screen: 'create', sim: null });
+      },
+      simShareOn: !!window.__simShare.stream,
+      simShareOff: !window.__simShare.stream,
+      simVideoEl: simVideo(),
+      simShareErr: window.__simShare.error || '',
+      onSimShare: () => window.__simShare.start(),
+      onSimShareStop: () => window.__simShare.stop(),
     };
     if (!meta) return base;
     const fmt = n => n.toFixed(2);

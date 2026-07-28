@@ -102,8 +102,13 @@ a{color:#f87171}a:hover{color:#fca5a5}
     <main style="flex:1;position:relative;min-width:0;overflow:hidden;background:#0a0405;background-image:linear-gradient(#2a101508 1px,transparent 1px),linear-gradient(90deg,#ffffff05 1px,transparent 1px);background-size:40px 40px">
       <sc-if value="{{simMax}}" hint-placeholder-val="{{false}}">
         <div style="position:absolute;inset:0;z-index:0;background:repeating-linear-gradient(135deg,#0d0608 0 18px,#120709 18px 36px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:.14em;color:#8a7478">UNITY WEBGL FEED</span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#5f4a4e;text-align:center;line-height:1.8">여기에 Unity 시뮬레이션 화면이 연결됩니다<br>(iframe / WebRTC 스트림 자리)</span>
+          <sc-if value="{{simShareOn}}" hint-placeholder-val="{{false}}">{{simVideoEl}}</sc-if>
+          <sc-if value="{{simShareOff}}" hint-placeholder-val="{{true}}">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:.14em;color:#8a7478">SIM FEED · 미연결</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#5f4a4e;text-align:center;line-height:1.8">시뮬레이터(Unity) 창을 공유하면 여기에 뜹니다</span>
+            <button onClick="{{onSimShare}}" style="margin-top:4px;height:32px;padding:0 16px;border:1px solid #ef4444;border-radius:8px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:700;font-size:12px;cursor:pointer" style-hover="background:#7f1d1d">시뮬레이터 화면 연결</button>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#f59e0b">{{simShareErr}}</span>
+          </sc-if>
           <span style="position:absolute;left:14px;top:12px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f87171;animation:blinkDot 1.6s infinite">REC ●</span>
           <span style="position:absolute;left:50%;top:12px;transform:translateX(-50%);font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a7478">CAM 01 · 3RD PERSON · {{simStatusTxt}}</span>
           <div style="position:absolute;left:14px;bottom:44px;display:flex;flex-direction:column;gap:3px;font-family:'IBM Plex Mono',monospace;font-size:11px">
@@ -214,8 +219,11 @@ a{color:#f87171}a:hover{color:#fca5a5}
             <button onClick="{{onSimClose}}" style="margin-left:auto;width:20px;height:20px;border:none;border-radius:4px;background:#241014;color:#a8969a;cursor:pointer;font-size:10px" style-hover="background:#35161d">✕</button>
           </div>
           <div style="position:relative;height:180px;background:repeating-linear-gradient(135deg,#0d0608 0 14px,#120709 14px 28px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
-            <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a7478">UNITY WEBGL FEED</span>
-            <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#5f4a4e;text-align:center;line-height:1.6">여기에 Unity 시뮬레이션 화면이 연결됩니다<br>(iframe / WebRTC 스트림 자리)</span>
+            <sc-if value="{{simShareOn}}" hint-placeholder-val="{{false}}">{{simVideoEl2}}</sc-if>
+            <sc-if value="{{simShareOff}}" hint-placeholder-val="{{true}}">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a7478">SIM FEED · 미연결</span>
+              <button onClick="{{onSimShare}}" style="height:26px;padding:0 12px;border:1px solid #ef4444;border-radius:7px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:600;font-size:11px;cursor:pointer" style-hover="background:#7f1d1d">화면 연결</button>
+            </sc-if>
             <span style="position:absolute;left:10px;top:8px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#f87171">REC ●</span>
             <span style="position:absolute;right:10px;top:8px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478">CAM 01 · 3RD PERSON</span>
           </div>
@@ -331,6 +339,53 @@ a{color:#f87171}a:hover{color:#fca5a5}
   &quot;showPassages&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;지도&quot;},
   &quot;onLaunchMission&quot;: {&quot;editor&quot;: null, &quot;tsType&quot;: &quot;(payload: object) =&gt; void&quot;}
 }">
+// ── Unity 창 화면 공유 (getDisplayMedia) ─────────────────────────
+// exe 는 네이티브 창이라 브라우저에 임베드할 수 없다. 대신 사용자가 한 번
+// 허용해 주면 그 창을 캡처해 <video> 로 페이지 안에 그린다. localhost 는
+// secure context 라 http 로도 동작하고, 권한 요청은 클릭(사용자 제스처)
+// 안에서만 뜬다. 스트림은 두 컴포넌트(셸/지도)가 같이 쓰므로 window 에 둔다.
+if (!window.__simShare) {
+  window.__simShare = {
+    stream: null, error: null, subs: new Set(),
+    notify() { for (const f of this.subs) { try { f(); } catch (e) {} } },
+    supported() { return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia); },
+    start() {
+      if (!this.supported()) {
+        this.error = '이 브라우저는 화면 공유를 지원하지 않습니다 (Chrome/Edge 권장)';
+        this.notify(); return;
+      }
+      // await 하지 않는다 — 사용자 제스처 안에서 바로 호출해야 권한창이 뜬다.
+      navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: false })
+        .then(s => {
+          this.stream = s; this.error = null;
+          const t = s.getVideoTracks()[0];
+          if (t) t.addEventListener('ended', () => { this.stream = null; this.notify(); });
+          this.notify();
+        })
+        .catch(e => {
+          this.error = (e && e.name === 'NotAllowedError')
+            ? '화면 공유가 취소되었습니다' : String((e && e.message) || e);
+          this.notify();
+        });
+    },
+    stop() {
+      if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
+      this.error = null; this.notify();
+    },
+  };
+}
+// 공유 스트림을 그리는 <video>. srcObject 는 props 로 못 넘겨서 ref 로 꽂는다.
+function simVideo(extra) {
+  const s = window.__simShare.stream;
+  if (!s) return null;
+  return React.createElement('video', {
+    autoPlay: true, muted: true, playsInline: true,
+    ref: el => { if (el && el.srcObject !== s) el.srcObject = s; },
+    style: Object.assign({ position: 'absolute', inset: 0, width: '100%', height: '100%',
+                           objectFit: 'contain', background: '#000' }, extra || {}),
+  });
+}
+
 class Component extends DCLogic {
   state = { meta: null, floor: 1, view: { tx: 0, ty: 0, s: 1 }, hoverId: null, mouse: null, cursorW: null, dest: null, nl: "", toasts: [], sent: false, dragging: false, selRoom: null, flight: null, droneAt: null, simOpen: false, simMax: false,
             // ── 도착지 1점 선택 + 강화학습 경로 ─────────────────────
@@ -375,6 +430,8 @@ class Component extends DCLogic {
     attach();
     this.pollDrone();
     this.droneIv = setInterval(this.pollDrone, 1000);   // 시뮬레이터 위치 추적
+    this._shareSub = () => this.setState(st => ({ shareTick: (st.shareTick || 0) + 1 }));
+    window.__simShare.subs.add(this._shareSub);
     window.addEventListener('mousemove', this.onWinMove);
     window.addEventListener('mouseup', this.onWinUp);
     window.addEventListener('resize', this.onResize);
@@ -400,6 +457,7 @@ class Component extends DCLogic {
     window.removeEventListener('mouseup', this.onWinUp);
     window.removeEventListener('resize', this.onResize);
     clearInterval(this.droneIv);
+    window.__simShare.subs.delete(this._shareSub);
     cancelAnimationFrame(this.raf);
   }
   componentDidUpdate(prev) {
@@ -648,6 +706,13 @@ class Component extends DCLogic {
         this.setState({ mouse: { x: e.clientX - r.left, y: e.clientY - r.top }, cursorW: w });
       },
       onMapLeave: () => this.setState({ mouse: null, hoverId: null, cursorW: null }),
+      // Unity 창 화면 공유 (셸과 같은 window.__simShare 스트림을 공유한다)
+      simShareOn: !!window.__simShare.stream,
+      simShareOff: !window.__simShare.stream,
+      simVideoEl: simVideo(),
+      simVideoEl2: simVideo(),
+      simShareErr: window.__simShare.error || '',
+      onSimShare: () => window.__simShare.start(),
       // 클릭 = 도착지 지정. 출발점은 언제나 드론 현재 위치라 고르지 않는다.
       onMapClick: e => {
         if (!meta || this.lastDragMoved) return;
