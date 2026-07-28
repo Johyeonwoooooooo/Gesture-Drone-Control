@@ -53,7 +53,9 @@ def main() -> None:
                     choices=["float16", "bfloat16", "float32"])
     ap.add_argument("--llm-device-map", default=None)
     # planner
-    ap.add_argument("--algo", default="astar", choices=["astar", "rrt"])
+    ap.add_argument("--algo", default="astar", choices=["astar", "rrt", "rl"],
+                    help="rl = 학습된 SAC 정책으로 경로 계획 "
+                         "(미도달 시 astar 로 자동 폴백)")
     ap.add_argument("--resolution", type=float, default=0.15)
     ap.add_argument("--margin", type=int, default=1)
     ap.add_argument("--sample", type=int, default=1,
@@ -153,6 +155,16 @@ def main() -> None:
             else backend.default_home())
     print(f"[v2] scene ready: grid={gm.shape}, home={np.round(home, 2)} "
           f"({time.time()-t0:.1f}s)")
+
+    # ------------------------------------------------- RL planner (--algo rl)
+    # 학습된 SAC 정책을 A* 자리에 그대로 끼운다. 같은 월드미터 프레임이라
+    # 반환값(waypoint 리스트)이 planner.plan_path 와 호환된다. 원본 점군은
+    # 필요 없고 저장소에 커밋된 모델+캐시만으로 돈다.
+    rl = None
+    if args.algo == "rl":
+        sys.path.insert(0, str(_THIS.parents[2]))  # repo root
+        import rl_planner as rl                    # noqa: E402
+        rl.load()
 
     state: Dict[str, object] = {"last_goal": None}
 
@@ -261,17 +273,29 @@ def main() -> None:
         status("경로 계산 중...")
         start_world = drone_world_pos()
         t2 = time.time()
-        path, info, _ = planner.plan_path(
-            points_world, start_world, goal_world, algo=args.algo,
-            resolution=args.resolution, margin=args.margin, sample=args.sample,
-            rrt_iter=args.rrt_iter, gm=gm)
+        if rl is not None:
+            path, info = rl.plan(start_world, goal_world)
+            if not info["success"]:
+                # 정책 미도달(약 2%) -> 검증된 A* 로 폴백. 두 경로 다 같은
+                # 월드미터 프레임이라 아래 단계는 손댈 것이 없다.
+                print(f"[plan] rl 미도달 ({info['steps']}스텝, 남은거리 "
+                      f"{info['dist']:.2f}m) -> astar 폴백")
+                path, info, _ = planner.plan_path(
+                    points_world, start_world, goal_world, algo="astar",
+                    resolution=args.resolution, margin=args.margin,
+                    sample=args.sample, gm=gm)
+        else:
+            path, info, _ = planner.plan_path(
+                points_world, start_world, goal_world, algo=args.algo,
+                resolution=args.resolution, margin=args.margin, sample=args.sample,
+                rrt_iter=args.rrt_iter, gm=gm)
         t_plan = time.time() - t2
         if path is None:
             status("경로 계산 실패")
-            print(f"[plan] {args.algo} FAILED ({info.get('reason', '?')}, "
+            print(f"[plan] {info.get('algo', args.algo)} FAILED ({info.get('reason', '?')}, "
                   f"{t_plan:.2f}s) — no path saved.")
             return
-        print(f"[plan] {args.algo}: {info['n_waypoints']} waypoints, "
+        print(f"[plan] {info.get('algo', args.algo)}: {info['n_waypoints']} waypoints, "
               f"{info['length_m']:.2f} m ({t_plan:.2f}s)")
 
         # 5. Emit Tello SDK program
@@ -280,7 +304,7 @@ def main() -> None:
             path, action=intent.action, return_home=intent.return_home,
             home_world=home, start_world=start_world, goal_world=goal_world,
             target_object=label, clip_prompt=intent.clip_prompt,
-            query=user_text, algo=args.algo, building=args.building,
+            query=user_text, algo=info.get("algo", args.algo), building=args.building,
             speed=args.tello_speed, timestamp=ts)
         out_path = sdk_export.save_program(program, args.out_dir)
         print(f"[sdk] {len(program['commands'])} commands -> {out_path}")

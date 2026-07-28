@@ -60,6 +60,22 @@ graduated to real use sits at the top level.
 - **`reinforce_inference.py`** — one-click RL flight demo/eval with the trained
   policy. `--random N` headless eval, `--pick` picks two points in an Open3D
   view, `--people/--shield` for the dynamic-obstacle demo.
+- **`rl_planner.py`** — ★ the single place the policy is loaded and rolled out.
+  `plan(start, goal) -> (waypoints, info)` returns **world-meter** waypoints, the
+  same contract as `webapp_llm_v2/planner.plan_path()`, so it drops straight into
+  the A* call site. Applies a line-of-sight shortcut to the dense 0.3 m
+  trajectory (93 pts / 31.9 m → 14 pts / 30.2 m) because the PID follower visits
+  every waypoint. `info['success']` is False ~2% of the time — callers must fall
+  back to A*. `info['raw']` keeps the dense trajectory for drawing.
+- **`simulator/bridge/fly_rl_path.py`** — drone's current position → RL path →
+  Unity coords → takeoff / 20 Hz PID follow / land, in one command.
+  `--room 016` uses `web_meta.json` room centres; `--dry-run` plans only.
+  Works today against `fake_unity_sim.py`; point `--unity-host` at the real
+  build when it exists.
+- **`webapp_llm_v2/server.py --algo rl`** — the LLM pipeline plans with the
+  policy instead of A*, auto-falling back to A* when the policy doesn't arrive.
+  This is where the policy wins: A* cross-floor is listed as unsolved in
+  `README-integration.md` §10, the policy is 0.97 on stair tasks.
 - **`web_server.py`** — Flask. Serves `web/` and answers
   `POST /plan {start,goal}` by running the policy deterministically and
   returning the 3D trajectory. Loads `model_geo_best.zip` + `geo_env` once

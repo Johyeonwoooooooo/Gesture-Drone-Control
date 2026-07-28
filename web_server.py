@@ -39,36 +39,19 @@ import threading
 import numpy as _np
 from flask import Flask, request, jsonify, redirect, send_from_directory
 
+import rl_planner               # 경로 계획(정책 로드/롤아웃/단축)은 전부 여기
+
 _ROOT = os.path.dirname(os.path.abspath(__file__))
-_RL = os.path.join(_ROOT, 'playground', 'reinforce_learning')
 _SIM = os.path.join(_ROOT, 'simulator', 'bridge')
 _WEB = os.path.join(_ROOT, 'web')
 _INDEX = 'HAUNTED OPS.dc.html'
 
-sys.path.insert(0, _RL)
 sys.path.insert(0, _SIM)
 
-# 시뮬레이터가 없을 때 쓰는 드론 홈 — Unity 의 spawnPosition(-22.51, 5.20, 5.22)
-# 을 월드 좌표로 되돌린 값. TelloSimulator.spawnAtHome 이 Play 즉시 여기로
-# 텔레포트하므로, 시뮬레이터를 붙이든 안 붙이든 같은 지점에서 출발한다.
-HOME_WORLD = (4.50, -1.04, -2.06)
 BUILDING = '00809_Qpor2mEya8F'
-
-# 학습 당시 환경 설정 — reinforce_inference.py 와 동일해야 한다(바꾸면 성능 붕괴).
-# ★ clearance 는 항상 명시할 것: 기본값(0.235)으로 env 를 만들면 0.12 용
-#   geo_graph_cache 가 덮여서 다음 실행이 캐시를 1분간 재생성한다.
-ENV_KW = dict(curriculum=False, ray_max=4.0, ray_layout='horiz14',
-              subgoal_dist=2.5, bump_penalty=2.0, clearance=0.12)
-MAX_STEPS = 700
-MODEL = os.path.join(_RL, 'model_geo_best')
 
 app = Flask(__name__, static_folder=None)
 
-_lock = threading.Lock()      # env 는 재진입 불가 → 요청 직렬화
-_model = None
-_envs = {}                    # (people, shield) -> DroneGeoEnv
-_priv = False
-_engine = 'fallback (RL 비활성)'
 _bridge = None                # UnityTelloBridge (--unity-host 줬을 때만)
 _xform = None                 # SimTransform (Unity <-> 월드 좌표)
 
@@ -86,9 +69,9 @@ def connect_sim(host, cmd_port, local_port, state_port):
     st = _bridge.wait_for_state(timeout=3.0)
     if st is None:
         print(f'[web_server] 경고: {host}:{cmd_port} 에서 상태 패킷이 안 옵니다 '
-              f'— Unity Play 중인지 확인. 일단 홈 위치로 대체합니다')
+              f'- Unity Play 중인지 확인. 일단 홈 위치로 대체합니다')
     else:
-        print(f'[web_server] 시뮬레이터 연결됨 — unity=({st.x:.2f}, {st.y:.2f}, {st.z:.2f})')
+        print(f'[web_server] 시뮬레이터 연결됨 - unity=({st.x:.2f}, {st.y:.2f}, {st.z:.2f})')
 
 
 def drone_pose():
@@ -98,54 +81,17 @@ def drone_pose():
         if st is not None:
             p = _xform.unity_to_mosaic(_np.array([st.x, st.y, st.z], dtype=float))
             return [round(float(v), 3) for v in p], 'sim', bool(st.flying)
-    return [round(v, 3) for v in HOME_WORLD], 'home', False
-
-
-def load_policy():
-    """모델 + 환경을 1회 로드한다. 실패하면 예외를 올린다."""
-    global _model, _priv, _engine
-    import gymnasium
-    import asym_policy                       # noqa: F401  SAC.load 가 정책 클래스를 찾게
-    from stable_baselines3 import SAC
-
-    t0 = time.time()
-    if not os.path.exists(MODEL + '.zip'):
-        raise SystemExit(f'모델이 없습니다: {MODEL}.zip')
-    _model = SAC.load(MODEL, device='auto')
-    _priv = isinstance(_model.observation_space, gymnasium.spaces.Dict)
-    get_env(0, False)                        # 기본 환경을 미리 생성(캐시 워밍)
-    _engine = f'SAC · {os.path.basename(MODEL)}'
-    print(f'[web_server] 정책 준비 완료 ({time.time() - t0:.1f}s) — {_engine}')
-
-
-def get_env(people, shield):
-    """(사람 수, 안전막) 조합별 환경을 지연 생성해 재사용한다."""
-    key = (int(people), bool(shield))
-    env = _envs.get(key)
-    if env is None:
-        from geo_env import DroneGeoEnv
-        env = DroneGeoEnv(priv_obs=_priv, max_steps=MAX_STEPS,
-                          people=key[0], shield=key[1], **ENV_KW)
-        _envs[key] = env
-    return env
-
-
-def rollout(env, obs):
-    """결정론 롤아웃. (마지막 info, 궤적 ndarray) 반환."""
-    term = trunc = False
-    info = {}
-    while not (term or trunc):
-        action, _ = _model.predict(obs, deterministic=True)
-        obs, _, term, trunc, info = env.step(action)
-    return info, _np.array(env.path)
+    return [round(v, 3) for v in rl_planner.HOME_WORLD], 'home', False
 
 
 # ── API ────────────────────────────────────────────────────────────
 @app.get('/api/status')
 def api_status():
-    return jsonify(ready=_model is not None, engine=_engine,
-                   model=os.path.relpath(MODEL + '.zip', _ROOT) if _model else None,
-                   env=dict(ENV_KW, max_steps=MAX_STEPS))
+    return jsonify(ready=rl_planner.ready(), engine=rl_planner.engine(),
+                   model=os.path.relpath(rl_planner.MODEL + '.zip', _ROOT)
+                         if rl_planner.ready() else None,
+                   env=dict(rl_planner.ENV_KW, max_steps=rl_planner.MAX_STEPS),
+                   sim_connected=_bridge is not None)
 
 
 @app.get('/api/drone')
@@ -157,7 +103,7 @@ def api_drone():
 
 @app.post('/plan')
 def api_plan():
-    if _model is None:
+    if not rl_planner.ready():
         return jsonify(error='RL 정책이 로드되지 않았습니다 (--no-rl 로 기동됨)'), 503
     d = request.get_json(silent=True) or {}
     # 출발점은 드론 현재 위치가 원칙. 요청에 start 가 없으면 여기서 채운다.
@@ -172,37 +118,27 @@ def api_plan():
             raise ValueError('start/goal 은 [x, y, z] 3원소여야 합니다')
     except (KeyError, TypeError, ValueError) as e:
         return jsonify(error=f'잘못된 요청: {e}'), 400
-    people = int(d.get('people', 0) or 0)
-    shield = bool(d.get('shield', False))
 
-    t0 = time.time()
-    with _lock:
-        env = get_env(people, shield)
-        # 벽 위를 찍어도 env 가 가장 가까운 도달 가능 셀로 스냅해 준다.
-        obs, _ = env.reset(options={'start': _np.asarray(start, float),
-                                    'goal': _np.asarray(goal, float)})
-        snapped_start = env.pos.copy()
-        snapped_goal = env.goal.copy()
-        info, path = rollout(env, obs)
-        steps = int(env.steps)
-    ms = (time.time() - t0) * 1000.0
-
-    flown = float(_np.linalg.norm(_np.diff(path, axis=0), axis=1).sum()) if len(path) > 1 else 0.0
+    wps, info = rl_planner.plan(start, goal,
+                                people=int(d.get('people', 0) or 0),
+                                shield=bool(d.get('shield', False)))
+    r3 = lambda seq: [[round(float(c), 3) for c in p] for p in seq]
     return jsonify(
-        engine=_engine,
+        engine=info['engine'],
         start_source=start_src,
-        success=bool(info['is_success']),
-        steps=steps,
-        bumps=int(info.get('bumps', 0)),
-        person_hits=int(info.get('person_hits', 0)),
-        dist=float(info['dist']),
-        flown=flown,
-        ms=ms,
-        start=[round(v, 3) for v in snapped_start.tolist()],
-        goal=[round(v, 3) for v in snapped_goal.tolist()],
+        success=info['success'],
+        steps=info['steps'],
+        bumps=info['bumps'],
+        person_hits=info['person_hits'],
+        dist=info['dist'],
+        flown=info['raw_length_m'],
+        ms=info['ms'],
+        start=[round(float(v), 3) for v in info['start']],
+        goal=[round(float(v), 3) for v in info['goal']],
         requested_start=[round(v, 3) for v in start],
         requested_goal=[round(v, 3) for v in goal],
-        path=[[round(float(c), 3) for c in p] for p in path],
+        path=r3(info['raw']),        # 정책이 실제 지난 조밀 궤적 (지도에 그리는 용)
+        waypoints=r3(wps),           # 시야 단축본 (시뮬레이터 비행용)
     )
 
 
@@ -240,16 +176,16 @@ def main():
         try:
             connect_sim(a.unity_host, a.unity_port, a.local_port, a.state_port)
         except Exception as e:                        # 시뮬레이터는 선택 사항
-            print(f'[web_server] 시뮬레이터 연결 실패({e}) — 홈 위치로 진행합니다')
+            print(f'[web_server] 시뮬레이터 연결 실패({e}) - 홈 위치로 진행합니다')
     else:
-        print(f'[web_server] 시뮬레이터 미연결 — 출발점은 홈 {HOME_WORLD} 고정 '
+        print(f'[web_server] 시뮬레이터 미연결 - 출발점은 홈 {rl_planner.HOME_WORLD} 고정 '
               f'(--unity-host 로 연결하면 실시간 위치 사용)')
     if a.no_rl:
         print('[web_server] --no-rl: 정책 없이 UI 만 서빙합니다')
     else:
         print('[web_server] 정책 로드 중… (약 6초)')
-        load_policy()
-    print(f'[web_server] http://{a.host}:{a.port}/  — Ctrl+C 로 종료')
+        rl_planner.load()
+    print(f'[web_server] http://{a.host}:{a.port}/  - Ctrl+C 로 종료')
     app.run(host=a.host, port=a.port, threaded=True)
 
 

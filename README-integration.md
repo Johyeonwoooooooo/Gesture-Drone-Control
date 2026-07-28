@@ -426,3 +426,52 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 | Unity 배너/버튼 한글 깨짐 | 서버 `--sim-no-status` 로 배너 끄기 가능 |
 | Unity 임포트 실패 | 에디터 `6000.3.12f1` 확인, 인터넷 확인, `Library/` 삭제 후 재열기 |
 | `No detections.json` | LitePT 데이터 미생성 — §1 |
+
+---
+
+## 12. 강화학습 경로 (`--algo rl`) — A* 대체
+
+경로 계획을 A*/RRT* 대신 **학습된 SAC 정책**으로 돌릴 수 있다. 정책은 같은
+건물(00809)을 같은 월드미터 프레임에서 학습했으므로, `planner.plan_path()`
+자리에 그대로 들어간다(둘 다 월드미터 waypoint 리스트를 반환).
+
+```bash
+python 3D-segmentation/webapp_llm_v2/server.py --algo rl --sim --unity-host <IP> ...
+```
+
+- 정책이 목표에 도달하지 못하면(약 2%) **자동으로 astar 로 폴백**한다.
+  SDK/로그의 `algo` 필드에 실제로 쓰인 쪽이 기록된다.
+- A* 가 못 푸는 **층간(계단) 이동**이 정책의 강점이다(계단 과제 0.97,
+  전 난이도 200에피소드 0.98). 반대로 정책은 확률적으로 실패하므로 폴백이 필수.
+- 원본 점군(`data/final_npy`)은 **필요 없다** — 저장소에 커밋된
+  `model_geo_best.zip` + 캐시 3종으로 돈다. 다만 그 환경에
+  `stable-baselines3` 가 설치돼 있어야 한다.
+- 정책 궤적은 0.3m 간격이라 그대로 주면 PID 추종이 stop-and-go 가 된다.
+  `rl_planner` 가 시야(line-of-sight) 단축을 걸어 성긴 waypoint 로 만들어 준다
+  (예: 93점 31.9m -> 14점 30.2m).
+
+### 관련 파일
+
+| 파일 | 역할 |
+|---|---|
+| `rl_planner.py` (최상위) | 정책 로드 + 롤아웃 + 시야 단축. `plan(start, goal) -> (waypoints, info)` |
+| `simulator/bridge/fly_rl_path.py` | 드론 현재 위치 -> RL 경로 -> 좌표 변환 -> takeoff/추종/land 한 번에 |
+| `web_server.py` | 웹 관제 콘솔의 `POST /plan` (같은 `rl_planner` 사용) |
+
+### Unity 없이 지금 검증하기
+
+`fake_unity_sim.py` 가 `TelloSimulator.cs` 와 물리·프로토콜을 맞춘 스텁이라,
+exe 없이 비행까지 전부 돌려볼 수 있다.
+
+```bash
+python simulator/bridge/fake_unity_sim.py                    # 터미널 1
+python simulator/bridge/fly_rl_path.py --room 016            # 터미널 2
+python simulator/bridge/fly_rl_path.py --room 016 --dry-run  # 경로만 (스텁도 불필요)
+```
+
+exe 가 오면 스텁을 끄고 `--unity-host <노트북IP>` 만 바꾸면 된다.
+
+> 스텁은 장애물이 없어서 `land` 하면 Unity y=0.5(minHeight)까지 내려간다.
+> 그 지점을 월드로 되돌리면 집 바닥 아래(z=-3.0)라, 다음 계획에서 환경이
+> 가까운 유효 셀로 스냅한다. 실제 Unity 는 바닥 콜라이더 위에 착륙하므로
+> 이 현상은 스텁에서만 보인다.
