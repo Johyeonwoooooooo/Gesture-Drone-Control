@@ -187,6 +187,7 @@ input[type=range]{accent-color:#ef4444}
       <div style="flex:none;display:flex;align-items:center;gap:10px;padding:10px 18px;background:#10070a;border-top:1px solid #2a1015">
         <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5f4a4e">데모 결과 처리 (Unity 연동 전 목업)</span>
         <span style="flex:1"></span>
+        <button onClick="{{onOpsReplay}}" style="height:36px;padding:0 18px;border:1px solid #3f3a6b;border-radius:8px;background:#15162a;color:#a5b4fc;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#1d1e3a">관제 지도에서 RL 경로 재생</button>
         <button onClick="{{onDemoSuccess}}" style="height:36px;padding:0 18px;border:1px solid #1e3a2a;border-radius:8px;background:#101d16;color:#4ade80;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#14261b">미션 성공 처리</button>
         <button onClick="{{onDemoOver}}" style="height:36px;padding:0 18px;border:1px solid #7f1d1d;border-radius:8px;background:#450a0a44;color:#f87171;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#450a0a">포획됨 처리</button>
       </div>
@@ -623,6 +624,38 @@ class Component extends DCLogic {
   }
   pathLen(wps) { let t = 0; for (let i = 0; i < wps.length - 1; i++) if (wps[i].floor === wps[i + 1].floor) t += Math.hypot(wps[i + 1].x - wps[i].x, wps[i + 1].y - wps[i].y); return t; }
 
+  // ── 강화학습 궤적 수용 ────────────────────────────────────────
+  // 관제 화면(드론 관제)이 넘겨준 payload.path 는 백엔드에서 SAC 정책을
+  // 실제로 굴려 얻은 3D 궤적([[x,y,z]..]). 방그래프 직선(buildWps) 대신
+  // 이걸 브리핑/작전 지도에 그대로 그린다.
+  floorOfZ(z) { return z < 0.2 ? 0 : (z < 2.9 ? 1 : 2); }
+  roomAtXY(f, x, y) {
+    const meta = this.state.meta;
+    let best = null, bestA = Infinity;
+    for (const id of this.fm(f).rooms) {
+      const rm = meta.rooms[id];
+      if (x >= rm.bbox_min[0] && x <= rm.bbox_max[0] && y >= rm.bbox_min[1] && y <= rm.bbox_max[1]) {
+        const a = (rm.bbox_max[0] - rm.bbox_min[0]) * (rm.bbox_max[1] - rm.bbox_min[1]);
+        if (a < bestA) { bestA = a; best = id; }
+      }
+    }
+    return best;
+  }
+  pathToWps(path) {
+    return path.map(p => {
+      const f = this.floorOfZ(p[2]);
+      return { x: p[0], y: p[1], z: p[2], floor: f, room: this.roomAtXY(f, p[0], p[1]) || '', stairs: false };
+    });
+  }
+  // 이번 미션의 경로. RL 궤적이 있으면 그것, 없으면 방그래프 폴백.
+  liveWps() {
+    const live = this.live;
+    if (!live) return null;
+    if (live.path && live.path.length > 1) return this.pathToWps(live.path);
+    if (live.wps && live.wps.length > 1) return live.wps;
+    return this.buildWps(live.start_room, [live.start[0], live.start[1]], live.goal_room, [live.goal[0], live.goal[1]]);
+  }
+
   toast(text) {
     const id = ++this.toastSeq;
     this.setState(s => ({ toasts: [...s.toasts, { id, text }] }));
@@ -647,12 +680,31 @@ class Component extends DCLogic {
     });
   }
   startMission() { this.setState({ screen: 'unity', over: null }); }
+  // Unity 빌드 없이도 강화학습 궤적을 관제 지도 위에서 그대로 재생한다.
+  startOpsReplay() {
+    const wps = this.liveWps();
+    if (!wps || wps.length < 2) { this.toast('재생할 경로가 없습니다 — 관제 화면에서 두 점을 먼저 지정하세요'); return; }
+    const S = this.state.settings;
+    const total = wps.reduce((t, w, i) => i ? t + Math.hypot(w.x - wps[i - 1].x, w.y - wps[i - 1].y) : 0, 0);
+    const sim = {
+      wps, seg: 0, pos: [wps[0].x, wps[0].y], floor: wps[0].floor, viewFloor: wps[0].floor,
+      room: wps[0].room || this.MISSION.startRoom, t: 0, limit: S.tLimit, travel: 0, total,
+      score: 0, trail: [], explored: new Set(wps[0].room ? [wps[0].room] : []),
+      ghosts: this.spawnGhosts(S.nGhosts, wps[0].floor),
+      collisions: 0, replans: 0, events: {}, log: [], phase: 'toGoal', grabbed: false, paused: false,
+    };
+    this.pushLog(sim, '강화학습(SAC) 궤적 재생 시작', '#a5b4fc');
+    this.lastTs = null;
+    cancelAnimationFrame(this.raf);
+    this.setState({ sim, screen: 'ops' }, () => { this.raf = requestAnimationFrame(this.tick); });
+  }
   demoSuccess() {
     const d = this.DIFFS[this.state.diff];
     let dist = 38.2, stairs = 3;
     if (this.live) {
-      const wps = this.buildWps(this.live.start_room, [this.live.start[0], this.live.start[1]], this.live.goal_room, [this.live.goal[0], this.live.goal[1]]);
-      dist = this.pathLen(wps); stairs = wps.filter(w => w.stairs).length;
+      const wps = this.liveWps();
+      dist = this.live.plan ? this.live.plan.flown : this.pathLen(wps);
+      stairs = wps.reduce((n, w, i) => n + (i && w.floor !== wps[i - 1].floor ? 1 : 0), 0) || wps.filter(w => w.stairs).length;
     }
     const gained = Math.round((100 + dist * 10 + [0, 200, 450, 750][Math.min(3, stairs)] + 250 + 150 + 180) * parseFloat(d.mult));
     const total = this.state.totalScore + gained;
@@ -841,9 +893,12 @@ class Component extends DCLogic {
       const gRoom = live ? live.goal_room : M.goalRoom;
       const sPos = live ? [live.start[0], live.start[1]] : [sRm.center[0], sRm.center[1]];
       const gPos = live ? [live.goal[0], live.goal[1]] : this.goalPos;
-      const wpsAll = live ? this.buildWps(sRoom, sPos, gRoom, gPos) : fullWps();
-      const distM = this.pathLen(wpsAll);
-      const stairsN = wpsAll.filter(w => w.stairs).length;
+      const wpsAll = live ? this.liveWps() : fullWps();
+      const rl = live && live.plan ? live.plan : null;
+      const distM = rl ? rl.flown : this.pathLen(wpsAll);
+      // RL 궤적은 층을 z 로 넘나드므로 '계단 경유'를 층 전환 횟수로 센다.
+      const stairsN = rl ? wpsAll.reduce((n, w, i) => n + (i && w.floor !== wpsAll[i - 1].floor ? 1 : 0), 0)
+                         : wpsAll.filter(w => w.stairs).length;
       const estScore = Math.round((100 + distM * 10 + [0, 200, 450, 750][Math.min(3, stairsN)]) * parseFloat(d.mult));
       vals.briefCmd = st.cmd.trim() || M.cmd;
       vals.briefRows = [
@@ -852,8 +907,14 @@ class Component extends DCLogic {
         { k: '도착', v: `${this.FLOORS[meta.rooms[gRoom].floor]} · ${this.label(gRoom)}`, c: '#f87171' },
         { k: '목표 지점', v: live && live.goal_object ? `${live.goal_object} 앞` : '방 내 지정 지점', c: '#f59e0b' },
         { k: '배치 좌표', v: `[${fmt(gPos[0])}, ${fmt(gPos[1])}]`, c: '#57c4b8' },
-        { k: '예상 측지거리', v: `${distM.toFixed(1)} m`, c: '#e8dde0' },
+        { k: rl ? '경로 길이 (RL 실측)' : '예상 측지거리', v: `${distM.toFixed(1)} m`, c: '#e8dde0' },
         { k: '층 이동', v: stairsN ? `${stairsN}회 (계단 경유)` : '없음', c: '#fbbf24' },
+        ...(rl ? [
+          { k: '경로 생성 엔진', v: rl.engine, c: '#a5b4fc' },
+          { k: '정책 도달 여부', v: rl.success ? '도착 성공' : '미도달', c: rl.success ? '#4ade80' : '#f59e0b' },
+          { k: '정책 스텝 수', v: `${rl.steps}`, c: '#57c4b8' },
+          { k: '충돌(범프)', v: `${rl.bumps}회`, c: rl.bumps ? '#f59e0b' : '#4d9e6a' },
+        ] : []),
         { k: '제한 시간', v: d.timeTxt, c: '#e8dde0' },
         { k: '난이도', v: `${d.title} ×${d.mult}`, c: '#f87171' },
         { k: '예상 점수', v: `약 ${estScore.toLocaleString()}+`, c: '#57c4b8' },
@@ -886,6 +947,13 @@ class Component extends DCLogic {
     if ((scr === 'ops' || scr === 'chase') && sim) {
       const showF = sim.viewFloor ?? sim.floor;
       const ov = mv(showF, st.opsBox.w, st.opsBox.h);
+      // 관제 화면에서 실제로 지정한 미션이 있으면 그쪽 목적지를 쓴다
+      // (없으면 데모용 MISSION 상수).
+      const live = this.live;
+      const objRoom = live ? null : M.objRoom;                     // live 미션엔 회수 물체가 없음
+      const goalRoom = live ? live.goal_room : M.goalRoom;
+      const goalXY = live ? [live.goal[0], live.goal[1]] : this.goalPos;
+      const goalName = live ? (live.goalLabel || this.label(goalRoom)) : '1층 현관';
       vals.opsRef = this.opsRef;
       vals.ov = ov;
       vals.ovImg = imgEl(ov.img);
@@ -912,7 +980,7 @@ class Component extends DCLogic {
         color: showF === f ? '#f87171' : '#a8969a',
       }));
       vals.opsRooms = this.fm(showF).rooms.map(id => {
-        const isDrone = id === sim.room, isObj = id === M.objRoom && !sim.grabbed, isGoal = id === M.goalRoom, exp = sim.explored.has(id);
+        const isDrone = id === sim.room, isObj = !!objRoom && id === objRoom && !sim.grabbed, isGoal = id === goalRoom, exp = sim.explored.has(id);
         const gHere = sim.ghosts.some(g => g.floor === showF && Math.hypot(g.x - meta.rooms[id].center[0], g.y - meta.rooms[id].center[1]) < 2.5);
         return {
           name: this.label(id),
@@ -949,8 +1017,8 @@ class Component extends DCLogic {
       }) : [];
       const marks = [];
       { const [c, r] = this.w2p(sim.floor, sim.pos[0], sim.pos[1]); if (sim.floor === showF) marks.push({ left: Math.round(c), top: Math.round(r), bg: '#10b981', ring: '#a7f3d0', label: 'DRONE', txtC: '#a7f3d0', txtBg: '#022c22cc', txtBorder: '#14532d' }); }
-      if (!sim.grabbed && meta.rooms[M.objRoom].floor === showF) { const [c, r] = this.w2p(showF, this.objPos[0], this.objPos[1]); marks.push({ left: Math.round(c), top: Math.round(r), bg: '#f59e0b', ring: '#fde68a', label: '인형', txtC: '#fde68a', txtBg: '#1c150acc', txtBorder: '#57431a' }); }
-      if (meta.rooms[M.goalRoom].floor === showF) { const [c, r] = this.w2p(showF, this.goalPos[0], this.goalPos[1]); marks.push({ left: Math.round(c), top: Math.round(r), bg: '#ef4444', ring: '#fecaca', label: 'GOAL', txtC: '#fecaca', txtBg: '#450a0acc', txtBorder: '#7f1d1d' }); }
+      if (objRoom && !sim.grabbed && meta.rooms[objRoom].floor === showF) { const [c, r] = this.w2p(showF, this.objPos[0], this.objPos[1]); marks.push({ left: Math.round(c), top: Math.round(r), bg: '#f59e0b', ring: '#fde68a', label: '인형', txtC: '#fde68a', txtBg: '#1c150acc', txtBorder: '#57431a' }); }
+      if (meta.rooms[goalRoom].floor === showF) { const [c, r] = this.w2p(showF, goalXY[0], goalXY[1]); marks.push({ left: Math.round(c), top: Math.round(r), bg: '#ef4444', ring: '#fecaca', label: 'GOAL', txtC: '#fecaca', txtBg: '#450a0acc', txtBorder: '#7f1d1d' }); }
       vals.ovMarks = marks;
       const sameFloorG = sim.ghosts.filter(g => g.floor === sim.floor);
       const minD = sameFloorG.length ? Math.min(...sameFloorG.map(g => Math.hypot(g.x - sim.pos[0], g.y - sim.pos[1]))) : 99;
@@ -963,7 +1031,7 @@ class Component extends DCLogic {
       const dirTxt = nearest ? (() => { const ang = Math.atan2(nearest.y - sim.pos[1], nearest.x - sim.pos[0]) * 180 / Math.PI; const dirs = ['동', '북동', '북', '북서', '서', '남서', '남', '남동']; return dirs[Math.round(((ang + 360) % 360) / 45) % 8]; })() : '—';
       const rows = [
         { k: '현재 단계', v: sim.phase === 'toObj' ? '물체 탐색 이동' : '운반 중', c: '#f87171' },
-        { k: '다음 목표', v: sim.phase === 'toObj' ? this.label(M.objRoom) : '1층 현관', c: '#e8dde0' },
+        { k: '다음 목표', v: sim.phase === 'toObj' && objRoom ? this.label(objRoom) : goalName, c: '#e8dde0' },
         { k: '남은 거리', v: `${Math.max(0, sim.total - sim.travel).toFixed(1)} m`, c: '#57c4b8' },
         { k: '물체 파지', v: sim.grabbed ? '확보됨' : '미확보', c: sim.grabbed ? '#4ade80' : '#8a7478' },
         { k: '충돌 횟수', v: `${sim.collisions} / ${S.cAllow}`, c: sim.collisions ? '#f59e0b' : '#a8969a' },
@@ -990,6 +1058,7 @@ class Component extends DCLogic {
       vals.streakChip = `누적 ${st.totalScore.toLocaleString()}점 · 연속 ${st.streak}회`;
       vals.onDemoSuccess = () => this.demoSuccess();
       vals.onDemoOver = () => this.demoOver();
+      vals.onOpsReplay = () => this.startOpsReplay();
       vals.onBackBrief = () => this.go('briefing');
     }
     if (scr === 'grab' && sim) {

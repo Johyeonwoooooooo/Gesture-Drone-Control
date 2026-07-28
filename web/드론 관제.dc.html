@@ -229,7 +229,7 @@ a{color:#f87171}a:hover{color:#fca5a5}
         <span style="color:#a8969a">{{curFloorLabel}}</span>
         <span>zoom {{zoomTxt}}</span>
         <span>{{cursorTxt}}</span>
-        <span style="margin-left:auto;color:#5f4a4e">드래그 이동 · 휠 줌 · 방 안 클릭 = 도착지 지정</span>
+        <span style="margin-left:auto;color:#5f4a4e">드래그 이동 · 휠 줌 · 방 안 클릭 = {{clickHintTxt}}</span>
       </div>
     </main>
     <aside style="width:312px;flex:none;background:#10070a;border-left:1px solid #2a1015;display:flex;flex-direction:column;min-height:0">
@@ -238,11 +238,11 @@ a{color:#f87171}a:hover{color:#fca5a5}
         <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;padding:4px 9px;border-radius:20px;border:1px solid {{chipBorder}};color:{{chipColor}};background:{{chipBg}}">{{chipTxt}}</div>
       </div>
       <div style="flex:1;overflow-y:auto;min-height:0;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
-        <div style="border:1px solid #1e3a2a;background:#0e1a14;border-radius:10px;padding:11px 13px">
+        <div style="border:1px solid {{startBoxBorder}};background:{{startBoxBg}};border-radius:10px;padding:11px 13px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
             <span style="width:9px;height:9px;border-radius:50%;background:#34d399;box-shadow:0 0 8px #34d39988"></span>
-            <span style="font-size:11px;color:#6ee7b7;font-weight:600;letter-spacing:.05em">출발 — 드론 현재 위치</span>
-            <span style="margin-left:auto;font-size:10px;color:#5f4a4e">고정</span>
+            <span style="font-size:11px;color:#6ee7b7;font-weight:600;letter-spacing:.05em">출발 — 드론 위치 {{startPickMark}}</span>
+            <button onClick="{{onPickStart}}" style="margin-left:auto;border:1px solid #1e3a2a;background:transparent;color:#6ee7b7;font-size:10px;border-radius:5px;padding:2px 8px;cursor:pointer" style-hover="background:#12241b">{{startBtnTxt}}</button>
           </div>
           <div style="display:flex;align-items:baseline;gap:10px">
             <span style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;color:#f6eef0">{{startRoomTxt}}</span>
@@ -260,7 +260,7 @@ a{color:#f87171}a:hover{color:#fca5a5}
         <div style="border:1px solid {{goalBoxBorder}};background:{{goalBoxBg}};border-radius:10px;padding:11px 13px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
             <span style="width:9px;height:9px;border-radius:50%;background:{{goalDot}}"></span>
-            <span style="font-size:11px;color:{{goalTitleColor}};font-weight:600;letter-spacing:.05em">도착 — 목적지</span>
+            <span style="font-size:11px;color:{{goalTitleColor}};font-weight:600;letter-spacing:.05em">도착 — 목적지 {{goalPickMark}}</span>
             <sc-if value="{{goalSet}}" hint-placeholder-val="{{false}}">
               <button onClick="{{onClear}}" style="margin-left:auto;border:1px solid #3f2021;background:transparent;color:#f87171;font-size:10px;border-radius:5px;padding:2px 8px;cursor:pointer" style-hover="background:#2a1215">지우기</button>
             </sc-if>
@@ -279,6 +279,26 @@ a{color:#f87171}a:hover{color:#fca5a5}
             <div style="font-size:12px;color:#8a7478;padding:4px 0">평면도에서 방 안을 클릭해 지정하세요</div>
           </sc-if>
         </div>
+        <sc-if value="{{planBoxVisible}}" hint-placeholder-val="{{false}}">
+          <div style="border:1px solid {{planBorder}};background:{{planBg}};border-radius:10px;padding:11px 13px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="width:9px;height:9px;border-radius:50%;background:{{planDot}};animation:{{planDotAnim}}"></span>
+              <span style="font-size:11px;color:{{planTitleColor}};font-weight:600;letter-spacing:.05em">강화학습 경로 (SAC)</span>
+              <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478">{{planEngineTxt}}</span>
+            </div>
+            <div style="font-size:12px;color:#e8dde0;margin-bottom:7px">{{planStatusTxt}}</div>
+            <sc-if value="{{planStatsVisible}}" hint-placeholder-val="{{false}}">
+              <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:11px">
+                <sc-for list="{{planRows}}" as="r" hint-placeholder-count="5">
+                  <span style="color:#8a7478">{{r.k}}</span><span style="color:{{r.c}};font-family:'IBM Plex Mono',monospace;text-align:right">{{r.v}}</span>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{planRetryVisible}}" hint-placeholder-val="{{false}}">
+              <button onClick="{{onReplan}}" style="width:100%;margin-top:8px;height:28px;border:1px solid #4a1d24;border-radius:6px;background:#170a0d;color:#cfc2c5;font-size:11px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">경로 다시 계산</button>
+            </sc-if>
+          </div>
+        </sc-if>
         <sc-if value="{{flightActive}}" hint-placeholder-val="{{false}}">
           <div style="border:1px solid #7f1d1d;background:#450a0a33;border-radius:10px;padding:11px 13px">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
@@ -312,9 +332,15 @@ a{color:#f87171}a:hover{color:#fca5a5}
   &quot;onLaunchMission&quot;: {&quot;editor&quot;: null, &quot;tsType&quot;: &quot;(payload: object) =&gt; void&quot;}
 }">
 class Component extends DCLogic {
-  state = { meta: null, floor: 1, view: { tx: 0, ty: 0, s: 1 }, hoverId: null, mouse: null, cursorW: null, dest: null, nl: "", toasts: [], sent: false, dragging: false, selRoom: null, flight: null, droneAt: null, simOpen: false, simMax: false };
+  state = { meta: null, floor: 1, view: { tx: 0, ty: 0, s: 1 }, hoverId: null, mouse: null, cursorW: null, dest: null, nl: "", toasts: [], sent: false, dragging: false, selRoom: null, flight: null, droneAt: null, simOpen: false, simMax: false,
+            // ── 2점 선택 + 강화학습 경로 ───────────────────────────
+            start: null,      // 사용자가 찍은 출발점 {room,floor,x,y,z}. null 이면 droneRoom 기본값
+            pick: 'start',    // 다음 클릭이 지정할 점: 'start' | 'goal'
+            plan: null,       // /plan 응답 {engine,success,steps,bumps,dist,flown,path:[[x,y,z]..]}
+            planning: false, planErr: null };
   mapRef = React.createRef();
   toastSeq = 0;
+  planSeq = 0;               // 응답 경합(늦게 온 옛 요청) 무시용
 
   componentDidMount() {
     Promise.all([
@@ -388,9 +414,54 @@ class Component extends DCLogic {
   dronePose() {
     const st = this.state, meta = st.meta;
     if (st.flight && !st.flight.done) return { room: st.flight.room, pos: st.flight.pos, z: st.flight.z, floor: st.flight.floor };
+    if (st.start) return { room: st.start.room, pos: [st.start.x, st.start.y], z: st.start.z, floor: st.start.floor };
     if (st.droneAt) return st.droneAt;
     const id = this.droneRoomId(), rm = meta.rooms[id];
     return { room: id, pos: [rm.center[0], rm.center[1]], z: rm.center[2], floor: rm.floor };
+  }
+
+  // ── 강화학습 경로 계획 ────────────────────────────────────────
+  // 출발/도착 두 점이 정해지면 백엔드(web_server.py)의 학습된 SAC 정책을
+  // 실제로 굴려서 3D 궤적을 받아온다. 서버가 없으면 방그래프 직선(buildWps)
+  // 으로 자동 폴백해 UI 자체는 계속 동작한다.
+  requestPlan(startPose, dest) {
+    if (!startPose || !dest) return;
+    const seq = ++this.planSeq;
+    this.setState({ planning: true, planErr: null, plan: null });
+    const body = {
+      start: [startPose.pos[0], startPose.pos[1], startPose.z],
+      goal: [dest.x, dest.y, dest.z],
+    };
+    fetch('plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(r => r.ok ? r.json() : r.json().then(j => Promise.reject(new Error(j.error || ('HTTP ' + r.status)))))
+      .then(j => {
+        if (seq !== this.planSeq) return;                      // 더 최신 요청이 있음
+        this.setState({ plan: j, planning: false });
+        this.toast(j.success
+          ? `강화학습 경로 생성 — ${j.steps}스텝 · ${j.flown.toFixed(1)}m`
+          : `정책이 목표에 도달하지 못했습니다 (${j.steps}스텝, 남은거리 ${j.dist.toFixed(1)}m)`);
+      })
+      .catch(e => {
+        if (seq !== this.planSeq) return;
+        this.setState({ planning: false, planErr: String(e.message || e) });
+        this.toast(`RL 서버 응답 없음 — 방그래프 직선 경로로 대체 (${e.message || e})`);
+      });
+  }
+  // RL 궤적 [[x,y,z]..] → 내부 웨이포인트 형식. 층은 z 로 판정한다.
+  floorOfZ(z) { return z < 0.2 ? 0 : (z < 2.9 ? 1 : 2); }
+  pathToWps(path) {
+    const meta = this.state.meta;
+    return path.map(p => {
+      const f = this.floorOfZ(p[2]);
+      return { x: p[0], y: p[1], z: p[2], floor: f, room: this.roomAt(f, p[0], p[1]) || '' };
+    });
+  }
+  // 화면에 그릴 경로: RL 결과가 있으면 그것, 없으면 방그래프 폴백
+  routeWpsFor(pose, dest) {
+    const st = this.state;
+    if (st.flight) return st.flight.wps;
+    if (st.plan && st.plan.path && st.plan.path.length > 1) return this.pathToWps(st.plan.path);
+    return dest ? this.buildWps(pose, dest) : null;
   }
   findPath(a, b) {
     if (a === b) return [a];
@@ -448,8 +519,10 @@ class Component extends DCLogic {
   };
   pickFurn(roomId, f) {
     const meta = this.state.meta, rm = meta.rooms[roomId];
-    this.setState({ dest: { room: roomId, floor: rm.floor, x: f.center[0], y: f.center[1], z: rm.center[2], furnKey: f.key, furnName: this.furnName(f) }, sent: false, floor: rm.floor });
+    const dest = { room: roomId, floor: rm.floor, x: f.center[0], y: f.center[1], z: rm.center[2], furnKey: f.key, furnName: this.furnName(f) };
+    this.setState({ dest, sent: false, floor: rm.floor, pick: 'start' });
     this.toast(`도착지: ${this.label(roomId)} — ${this.furnName(f)} 앞`);
+    this.requestPlan(this.dronePose(), dest);
   }
   droneRoomId(meta) {
     const m = meta || this.state.meta;
@@ -552,17 +625,33 @@ class Component extends DCLogic {
         this.setState({ mouse: { x: e.clientX - r.left, y: e.clientY - r.top }, cursorW: w });
       },
       onMapLeave: () => this.setState({ mouse: null, hoverId: null, cursorW: null }),
+      // 클릭 1회차 = 출발점, 2회차 = 도착점. 두 점이 모이면 곧바로
+      // 강화학습 정책을 돌려 경로를 받아온다.
       onMapClick: e => {
         if (!meta || this.lastDragMoved) return;
+        if (this.state.flight && !this.state.flight.done) { this.toast('비행 중에는 지점을 바꿀 수 없습니다'); return; }
         const w = this.clientToWorld(e);
         const id = this.roomAt(st.floor, w.x, w.y);
         if (!id) { this.toast('방 내부를 클릭해 주세요'); return; }
         const z = meta.rooms[id].center[2];
-        this.setState({ dest: { room: id, floor: st.floor, x: w.x, y: w.y, z }, sent: false, selRoom: id });
-        this.toast(`도착지 지정: ${this.label(id)} [${fmt(w.x)}, ${fmt(w.y)}, ${fmt(z)}]`);
+        const coord = `[${fmt(w.x)}, ${fmt(w.y)}, ${fmt(z)}]`;
+        if (st.pick === 'start') {
+          this.planSeq++;   // 진행 중이던 계획 폐기
+          this.setState({ start: { room: id, floor: st.floor, x: w.x, y: w.y, z }, droneAt: null,
+                          flight: null, plan: null, planErr: null, planning: false, sent: false, selRoom: id, pick: 'goal' });
+          this.toast(`① 출발 지정: ${this.label(id)} ${coord} — 이제 도착지를 클릭하세요`);
+        } else {
+          const dest = { room: id, floor: st.floor, x: w.x, y: w.y, z };
+          this.setState({ dest, sent: false, selRoom: id, pick: 'start' });
+          this.toast(`② 도착 지정: ${this.label(id)} ${coord}`);
+          this.requestPlan(this.dronePose(), dest);
+        }
       },
     };
-    if (!meta) return { ...base, hasPng: false, floorTabs: [], sidebarGroups: [], toasts: st.toasts, chipTxt: '—', chipColor: '#8a7478', chipBorder: '#3a161c', chipBg: 'transparent', jsonTxt: '// 로딩 중', startRoomTxt: '—', launchDisabled: true, launchBg: '#2a1015', launchColor: '#5f4a4e', launchCursor: 'default', launchTxt: '비행 시작', goalUnset: true, goalSet: false, goalBoxBorder: '#3a161c', goalBoxBg: '#150a0d', goalDot: '#5f4a4e', goalTitleColor: '#a8969a', curFloorLabel: '', zoomTxt: '', cursorTxt: '', hoverVisible: false, destVisible: false, droneVisible: false, roomRects: [], passageDots: [], stairChips: [], crossFloor: false, startFloorTxt: '', startCoordTxt: '', panelVisible: false, panelItems: [], furnDots: [], goalFurn: false, goalFurnTxt: '', hoverFurn: '', routeRuns: [], flightActive: false, flightPct: 0, flightPctTxt: '', flightRoomTxt: '', simVisible: false, simStatusTxt: '', simDotColor: '#4ade80', simCoordTxt: '', simRoomTxt: '', simMax: false, mapL: '0', mapT: '0', mapR: '0', mapB: '0', mapWd: 'auto', mapHt: 'auto', mapBorder: 'none', mapRadius: '0', mapShadow: 'none', mapZ: 1 };
+    if (!meta) return { ...base, hasPng: false, floorTabs: [], sidebarGroups: [], toasts: st.toasts, chipTxt: '—', chipColor: '#8a7478', chipBorder: '#3a161c', chipBg: 'transparent', jsonTxt: '// 로딩 중', startRoomTxt: '—', launchDisabled: true, launchBg: '#2a1015', launchColor: '#5f4a4e', launchCursor: 'default', launchTxt: '비행 시작', goalUnset: true, goalSet: false, goalBoxBorder: '#3a161c', goalBoxBg: '#150a0d', goalDot: '#5f4a4e', goalTitleColor: '#a8969a', curFloorLabel: '', zoomTxt: '', cursorTxt: '', hoverVisible: false, destVisible: false, droneVisible: false, roomRects: [], passageDots: [], stairChips: [], crossFloor: false, startFloorTxt: '', startCoordTxt: '', panelVisible: false, panelItems: [], furnDots: [], goalFurn: false, goalFurnTxt: '', hoverFurn: '', routeRuns: [], flightActive: false, flightPct: 0, flightPctTxt: '', flightRoomTxt: '', simVisible: false, simStatusTxt: '', simDotColor: '#4ade80', simCoordTxt: '', simRoomTxt: '', simMax: false, mapL: '0', mapT: '0', mapR: '0', mapB: '0', mapWd: 'auto', mapHt: 'auto', mapBorder: 'none', mapRadius: '0', mapShadow: 'none', mapZ: 1,
+      clickHintTxt: '① 출발 지정', startPickMark: '', goalPickMark: '', startBoxBorder: '#1e3a2a', startBoxBg: '#0e1a14', startBtnTxt: '',
+      planBoxVisible: false, planStatsVisible: false, planRetryVisible: false, planRows: [], planStatusTxt: '', planEngineTxt: '',
+      planBorder: '#2a1015', planBg: '#10070a', planDot: '#5f4a4e', planDotAnim: 'none', planTitleColor: '#a8969a' };
 
     const pose = this.dronePose();
     const droneId = pose.room;
@@ -571,6 +660,7 @@ class Component extends DCLogic {
     const flying = !!st.flight && !st.flight.done;
     const arrived = !!st.flight && st.flight.done;
     const dest = st.dest;
+    const plan = st.plan;
     const fm = this.fmeta(st.floor);
     const area = rm => (rm.bbox_max[0] - rm.bbox_min[0]) * (rm.bbox_max[1] - rm.bbox_min[1]);
 
@@ -674,7 +764,7 @@ class Component extends DCLogic {
       : arrived ? { t: '도착 완료', c: '#4ade80', b: '#1e3a2a', bg: '#101d16' }
       : dest ? { t: '목적지 설정됨', c: '#fbbf24', b: '#57431a', bg: '#1c150a' }
       : { t: '대기 중', c: '#a8969a', b: '#3a161c', bg: 'transparent' };
-    let routeWps = st.flight ? st.flight.wps : (dest ? this.buildWps(pose, dest) : null);
+    let routeWps = this.routeWpsFor(pose, dest);
     const routeRuns = [];
     if (routeWps) {
       let cur = null;
@@ -716,7 +806,12 @@ class Component extends DCLogic {
       goalCoordTxt: goal ? `[${goal.map(fmt).join(', ')}]` : '',
       goalBoxBorder: dest ? '#3f2021' : '#3a161c', goalBoxBg: dest ? '#170f11' : '#150a0d',
       goalDot: dest ? '#f87171' : '#5f4a4e', goalTitleColor: dest ? '#fca5a5' : '#a8969a',
-      onClear: () => { if (flying) { this.toast('비행 중에는 지울 수 없습니다'); return; } this.setState({ dest: null, sent: false, flight: null }); this.toast('도착지를 지웠습니다'); },
+      onClear: () => {
+        if (flying) { this.toast('비행 중에는 지울 수 없습니다'); return; }
+        this.planSeq++;
+        this.setState({ dest: null, sent: false, flight: null, plan: null, planErr: null, planning: false, pick: 'goal' });
+        this.toast('도착지를 지웠습니다 — 다시 클릭해 지정하세요');
+      },
       crossFloor, jsonTxt,
       chipTxt: chip.t, chipColor: chip.c, chipBorder: chip.b, chipBg: chip.bg,
       routeRuns, flightActive: flying,
@@ -735,22 +830,63 @@ class Component extends DCLogic {
       flightRoomTxt: flying ? `현재 통과 중: ${this.label(st.flight.room)}` : '',
       flightPct: flying ? Math.round((st.flight.prog || 0) * 100) : 0,
       flightPctTxt: flying ? `${Math.round((st.flight.prog || 0) * 100)}%` : '',
-      launchDisabled: !dest || flying,
-      launchBg: flying ? '#450a0a' : (dest ? '#991b1b' : '#2a1015'),
-      launchColor: dest ? '#fef2f2' : '#5f4a4e',
-      launchCursor: dest && !flying ? 'pointer' : 'default',
-      launchTxt: flying ? '비행 중…' : (arrived ? '재비행' : '비행 시작'),
+      // ── 2점 선택 상태 표시 ────────────────────────────────────
+      clickHintTxt: st.pick === 'start' ? '① 출발 지정' : '② 도착 지정',
+      startPickMark: st.pick === 'start' ? '◀ 지금 지정' : '',
+      goalPickMark: st.pick === 'goal' ? '◀ 지금 지정' : '',
+      startBoxBorder: st.pick === 'start' ? '#34d399' : '#1e3a2a',
+      startBoxBg: st.pick === 'start' ? '#12241b' : '#0e1a14',
+      startBtnTxt: st.start ? '다시 지정' : (st.pick === 'start' ? '클릭 대기' : '변경'),
+      onPickStart: () => {
+        if (flying) { this.toast('비행 중에는 지점을 바꿀 수 없습니다'); return; }
+        this.planSeq++;
+        this.setState({ pick: 'start', start: null, droneAt: null, flight: null, plan: null, planErr: null, planning: false });
+        this.toast('출발점을 평면도에서 클릭하세요');
+      },
+      // ── 강화학습 경로 패널 ────────────────────────────────────
+      planBoxVisible: !!dest,
+      planBorder: st.planning ? '#3a3f57' : (st.planErr ? '#57431a' : (plan ? (plan.success ? '#1e3a2a' : '#57431a') : '#2a1015')),
+      planBg: st.planning ? '#12131c' : (st.planErr ? '#1c150a' : (plan ? (plan.success ? '#0e1a14' : '#1c150a') : '#10070a')),
+      planDot: st.planning ? '#818cf8' : (st.planErr ? '#f59e0b' : (plan ? (plan.success ? '#4ade80' : '#f59e0b') : '#5f4a4e')),
+      planDotAnim: st.planning ? 'blinkDot .7s infinite' : 'none',
+      planTitleColor: st.planning ? '#a5b4fc' : (plan && plan.success ? '#6ee7b7' : '#fbbf24'),
+      planEngineTxt: plan ? plan.engine : (st.planErr ? 'fallback' : ''),
+      planStatusTxt: st.planning ? '정책 추론 중… (SAC 결정론 롤아웃)'
+        : st.planErr ? `RL 서버 연결 실패 — 방그래프 직선으로 대체 중 (${st.planErr})`
+        : plan ? (plan.success ? '정책이 목표에 도달했습니다' : '정책이 목표에 도달하지 못했습니다 (경로는 시도 궤적)')
+        : '경로 대기 중',
+      planStatsVisible: !!plan,
+      planRows: plan ? [
+        { k: '결과', v: plan.success ? '도착 성공' : '미도달', c: plan.success ? '#4ade80' : '#f59e0b' },
+        { k: '스텝 수', v: `${plan.steps}`, c: '#57c4b8' },
+        { k: '비행 거리', v: `${plan.flown.toFixed(2)} m`, c: '#e8dde0' },
+        { k: '남은 거리', v: `${plan.dist.toFixed(2)} m`, c: '#a8969a' },
+        { k: '충돌(범프)', v: `${plan.bumps}회`, c: plan.bumps ? '#f59e0b' : '#4d9e6a' },
+        { k: '추론 시간', v: `${Math.round(plan.ms)} ms`, c: '#8a7478' },
+      ] : [],
+      planRetryVisible: !!dest && !st.planning,
+      onReplan: () => this.requestPlan(pose, dest),
+
+      launchDisabled: !dest || flying || st.planning,
+      launchBg: flying ? '#450a0a' : (st.planning ? '#2a1015' : (dest ? '#991b1b' : '#2a1015')),
+      launchColor: dest && !st.planning ? '#fef2f2' : '#5f4a4e',
+      launchCursor: dest && !flying && !st.planning ? 'pointer' : 'default',
+      launchTxt: st.planning ? '경로 계산 중…' : (flying ? '비행 중…' : (arrived ? '재비행' : '비행 시작')),
       onLaunch: () => {
-        if (!dest || flying) return;
+        if (!dest || flying || st.planning) return;
+        const wps = routeWps || this.buildWps(pose, dest);
         if (this.props.onLaunchMission) {
           this.props.onLaunchMission({
             start, goal, start_room: droneId, goal_room: dest.room,
             goal_object: dest.furnName || null,
             startLabel: this.label(droneId), goalLabel: this.label(dest.room),
+            // 상위 화면(HAUNTED OPS)이 브리핑/작전 지도에 그대로 쓰는 실제 RL 궤적
+            path: plan && plan.path ? plan.path : null,
+            plan: plan || null,
+            wps,
           });
           return;
         }
-        const wps = this.buildWps(pose, dest);
         const flight = { wps, seg: 0, done: false, pos: [wps[0].x, wps[0].y], floor: wps[0].floor, room: wps[0].room, z: wps[0].z, travel: 0, prog: 0, total: this.pathLen(wps) };
         this.lastTs = null;
         cancelAnimationFrame(this.raf);
@@ -768,8 +904,10 @@ class Component extends DCLogic {
       if (hit.furn) this.pickFurn(hit.room, hit.furn);
       else {
         const rm = this.state.meta.rooms[hit.room];
-        this.setState({ dest: { room: hit.room, floor: rm.floor, x: rm.center[0], y: rm.center[1], z: rm.center[2] }, sent: false, floor: rm.floor, selRoom: hit.room });
+        const dest = { room: hit.room, floor: rm.floor, x: rm.center[0], y: rm.center[1], z: rm.center[2] };
+        this.setState({ dest, sent: false, floor: rm.floor, selRoom: hit.room, pick: 'start' });
         this.toast(`도착지: ${this.label(hit.room)} (방 중앙)`);
+        this.requestPlan(this.dronePose(), dest);
       }
       this.focusRoom(hit.room);
     } else {
