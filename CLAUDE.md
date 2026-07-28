@@ -33,6 +33,11 @@ Two layers under one repo:
    @20 Hz + button events. `simulator/bridge/fake_unity_sim.py` is a protocol
    stub (`--auto-next K --auto-confirm-sec N` fakes the button clicks) for
    testing without Unity. See `README-integration.md` for the full run guide.
+4. **RL autonomous flight + web console** (`playground/reinforce_learning/`,
+   `web/`, `web_server.py`, `reinforce_inference.py`) — hyeonwoo branch: a SAC
+   policy trained to fly the **same building** (`00809_Qpor2mEya8F`) end to end,
+   plus a web ops console where clicking two points on the floor plan plans the
+   route **with the policy** (no BFS/RRT*). See "Top-level apps" below.
 
 The 3D localization layer has **two complementary object-finding backends**:
 
@@ -45,6 +50,84 @@ The 3D localization layer has **two complementary object-finding backends**:
 
 Both consume the same scene point clouds and both output WORLD-frame coordinates
 for a downstream path planner.
+
+## Top-level apps (RL + web) — runnable on a laptop, no GPU server
+
+Unlike the 3D-segmentation stack, these need only `requirements.txt` in the
+`tello` conda env (Python 3.9). `playground/` is experiments; anything that
+graduated to real use sits at the top level.
+
+- **`reinforce_inference.py`** — one-click RL flight demo/eval with the trained
+  policy. `--random N` headless eval, `--pick` picks two points in an Open3D
+  view, `--people/--shield` for the dynamic-obstacle demo.
+- **`web_server.py`** — Flask. Serves `web/` and answers
+  `POST /plan {start,goal}` by running the policy deterministically and
+  returning the 3D trajectory. Loads `model_geo_best.zip` + `geo_env` once
+  (~6 s), then ~0.2 s per plan; one env instance behind a lock. `--no-rl`
+  serves the UI only.
+- **`web/`** — the ops console, ported from a design mockup and running on the
+  `dc-runtime` (`support.js`, React from unpkg, `<x-dc>` templates in
+  `*.dc.html`). `드론 관제.dc.html` is the floor-plan screen (**click twice to
+  set start/goal**); `HAUNTED OPS.dc.html` is the shell that embeds it via
+  `dc-import`. Assets in `web/uploads/` — regenerate with
+  `playground/demo_house/export_web_assets.py --out web/uploads`.
+  Details: `web/README.md`.
+- **`playground/reinforce_learning/`** — the training side (geo_env / train_geo /
+  evaluate_geo). Read `playground/reinforce_learning/CLAUDE.md` first; it is
+  gitignored (local handoff notes) and records the reward/curriculum surgery
+  history and the divergence incidents.
+
+★ `ENV_KW` in `reinforce_inference.py` / `web_server.py` is the training-time
+config. Changing it collapses policy performance. Always pass `clearance=0.12`
+explicitly — building an env with the default (0.235) overwrites the 0.12
+`geo_graph_cache` and the next run spends a minute regenerating it.
+
+## Module map (`playground/`) — experiments
+
+- **`gesture/`** — MediaPipe Hands → gesture → drone. `Gesture_Drone_control_test.py`:
+  a camera thread writes a shared `current_gesture` (lock-guarded) and a 20 Hz
+  `drone_control_loop` thread turns it into `send_rc_control`. `sketch_to_flight.py`
+  draws a path with the mouse on an XZ canvas, then flies the sampled waypoints.
+- **`auto_driving/`** — `.glb` building model → obstacle point cloud. `convert.py`
+  voxelizes at 0.1 m and drops the top 3 ceiling layers; `viewer.py` shows any
+  voxel `.npy` in Open3D. `draft/rrt_star_drone.py` is the RRT* 3D planner the
+  RL env reuses for collision checks (KD-tree clearance).
+- **`demo_house/`** — hierarchical (room-graph) planning over the 22-room /
+  3-floor Matterport house. `rooms_graph.json` (rooms with `passages` +
+  `edges` with `door_center`), `annotate_rooms.py` (3D `--points` editor,
+  2D `--edges` editor), `hierarchical_plan.py` (room A* → per-segment RRT* on a
+  merged obstacle cloud, grid A* for stairs). Handoff: `demo_house/PROGRESS.md`.
+  `export_web_assets.py` builds the floor plans; `web_ui/` is the older vanilla
+  mockup, superseded by the top-level `web/`.
+- **`3D/` & `gemini3D/`** — point-cloud segmentation experiments. Not wired into
+  the flight pipeline.
+- **`digital_twin_test/`** — pygame keyboard teleop for the Unity sim.
+- **`tello_simulator/`** — an *older, untracked* local copy of the Unity project
+  (only `command`/`takeoff`/`land`/`rc`). The maintained one is `simulator/`.
+
+### Talking to the simulator from Python
+
+Two patterns, both aimed at UDP 9000 on `127.0.0.1`:
+- **djitellopy override** — set `Tello.CONTROL_UDP_PORT_CLIENT = 9000` *before*
+  `Tello("127.0.0.1")`, then use the normal `connect()`/`takeoff()`/
+  `send_rc_control()` API (`gesture/Gesture_Drone_control_test.py`).
+- **raw socket** — `sendto` the text commands directly
+  (`digital_twin_test/python_rc_test.py`), or use `simulator/bridge/unity_bridge.py`
+  which also reads the 9002 state/event stream.
+
+For a real Tello, drop the `CONTROL_UDP_PORT_CLIENT` override and join the
+drone's Wi-Fi. RC convention throughout:
+`send_rc_control(left_right, forward_back, up_down, yaw)`.
+
+## Data conventions
+
+- Point clouds are parallel NumPy arrays: `coord.npy` (xyz, meters),
+  `color.npy` (uint8 RGB), `normal.npy`. RRT*, the RL env and the segmentation
+  scripts all share this layout.
+- `*.ply` / `*.npy` / `*.glb` and Unity build output are gitignored — generate
+  them locally. Exceptions are whitelisted in `.gitignore` for the RL inference
+  model + env caches so `reinforce_inference.py` works on a fresh clone.
+- `numpy` is pinned `<2.0` for Open3D / mediapipe compatibility.
 
 ## Submodules
 

@@ -99,9 +99,10 @@ Assembly-CSharp-Editor.csproj
 Assembly-CSharp-firstpass.csproj
 Assembly-CSharp-Editor-firstpass.csproj
 
-# AI
-CLAUDE.md
+# AI — 최상위 CLAUDE.md 는 sim-integration 병합으로 추적 대상이 됐다.
+# 나머지 로컬 핸드오프 문서만 계속 무시한다.
 playground/demo_house/PROGRESS.md
+playground/reinforce_learning/CLAUDE.md
 
 # RL (reinforce_learning) 생성물 — 모델/캐시/로그/결과 이미지는 추적 안 함
 playground/reinforce_learning/*.zip
