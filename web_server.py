@@ -40,7 +40,6 @@ import numpy as _np
 from flask import Flask, Response, request, jsonify, redirect, send_from_directory
 
 import rl_planner               # 경로 계획(정책 로드/롤아웃/단축)은 전부 여기
-import gesture_cam              # 웹캠 제스처 인식 + 미리보기 스트림
 
 _ROOT = os.path.dirname(os.path.abspath(__file__))
 _SIM = os.path.join(_ROOT, 'simulator', 'bridge')
@@ -92,8 +91,7 @@ def api_status():
                    model=os.path.relpath(rl_planner.MODEL + '.zip', _ROOT)
                          if rl_planner.ready() else None,
                    env=dict(rl_planner.ENV_KW, max_steps=rl_planner.MAX_STEPS),
-                   sim_connected=_bridge is not None,
-                   camera=gesture_cam.state()['active'])
+                   sim_connected=_bridge is not None)
 
 
 @app.get('/api/drone')
@@ -101,38 +99,6 @@ def api_drone():
     pos, source, flying = drone_pose()
     return jsonify(x=pos[0], y=pos[1], z=pos[2], source=source, flying=flying,
                    connected=_bridge is not None)
-
-
-@app.get('/api/gesture')
-def api_gesture():
-    """현재 인식된 제스처와 rc 벡터. 카메라가 꺼져 있으면 active=False."""
-    return jsonify(gesture_cam.state())
-
-
-@app.get('/api/camera')
-def api_camera():
-    """웹캠 미리보기(MJPEG). <img src="api/camera"> 로 바로 붙는다.
-
-    브라우저가 카메라를 직접 잡으면 파이썬 쪽 인식과 장치를 다투게 되므로,
-    여기서 잡은 프레임(랜드마크·인식 결과가 그려진 것)을 넘겨준다.
-    """
-    if not gesture_cam.state()['active']:
-        return jsonify(error='카메라가 꺼져 있습니다 (--camera 로 켜세요)'), 503
-
-    crlf = bytes([13, 10])
-    head = b'--frame' + crlf + b'Content-Type: image/jpeg' + crlf
-
-    def gen():
-        last = None
-        while gesture_cam.state()['active']:
-            f = gesture_cam.latest_jpeg()
-            if f is not None and f is not last:
-                last = f
-                yield (head + b'Content-Length: ' + str(len(f)).encode()
-                       + crlf + crlf + f + crlf)
-            time.sleep(0.04)                      # 최대 25fps
-
-    return Response(gen(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 @app.post('/plan')
@@ -202,17 +168,10 @@ def main():
     ap.add_argument('--unity-port', type=int, default=9000)
     ap.add_argument('--local-port', type=int, default=9001)
     ap.add_argument('--state-port', type=int, default=9002)
-    ap.add_argument('--camera', nargs='?', type=int, const=0, default=None,
-                    metavar='INDEX',
-                    help='웹캠 제스처 인식을 켠다 (인덱스 생략 시 0). '
-                         '웹 우하단에 미리보기가 뜬다')
     a = ap.parse_args()
 
     if not os.path.isdir(_WEB):
         raise SystemExit(f'웹 에셋 폴더가 없습니다: {_WEB}')
-    if a.camera is not None:
-        if not gesture_cam.start(a.camera):
-            print('[web_server] 카메라 없이 계속합니다')
     if a.unity_host:
         try:
             connect_sim(a.unity_host, a.unity_port, a.local_port, a.state_port)
