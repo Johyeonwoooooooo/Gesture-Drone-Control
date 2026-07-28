@@ -1,0 +1,148 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 3D map file 
+*.ply
+*.npy 
+*.glb
+
+# virtual environment
+venv/
+.env/
+.venv/
+
+# environment variables
+.env
+
+# =========================
+# VSCode
+# =========================
+.vscode/
+
+# =========================
+# Jupyter Notebook
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# Python build / packaging
+# =========================
+build/
+dist/
+*.egg-info/
+.eggs/
+playground/simulator/
+# =========================
+# logs
+# =========================
+*.log
+
+# =========================
+# cache
+# =========================
+.cache/
+
+# =========================
+# test files
+# =========================
+/test
+test.py
+
+# =========================
+# Unity
+# =========================
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]serSettings/
+MemoryCaptures/
+Recorded/
+ASSET_METADATA
+ExportedObj/
+.plastic/
+
+# Unity generated meta files
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# Unity generated project files
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.obj
+
+# Unity crash reports
+sysinfo.txt
+
+# Unity Assembly-CSharp
+Assembly-CSharp.csproj
+Assembly-CSharp-Editor.csproj
+Assembly-CSharp-firstpass.csproj
+Assembly-CSharp-Editor-firstpass.csproj
+
+# AI — 최상위 CLAUDE.md 는 sim-integration 병합으로 추적 대상이 됐다.
+# 나머지 로컬 핸드오프 문서만 계속 무시한다.
+playground/demo_house/PROGRESS.md
+playground/reinforce_learning/CLAUDE.md
+
+# RL (reinforce_learning) 생성물 — 모델/캐시/로그/결과 이미지는 추적 안 함
+playground/reinforce_learning/*.zip
+playground/reinforce_learning/*.npz
+playground/reinforce_learning/*.pkl
+playground/reinforce_learning/runs/
+playground/reinforce_learning/ckpt/
+playground/reinforce_learning/best/
+playground/reinforce_learning/progress.png
+playground/reinforce_learning/curriculum_progress.png
+
+# 단, 추론(reinforce_inference.py)에 필요한 모델 파라미터·환경 캐시는 커밋
+!playground/reinforce_learning/model_geo_best.zip
+!playground/reinforce_learning/obstacles_cache.npz
+!playground/reinforce_learning/geo_graph_cache.npz
+!playground/reinforce_learning/stair_chains_cache.npz
+# =========================
+# sim-integration 병합분 (규철)
+# =========================
+# 3D 세그멘테이션 데이터셋 (점군/디텍션 — 서버에서 생성, 커밋 안 함)
+data/
+3D-segmentation/cache/*/unidet3d/
+
+# Unity 에디터 생성물 (위 일반 패턴이 대부분 잡지만 명시)
+simulator/tello_simulator/Library/
+simulator/tello_simulator/Temp/
+simulator/tello_simulator/Logs/
+simulator/tello_simulator/UserSettings/
+simulator/tello_simulator/obj/
+simulator/tello_simulator/Build/
+simulator/tello_simulator/Builds/
+simulator/tello_simulator/.vsconfig
+simulator/tello_simulator/UpgradeLog*.htm
+
+# Visual Studio / JetBrains / macOS
+.vs/
+.idea/
+.DS_Store
+
+# glb 는 위에서 무시하므로 짝인 .meta 도 무시한다. 안 그러면 에셋 없는
+# 고아 meta 만 커밋돼서 다른 사람 Unity 에서 경고가 뜬다.
+# (이미 추적 중인 TEEsavR23oF.glb.meta 는 영향 없음)
+*.glb.meta

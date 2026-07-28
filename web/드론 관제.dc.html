@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=East+Sea+Dokdo&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;background:#0a0405;overflow:hidden}
+*{box-sizing:border-box}
+a{color:#f87171}a:hover{color:#fca5a5}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#3a1a20;border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
+@keyframes dronePulse{0%{transform:translate(-50%,-50%) scale(.6);opacity:.9}100%{transform:translate(-50%,-50%) scale(3.4);opacity:0}}
+@keyframes blinkDot{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes toastIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes flicker{0%,88%,100%{opacity:1}89%{opacity:.35}90%{opacity:1}93%{opacity:.55}94%{opacity:1}}
+@keyframes dripStretch{0%{height:8px}55%{height:54px}100%{height:8px}}
+@keyframes dripFall{0%{transform:translateY(0);opacity:0}8%{opacity:1}85%{opacity:1}100%{transform:translateY(72vh);opacity:0}}
+@keyframes destRing{0%{transform:translate(-50%,-50%) scale(.5);opacity:1}100%{transform:translate(-50%,-50%) scale(2.6);opacity:0}}
+</style>
+</helmet>
+<div style="width:100vw;height:100vh;display:flex;flex-direction:column;background:#0a0405;color:#cfc2c5;font-family:'IBM Plex Sans KR',sans-serif;font-size:13px;overflow:hidden">
+  <header style="height:56px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;background:#10070a;border-bottom:1px solid #2a1015">
+    <div style="display:flex;align-items:center;gap:10px;flex:none">
+      <div style="width:30px;height:30px;border:1px solid #4a1d24;border-radius:6px;display:grid;place-items:center;background:#170a0d">
+        <div style="width:10px;height:10px;background:#ef4444;border-radius:50%;box-shadow:0 0 10px #dc2626cc;animation:blinkDot 2.4s infinite"></div>
+      </div>
+      <div>
+        <div style="font-family:'East Sea Dokdo',cursive;font-size:26px;line-height:1;color:#ef4444;text-shadow:0 0 14px #dc262699,0 2px 4px #000;animation:flicker 6s infinite">흉가 드론 관제</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.08em">HAUNTED OPS · 00809_Qpor2mEya8F</div>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;justify-content:center">
+      <div style="display:flex;align-items:center;gap:8px;width:min(520px,100%);height:36px;background:#170a0d;border:1px solid #3a161c;border-radius:8px;padding:0 6px 0 12px" style-focus="border-color:#ef4444">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#ef4444;flex:none">CMD</span>
+        <input value="{{nlValue}}" onChange="{{onNlChange}}" onKeyDown="{{onNlKey}}" placeholder="예: 규철이 무기고 침대 앞으로 가줘" style="flex:1;background:transparent;border:none;outline:none;color:#e8dde0;font-family:'IBM Plex Sans KR',sans-serif;font-size:13px">
+        <button onClick="{{onNlSend}}" title="음성 입력 (목업)" style="width:26px;height:26px;border:none;border-radius:6px;background:#241014;color:#f87171;cursor:pointer;font-size:12px;display:grid;place-items:center" style-hover="background:#35161d">🎙</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px">
+      <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:#101d16;border:1px solid #1e3a2a;border-radius:6px;color:#4ade80">
+        <span style="width:6px;height:6px;border-radius:50%;background:#4ade80;animation:blinkDot 1.6s infinite"></span>생존 신호 확인
+      </div>
+      <div style="padding:5px 10px;background:#170a0d;border:1px solid #3a161c;border-radius:6px;color:#a8969a">SLAM 정상 (아마)</div>
+      <div style="padding:5px 10px;background:#170a0d;border:1px solid #3a161c;border-radius:6px;color:#a8969a">RTT 38ms</div>
+    </div>
+  </header>
+  <div style="position:fixed;left:0;right:0;top:56px;height:0;z-index:40;pointer-events:none">
+    <span style="position:absolute;left:9%;top:0;width:3px;background:linear-gradient(#450a0a,#b91c1c);border-radius:0 0 3px 3px;animation:dripStretch 8s ease-in-out infinite"></span>
+    <span style="position:absolute;left:27%;top:0;width:2px;background:linear-gradient(#450a0a,#991b1b);border-radius:0 0 2px 2px;animation:dripStretch 11s ease-in-out 2s infinite"></span>
+    <span style="position:absolute;left:44%;top:0;width:3px;background:linear-gradient(#450a0a,#b91c1c);border-radius:0 0 3px 3px;animation:dripStretch 7s ease-in-out 1s infinite"></span>
+    <span style="position:absolute;left:66%;top:0;width:2px;background:linear-gradient(#450a0a,#991b1b);border-radius:0 0 2px 2px;animation:dripStretch 13s ease-in-out 3.5s infinite"></span>
+    <span style="position:absolute;left:88%;top:0;width:3px;background:linear-gradient(#450a0a,#b91c1c);border-radius:0 0 3px 3px;animation:dripStretch 9s ease-in-out .5s infinite"></span>
+    <span style="position:absolute;left:44.1%;top:52px;width:4px;height:7px;border-radius:50%;background:#b91c1c;animation:dripFall 6s ease-in 1.5s infinite"></span>
+    <span style="position:absolute;left:9.1%;top:52px;width:4px;height:7px;border-radius:50%;background:#b91c1c;animation:dripFall 9s ease-in 4s infinite"></span>
+  </div>
+  <div style="flex:1;display:flex;min-height:0">
+    <aside style="width:236px;flex:none;background:#10070a;border-right:1px solid #2a1015;display:flex;flex-direction:column;min-height:0">
+      <div style="padding:12px;border-bottom:1px solid #2a1015">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.1em;margin-bottom:8px">FLOOR</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+          <sc-for list="{{floorTabs}}" as="t" hint-placeholder-count="3">
+            <button onClick="{{t.onClick}}" style="position:relative;height:40px;border:1px solid {{t.border}};border-radius:8px;background:{{t.bg}};color:{{t.color}};font-family:'IBM Plex Sans KR',sans-serif;font-weight:600;font-size:13px;cursor:pointer" style-hover="border-color:#ef4444">
+              {{t.label}}
+              <span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:400;color:#8a7478">{{t.count}} rooms</span>
+              <sc-if value="{{t.droneHere}}" hint-placeholder-val="{{false}}"><span style="position:absolute;top:5px;right:6px;width:6px;height:6px;border-radius:50%;background:#34d399"></span></sc-if>
+              <sc-if value="{{t.destHere}}" hint-placeholder-val="{{false}}"><span style="position:absolute;top:5px;right:15px;width:6px;height:6px;border-radius:50%;background:#f87171"></span></sc-if>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;min-height:0;padding:8px 12px 16px">
+        <sc-for list="{{sidebarGroups}}" as="g" hint-placeholder-count="3">
+          <div style="margin-top:10px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.1em;padding:4px 2px">{{g.label}}</div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <sc-for list="{{g.rooms}}" as="r" hint-placeholder-count="4">
+                <button onClick="{{r.onClick}}" style="display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid {{r.border}};border-radius:7px;background:{{r.bg}};cursor:pointer;text-align:left" style-hover="border-color:#ef4444;background:#1d0c10">
+                  <span style="width:7px;height:7px;flex:none;border-radius:50%;background:{{r.dot}}"></span>
+                  <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                    <span style="font-size:12px;font-weight:600;color:#e8dde0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{r.name}}</span>
+                    <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{r.id}} · {{r.furnTxt}}</span>
+                  </span>
+                  <span style="font-size:10px;color:{{r.tagColor}};flex:none">{{r.tag}}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="flex:none;padding:10px 12px;border-top:1px solid #2a1015;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5f4a4e;line-height:1.6">
+        방 22 · 문 20 · 계단 2<br>해상도 0.02 m/px
+      </div>
+    </aside>
+    <main style="flex:1;position:relative;min-width:0;overflow:hidden;background:#0a0405;background-image:linear-gradient(#2a101508 1px,transparent 1px),linear-gradient(90deg,#ffffff05 1px,transparent 1px);background-size:40px 40px">
+      <sc-if value="{{simMax}}" hint-placeholder-val="{{false}}">
+        <div style="position:absolute;inset:0;z-index:0;background:repeating-linear-gradient(135deg,#0d0608 0 18px,#120709 18px 36px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
+          <sc-if value="{{simShareOn}}" hint-placeholder-val="{{false}}">{{simVideoEl}}</sc-if>
+          <sc-if value="{{simShareOff}}" hint-placeholder-val="{{true}}">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:.14em;color:#8a7478">SIM FEED · 미연결</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#5f4a4e;text-align:center;line-height:1.8">시뮬레이터(Unity) 창을 공유하면 여기에 뜹니다</span>
+            <button onClick="{{onSimShare}}" style="margin-top:4px;height:32px;padding:0 16px;border:1px solid #ef4444;border-radius:8px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:700;font-size:12px;cursor:pointer" style-hover="background:#7f1d1d">시뮬레이터 화면 연결</button>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#f59e0b">{{simShareErr}}</span>
+          </sc-if>
+          <span style="position:absolute;left:14px;top:12px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f87171;animation:blinkDot 1.6s infinite">REC ●</span>
+          <span style="position:absolute;left:50%;top:12px;transform:translateX(-50%);font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a7478">CAM 01 · 3RD PERSON · {{simStatusTxt}}</span>
+          <div style="position:absolute;left:14px;bottom:44px;display:flex;flex-direction:column;gap:3px;font-family:'IBM Plex Mono',monospace;font-size:11px">
+            <span style="color:#e8dde0">{{simRoomTxt}}</span>
+            <span style="color:#8a7478">{{simCoordTxt}}</span>
+          </div>
+        </div>
+      </sc-if>
+      <div ref="{{mapRef}}" onMouseDown="{{onMapDown}}" onMouseMove="{{onMapMove}}" onMouseLeave="{{onMapLeave}}" onClick="{{onMapClick}}" style="position:absolute;left:{{mapL}};top:{{mapT}};right:{{mapR}};bottom:{{mapB}};width:{{mapWd}};height:{{mapHt}};border:{{mapBorder}};border-radius:{{mapRadius}};box-shadow:{{mapShadow}};z-index:{{mapZ}};background:#0a0405;cursor:{{mapCursor}};overflow:hidden">
+        <sc-if value="{{simMax}}" hint-placeholder-val="{{false}}">
+          <div style="position:absolute;left:8px;top:8px;z-index:5;display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#a8969a;background:#0a0405cc;border:1px solid #2a1015;border-radius:5px;padding:3px 7px;pointer-events:none">평면도 · {{curFloorLabel}}</div>
+          <button onClick="{{onSimMin}}" title="평면도 크게 보기" style="position:absolute;right:8px;top:8px;z-index:5;width:22px;height:22px;border:1px solid #4a1d24;border-radius:5px;background:#170a0de6;color:#cfc2c5;cursor:pointer;font-size:11px" style-hover="border-color:#ef4444">⛶</button>
+        </sc-if>
+        <sc-if value="{{loaded}}" hint-placeholder-val="{{false}}">
+          <div style="position:absolute;left:0;top:0;transform-origin:0 0;transform:translate({{vtx}}px,{{vty}}px) scale({{vs}});width:{{planeW}}px;height:{{planeH}}px">
+            {{floorImg}}
+            <sc-for list="{{roomRects}}" as="r" hint-placeholder-count="5">
+              <div onMouseEnter="{{r.onEnter}}" onMouseLeave="{{r.onLeave}}" style="position:absolute;left:{{r.left}}px;top:{{r.top}}px;width:{{r.w}}px;height:{{r.h}}px;border:1px solid {{r.border}};background:{{r.bg}};border-radius:3px">
+                <span style="position:absolute;left:4px;top:3px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:{{r.labelColor}};background:#0a0405cc;padding:1px 5px;border-radius:4px;pointer-events:none;white-space:nowrap">{{r.name}}</span>
+              </div>
+            </sc-for>
+            <sc-for list="{{passageDots}}" as="p" hint-placeholder-count="3">
+              <div style="position:absolute;left:{{p.left}}px;top:{{p.top}}px;width:7px;height:7px;transform:translate(-50%,-50%) rotate(45deg);background:#f59e0b;box-shadow:0 0 6px #f59e0b99;pointer-events:none"></div>
+            </sc-for>
+            <sc-for list="{{stairChips}}" as="s" hint-placeholder-count="1">
+              <div style="position:absolute;left:{{s.left}}px;top:{{s.top}}px;transform:translate(-50%,-130%);font-family:'IBM Plex Mono',monospace;font-size:10px;color:#fbbf24;background:#0a0405d9;border:1px solid #57431a;border-radius:5px;padding:2px 6px;pointer-events:none;white-space:nowrap">계단 ↕</div>
+            </sc-for>
+            <sc-for list="{{routeRuns}}" as="rr" hint-placeholder-count="0">
+              <svg width="{{planeW}}" height="{{planeH}}" style="position:absolute;left:0;top:0;pointer-events:none;overflow:visible">
+                <polyline points="{{rr.pts}}" fill="none" stroke="#ef4444" stroke-width="3" stroke-dasharray="9 7" stroke-linecap="round" opacity="0.8"></polyline>
+              </svg>
+            </sc-for>
+            <sc-for list="{{furnDots}}" as="f" hint-placeholder-count="0">
+              <div onClick="{{f.onClick}}" title="{{f.name}}" style="position:absolute;left:{{f.left}}px;top:{{f.top}}px;transform:translate(-50%,-50%);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px">
+                <span style="width:9px;height:9px;border-radius:50%;background:#0a0405;border:2px solid {{f.color}};box-shadow:0 0 6px {{f.color}}"></span>
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:{{f.color}};background:#0a0405cc;padding:0 4px;border-radius:3px;white-space:nowrap">{{f.name}}</span>
+              </div>
+            </sc-for>
+            <sc-if value="{{destVisible}}" hint-placeholder-val="{{false}}">
+              <div style="position:absolute;left:{{destLeft}}px;top:{{destTop}}px;pointer-events:none">
+                <span style="position:absolute;left:0;top:0;width:26px;height:26px;border:2px solid #f87171;border-radius:50%;transform:translate(-50%,-50%);animation:destRing 1.8s ease-out infinite"></span>
+                <span style="position:absolute;left:0;top:0;width:14px;height:14px;background:#ef4444;border:2px solid #fecaca;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 10px #ef4444aa"></span>
+                <span style="position:absolute;left:0;top:0;transform:translate(-50%,-210%);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:#fecaca;background:#450a0acc;border:1px solid #7f1d1d;border-radius:5px;padding:2px 7px;white-space:nowrap">GOAL · {{destName}}</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{droneVisible}}" hint-placeholder-val="{{false}}">
+              <div style="position:absolute;left:{{droneLeft}}px;top:{{droneTop}}px;pointer-events:none">
+                <span style="position:absolute;left:0;top:0;width:22px;height:22px;border:2px solid #34d399;border-radius:50%;animation:dronePulse 2s ease-out infinite"></span>
+                <span style="position:absolute;left:0;top:0;width:22px;height:22px;border:2px solid #34d399;border-radius:50%;animation:dronePulse 2s ease-out infinite;animation-delay:1s"></span>
+                <span style="position:absolute;left:0;top:0;width:16px;height:16px;background:#10b981;border:2px solid #a7f3d0;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 12px #34d399cc"></span>
+                <span style="position:absolute;left:0;top:0;transform:translate(-50%,110%);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:#a7f3d0;background:#022c22cc;border:1px solid #14532d;border-radius:5px;padding:2px 7px;white-space:nowrap">DRONE · {{droneName}}</span>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+        <sc-if value="{{notLoaded}}" hint-placeholder-val="{{true}}">
+          <div style="position:absolute;inset:0;display:grid;place-items:center;color:#8a7478;font-family:'IBM Plex Mono',monospace;font-size:12px">저택의 기록을 불러오는 중…</div>
+        </sc-if>
+      </div>
+      <div style="position:absolute;inset:0;pointer-events:none;z-index:3;background:radial-gradient(ellipse at center,transparent 52%,#1a000088 100%);box-shadow:inset 0 0 130px 30px #000000d0"></div>
+      <sc-if value="{{hoverVisible}}" hint-placeholder-val="{{false}}">
+        <div style="position:absolute;left:{{hoverX}}px;top:{{hoverY}}px;pointer-events:none;z-index:5;background:#10070af2;border:1px solid #4a1d24;border-radius:9px;padding:10px 12px;min-width:170px;box-shadow:0 8px 24px #00000080">
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
+            <span style="font-size:13px;font-weight:700;color:#f6eef0">{{hoverName}}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478">{{hoverId}} · {{hoverFloor}}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:11px;color:#a8969a">
+            <span style="color:#8a7478">크기</span><span style="font-family:'IBM Plex Mono',monospace">{{hoverSize}}</span>
+            <span style="color:#8a7478">면적</span><span style="font-family:'IBM Plex Mono',monospace">{{hoverArea}}</span>
+            <span style="color:#8a7478">통로</span><span style="font-family:'IBM Plex Mono',monospace">{{hoverPass}}</span>
+            <span style="color:#8a7478">가구</span><span>{{hoverFurn}}</span>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{panelVisible}}" hint-placeholder-val="{{false}}">
+        <div style="position:absolute;left:12px;top:12px;z-index:6;width:232px;max-height:calc(100% - 60px);display:flex;flex-direction:column;background:#10070af2;border:1px solid #4a1d24;border-radius:10px;box-shadow:0 10px 30px #00000090;overflow:hidden">
+          <div style="flex:none;display:flex;align-items:flex-start;gap:8px;padding:11px 12px;border-bottom:1px solid #2a1015">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:700;color:#f6eef0;line-height:1.3">{{panelTitle}}</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;margin-top:2px">{{panelSub}}</div>
+            </div>
+            <button onClick="{{onPanelClose}}" style="flex:none;width:22px;height:22px;border:none;border-radius:5px;background:#241014;color:#a8969a;cursor:pointer;font-size:11px" style-hover="background:#35161d">✕</button>
+          </div>
+          <div style="flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:4px">
+            <sc-for list="{{panelItems}}" as="f" hint-placeholder-count="3">
+              <button onClick="{{f.onClick}}" style="display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid {{f.border}};border-radius:7px;background:{{f.bg}};cursor:pointer;text-align:left" style-hover="border-color:#ef4444;background:#1d0c10">
+                <span style="width:7px;height:7px;flex:none;border-radius:50%;border:2px solid {{f.dotColor}};background:transparent"></span>
+                <span style="flex:1;font-size:12px;font-weight:600;color:#e8dde0">{{f.name}}</span>
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478">{{f.coordTxt}}</span>
+              </button>
+            </sc-for>
+          </div>
+          <div style="flex:none;padding:8px 12px;border-top:1px solid #2a1015;font-size:10px;color:#5f4a4e">가구를 클릭하면 그 앞이 도착지가 됩니다</div>
+        </div>
+      </sc-if>
+      <div style="position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:6px;z-index:4">
+        <button onClick="{{zoomIn}}" style="width:32px;height:32px;border:1px solid #4a1d24;border-radius:7px;background:#10070ae6;color:#cfc2c5;font-size:16px;cursor:pointer" style-hover="border-color:#ef4444">+</button>
+        <button onClick="{{zoomOut}}" style="width:32px;height:32px;border:1px solid #4a1d24;border-radius:7px;background:#10070ae6;color:#cfc2c5;font-size:16px;cursor:pointer" style-hover="border-color:#ef4444">−</button>
+        <button onClick="{{zoomFit}}" title="화면 맞춤" style="width:32px;height:32px;border:1px solid #4a1d24;border-radius:7px;background:#10070ae6;color:#cfc2c5;font-size:12px;cursor:pointer" style-hover="border-color:#ef4444">⤢</button>
+        <button onClick="{{onSimOpen}}" title="Unity 시뮬레이션 창" style="width:32px;height:32px;border:1px solid #4a1d24;border-radius:7px;background:#10070ae6;color:#cfc2c5;font-family:'IBM Plex Mono',monospace;font-size:9px;cursor:pointer" style-hover="border-color:#ef4444">SIM</button>
+      </div>
+      <sc-if value="{{simVisible}}" hint-placeholder-val="{{false}}">
+        <div style="position:absolute;right:12px;bottom:42px;z-index:7;width:320px;background:#10070af7;border:1px solid #4a1d24;border-radius:10px;box-shadow:0 12px 34px #000000b0;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#170a0d;border-bottom:1px solid #2a1015">
+            <span style="width:7px;height:7px;border-radius:50%;background:{{simDotColor}};animation:blinkDot 1.2s infinite"></span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:#e8dde0;letter-spacing:.08em">UNITY SIM · {{simStatusTxt}}</span>
+            <button onClick="{{onSimMax}}" title="크게 보기 (평면도와 교체)" style="margin-left:auto;width:20px;height:20px;border:none;border-radius:4px;background:#241014;color:#a8969a;cursor:pointer;font-size:10px" style-hover="background:#35161d">⛶</button>
+            <button onClick="{{onSimClose}}" style="margin-left:auto;width:20px;height:20px;border:none;border-radius:4px;background:#241014;color:#a8969a;cursor:pointer;font-size:10px" style-hover="background:#35161d">✕</button>
+          </div>
+          <div style="position:relative;height:180px;background:repeating-linear-gradient(135deg,#0d0608 0 14px,#120709 14px 28px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+            <sc-if value="{{simShareOn}}" hint-placeholder-val="{{false}}">{{simVideoEl2}}</sc-if>
+            <sc-if value="{{simShareOff}}" hint-placeholder-val="{{true}}">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a7478">SIM FEED · 미연결</span>
+              <button onClick="{{onSimShare}}" style="height:26px;padding:0 12px;border:1px solid #ef4444;border-radius:7px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:600;font-size:11px;cursor:pointer" style-hover="background:#7f1d1d">화면 연결</button>
+            </sc-if>
+            <span style="position:absolute;left:10px;top:8px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#f87171">REC ●</span>
+            <span style="position:absolute;right:10px;top:8px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478">CAM 01 · 3RD PERSON</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-top:1px solid #2a1015;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#a8969a">
+            <span style="color:#e8dde0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">{{simRoomTxt}}</span>
+            <span style="margin-left:auto;color:#8a7478">{{simCoordTxt}}</span>
+          </div>
+        </div>
+      </sc-if>
+      <div style="position:absolute;left:0;right:0;bottom:0;height:30px;display:flex;align-items:center;gap:18px;padding:0 14px;background:#10070ad9;border-top:1px solid #2a1015;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a7478;z-index:4">
+        <span style="color:#a8969a">{{curFloorLabel}}</span>
+        <span>zoom {{zoomTxt}}</span>
+        <span>{{cursorTxt}}</span>
+        <span style="margin-left:auto;color:#5f4a4e">드래그 이동 · 휠 줌 · 방 안 클릭 = 도착지 지정</span>
+      </div>
+    </main>
+    <aside style="width:312px;flex:none;background:#10070a;border-left:1px solid #2a1015;display:flex;flex-direction:column;min-height:0">
+      <div style="padding:14px 16px;border-bottom:1px solid #2a1015;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-weight:700;font-size:14px;color:#f6eef0">미션</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;padding:4px 9px;border-radius:20px;border:1px solid {{chipBorder}};color:{{chipColor}};background:{{chipBg}}">{{chipTxt}}</div>
+      </div>
+      <div style="flex:1;overflow-y:auto;min-height:0;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+        <div style="border:1px solid #1e3a2a;background:#0e1a14;border-radius:10px;padding:11px 13px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+            <span style="width:9px;height:9px;border-radius:50%;background:#34d399;box-shadow:0 0 8px #34d39988;animation:{{startDotAnim}}"></span>
+            <span style="font-size:11px;color:#6ee7b7;font-weight:600;letter-spacing:.05em">출발 — 드론 현재 위치</span>
+            <span style="margin-left:auto;font-size:10px;color:{{startSrcColor}};border:1px solid {{startSrcBorder}};border-radius:5px;padding:1px 7px">{{startSrcTxt}}</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:10px">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;color:#f6eef0">{{startRoomTxt}}</span>
+            <span style="font-size:11px;color:#8a7478">{{startFloorTxt}}</span>
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#86a69a;margin-top:4px">{{startCoordTxt}}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:0 4px">
+          <div style="flex:none;width:1px;height:22px;margin-left:16px;background:repeating-linear-gradient(#334155 0 3px,transparent 3px 7px)"></div>
+          <span style="font-size:11px;color:#5f4a4e">↓ 경로 자동 계획</span>
+          <sc-if value="{{crossFloor}}" hint-placeholder-val="{{false}}">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#fbbf24;border:1px solid #57431a;background:#1c150a;border-radius:5px;padding:2px 7px">계단 경유</span>
+          </sc-if>
+        </div>
+        <div style="border:1px solid {{goalBoxBorder}};background:{{goalBoxBg}};border-radius:10px;padding:11px 13px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+            <span style="width:9px;height:9px;border-radius:50%;background:{{goalDot}}"></span>
+            <span style="font-size:11px;color:{{goalTitleColor}};font-weight:600;letter-spacing:.05em">도착 — 목적지</span>
+            <sc-if value="{{goalSet}}" hint-placeholder-val="{{false}}">
+              <button onClick="{{onClear}}" style="margin-left:auto;border:1px solid #3f2021;background:transparent;color:#f87171;font-size:10px;border-radius:5px;padding:2px 8px;cursor:pointer" style-hover="background:#2a1215">지우기</button>
+            </sc-if>
+          </div>
+          <sc-if value="{{goalSet}}" hint-placeholder-val="{{false}}">
+            <div style="display:flex;align-items:baseline;gap:10px">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;color:#f6eef0">{{goalRoomTxt}}</span>
+              <span style="font-size:11px;color:#8a7478">{{goalFloorTxt}}</span>
+            </div>
+            <sc-if value="{{goalFurn}}" hint-placeholder-val="{{false}}">
+              <div style="display:inline-block;margin-top:6px;font-size:11px;font-weight:600;color:#fca5a5;background:#450a0a66;border:1px solid #7f1d1d;border-radius:5px;padding:2px 8px">🎯 {{goalFurnTxt}}</div>
+            </sc-if>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#c9928f;margin-top:4px">{{goalCoordTxt}}</div>
+          </sc-if>
+          <sc-if value="{{goalUnset}}" hint-placeholder-val="{{true}}">
+            <div style="font-size:12px;color:#8a7478;padding:4px 0">평면도에서 방 안을 클릭해 지정하세요</div>
+          </sc-if>
+        </div>
+        <sc-if value="{{planBoxVisible}}" hint-placeholder-val="{{false}}">
+          <div style="border:1px solid {{planBorder}};background:{{planBg}};border-radius:10px;padding:11px 13px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="width:9px;height:9px;border-radius:50%;background:{{planDot}};animation:{{planDotAnim}}"></span>
+              <span style="font-size:11px;color:{{planTitleColor}};font-weight:600;letter-spacing:.05em">강화학습 경로 (SAC)</span>
+              <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478">{{planEngineTxt}}</span>
+            </div>
+            <div style="font-size:12px;color:#e8dde0;margin-bottom:7px">{{planStatusTxt}}</div>
+            <sc-if value="{{planStatsVisible}}" hint-placeholder-val="{{false}}">
+              <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:11px">
+                <sc-for list="{{planRows}}" as="r" hint-placeholder-count="5">
+                  <span style="color:#8a7478">{{r.k}}</span><span style="color:{{r.c}};font-family:'IBM Plex Mono',monospace;text-align:right">{{r.v}}</span>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{planRetryVisible}}" hint-placeholder-val="{{false}}">
+              <button onClick="{{onReplan}}" style="width:100%;margin-top:8px;height:28px;border:1px solid #4a1d24;border-radius:6px;background:#170a0d;color:#cfc2c5;font-size:11px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">경로 다시 계산</button>
+            </sc-if>
+          </div>
+        </sc-if>
+        <sc-if value="{{flightActive}}" hint-placeholder-val="{{false}}">
+          <div style="border:1px solid #7f1d1d;background:#450a0a33;border-radius:10px;padding:11px 13px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="width:9px;height:9px;border-radius:50%;background:#f87171;animation:blinkDot 1s infinite"></span>
+              <span style="font-size:11px;color:#fca5a5;font-weight:600;letter-spacing:.05em">비행 중</span>
+              <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f87171">{{flightPctTxt}}</span>
+            </div>
+            <div style="font-size:12px;color:#e8dde0;margin-bottom:8px">{{flightRoomTxt}}</div>
+            <div style="height:5px;background:#2a1015;border-radius:3px;overflow:hidden">
+              <div style="height:100%;width:{{flightPct}}%;background:linear-gradient(90deg,#7f1d1d,#ef4444);transition:width .2s linear"></div>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+      <div style="flex:none;padding:14px 16px;border-top:1px solid #2a1015">
+        <button onClick="{{onLaunch}}" disabled="{{launchDisabled}}" style="width:100%;height:44px;border:none;border-radius:9px;background:{{launchBg}};color:{{launchColor}};font-family:'IBM Plex Sans KR',sans-serif;font-weight:700;font-size:14px;letter-spacing:.03em;cursor:{{launchCursor}}">{{launchTxt}}</button>
+      </div>
+    </aside>
+  </div>
+  <div style="position:fixed;left:50%;bottom:44px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:20;align-items:center">
+    <sc-for list="{{toasts}}" as="t" hint-placeholder-count="0">
+      <div style="background:#170a0df2;border:1px solid #4a1d24;border-radius:9px;padding:9px 16px;font-size:12px;color:#e8dde0;box-shadow:0 8px 24px #000000a0;animation:toastIn .2s ease-out;max-width:480px">{{t.text}}</div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;droneRoom&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;007&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;002&quot;, &quot;003&quot;, &quot;004&quot;, &quot;005&quot;, &quot;006&quot;, &quot;007&quot;, &quot;008&quot;, &quot;009&quot;, &quot;010&quot;, &quot;011&quot;, &quot;012&quot;, &quot;013&quot;, &quot;014&quot;, &quot;015&quot;, &quot;016&quot;, &quot;017&quot;, &quot;018&quot;, &quot;019&quot;, &quot;020&quot;, &quot;021&quot;, &quot;022&quot;, &quot;023&quot;], &quot;section&quot;: &quot;시뮬레이션&quot;},
+  &quot;showPassages&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;지도&quot;},
+  &quot;onLaunchMission&quot;: {&quot;editor&quot;: null, &quot;tsType&quot;: &quot;(payload: object) =&gt; void&quot;}
+}">
+// ── Unity 창 화면 공유 (getDisplayMedia) ─────────────────────────
+// exe 는 네이티브 창이라 브라우저에 임베드할 수 없다. 대신 사용자가 한 번
+// 허용해 주면 그 창을 캡처해 <video> 로 페이지 안에 그린다. localhost 는
+// secure context 라 http 로도 동작하고, 권한 요청은 클릭(사용자 제스처)
+// 안에서만 뜬다. 스트림은 두 컴포넌트(셸/지도)가 같이 쓰므로 window 에 둔다.
+if (!window.__simShare) {
+  window.__simShare = {
+    stream: null, error: null, subs: new Set(),
+    notify() { for (const f of this.subs) { try { f(); } catch (e) {} } },
+    supported() { return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia); },
+    start() {
+      if (!this.supported()) {
+        this.error = '이 브라우저는 화면 공유를 지원하지 않습니다 (Chrome/Edge 권장)';
+        this.notify(); return;
+      }
+      // await 하지 않는다 — 사용자 제스처 안에서 바로 호출해야 권한창이 뜬다.
+      navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: false })
+        .then(s => {
+          this.stream = s; this.error = null;
+          const t = s.getVideoTracks()[0];
+          if (t) t.addEventListener('ended', () => { this.stream = null; this.notify(); });
+          this.notify();
+        })
+        .catch(e => {
+          this.error = (e && e.name === 'NotAllowedError')
+            ? '화면 공유가 취소되었습니다' : String((e && e.message) || e);
+          this.notify();
+        });
+    },
+    stop() {
+      if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
+      this.error = null; this.notify();
+    },
+  };
+}
+// 공유 스트림을 그리는 <video>. srcObject 는 props 로 못 넘겨서 ref 로 꽂는다.
+function simVideo(extra) {
+  const s = window.__simShare.stream;
+  if (!s) return null;
+  return React.createElement('video', {
+    autoPlay: true, muted: true, playsInline: true,
+    ref: el => { if (el && el.srcObject !== s) el.srcObject = s; },
+    style: Object.assign({ position: 'absolute', inset: 0, width: '100%', height: '100%',
+                           objectFit: 'contain', background: '#000' }, extra || {}),
+  });
+}
+
+class Component extends DCLogic {
+  state = { meta: null, floor: 1, view: { tx: 0, ty: 0, s: 1 }, hoverId: null, mouse: null, cursorW: null, dest: null, nl: "", toasts: [], sent: false, dragging: false, selRoom: null, flight: null, droneAt: null, simOpen: false, simMax: false,
+            // ── 도착지 1점 선택 + 강화학습 경로 ─────────────────────
+            // 출발점은 언제나 드론의 현재 위치다. 서버(/api/drone)가 알려주는데,
+            // 시뮬레이터가 붙어 있으면 실시간 위치, 아니면 스폰(홈) 지점이다.
+            drone: null,      // {x,y,z,source,flying,connected} — 1초마다 폴링
+            plan: null,       // /plan 응답 {engine,success,steps,bumps,dist,flown,path:[[x,y,z]..]}
+            planning: false, planErr: null };
+  mapRef = React.createRef();
+  toastSeq = 0;
+  planSeq = 0;               // 응답 경합(늦게 온 옛 요청) 무시용
+
+  componentDidMount() {
+    Promise.all([
+      fetch('uploads/web_meta.json').then(r => r.json()),
+      fetch('uploads/detections.json').then(r => r.json()).catch(() => []),
+    ]).then(([meta, dets]) => {
+      this.det = {};
+      for (const d of dets) {
+        const id = d.room_name.slice(-3);
+        (this.det[id] = this.det[id] || []).push(d);
+      }
+      this.furn = {};
+      for (const id of Object.keys(this.det)) {
+        const items = this.det[id].filter(d => !this.EXCLUDE.has(d.label) && d.n_points >= 300).sort((a, b) => b.n_points - a.n_points);
+        const seq = {};
+        this.furn[id] = items.map((d, i) => {
+          seq[d.label] = (seq[d.label] || 0) + 1;
+          return { key: `${id}-${i}`, label: d.label, kr: this.KR[d.label] || d.label, num: seq[d.label], center: d.center, n: d.n_points };
+        });
+        for (const f of this.furn[id]) f.dup = seq[f.label] > 1;
+      }
+      const droneRoom = this.droneRoomId(meta);
+      const floor = meta.rooms[droneRoom].floor;
+      this.setState({ meta, floor }, () => this.fitView());
+    });
+    const attach = () => {
+      const el = this.mapRef.current;
+      if (!el) { setTimeout(attach, 100); return; }
+      el.addEventListener('wheel', this.onWheel, { passive: false });
+    };
+    attach();
+    this.pollDrone();
+    this.droneIv = setInterval(this.pollDrone, 1000);   // 시뮬레이터 위치 추적
+    this._shareSub = () => this.setState(st => ({ shareTick: (st.shareTick || 0) + 1 }));
+    window.__simShare.subs.add(this._shareSub);
+    window.addEventListener('mousemove', this.onWinMove);
+    window.addEventListener('mouseup', this.onWinUp);
+    window.addEventListener('resize', this.onResize);
+  }
+
+  // 드론 현재 위치 = 출발점. 서버가 시뮬레이터에 붙어 있으면 실시간,
+  // 아니면 스폰(홈) 좌표를 준다. 서버가 없으면 그냥 무시하고 기존 표시를 유지.
+  pollDrone = () => {
+    fetch('api/drone').then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => {
+        const prev = this.state.drone;
+        if (prev && prev.source === d.source &&
+            Math.abs(prev.x - d.x) < 1e-3 && Math.abs(prev.y - d.y) < 1e-3 &&
+            Math.abs(prev.z - d.z) < 1e-3) return;     // 안 움직였으면 리렌더 생략
+        this.setState({ drone: d });
+      })
+      .catch(() => {});
+  };
+  componentWillUnmount() {
+    const el = this.mapRef.current;
+    if (el) el.removeEventListener('wheel', this.onWheel);
+    window.removeEventListener('mousemove', this.onWinMove);
+    window.removeEventListener('mouseup', this.onWinUp);
+    window.removeEventListener('resize', this.onResize);
+    clearInterval(this.droneIv);
+    window.__simShare.subs.delete(this._shareSub);
+    cancelAnimationFrame(this.raf);
+  }
+  componentDidUpdate(prev) {
+    if (prev.droneRoom !== this.props.droneRoom && this.state.meta) {
+      cancelAnimationFrame(this.raf);
+      const floor = this.state.meta.rooms[this.droneRoomId(this.state.meta)].floor;
+      this.setState({ floor, flight: null, droneAt: null }, () => this.fitView());
+    }
+  }
+
+  LABELS = {
+    "002": "현우의 수상한 지하 벙커", "003": "규철이 숨겨둔 비밀 무기고",
+    "004": "다 같이 모이는 척하는 감시실", "005": "채원의 심문실(추정)", "006": "민영의 정체불명 실험실",
+    "007": "현우의 도청 장비실", "008": "규철의 알리바이 조작실", "009": "지윤의 블랙박스 보관소", "010": "그냥 복도 (아마도)",
+    "011": "2층 복도 (CCTV 사각지대)", "012": "채원의 금고가 있다는 소문의 방", "013": "민영의 출입금지 구역", "014": "현우의 이중장부 서재",
+    "015": "지윤의 위장 세탁소", "016": "규철의 지하조직 본부", "017": "채원의 변장 도구실", "018": "민영의 해킹 작전실",
+    "019": "현우의 음모 회의실", "020": "지윤의 증거 인멸실", "021": "규철의 탈출 통로 입구", "022": "채원의 폭탄 해체 연습실", "023": "그냥 복도 (믿지 마세요)"
+  };
+  label(id) { return this.LABELS[id] || `ROOM ${id}`; }
+  KR = { sofa: '소파', chair: '의자', table: '테이블', bed: '침대', cabinet: '수납장', desk: '책상', refrigerator: '냉장고', toilet: '변기', bathtub: '욕조', counter: '조리대', bookshelf: '책장', sink: '세면대', television: 'TV', shower: '샤워부스', otherfurniture: '기타 가구', door: '문', window: '창문', curtain: '커튼', picture: '액자' };
+  EXCLUDE = new Set(['door', 'window', 'curtain', 'picture', 'otherfurniture']);
+  furnName(f) { return f.dup ? `${f.kr} ${f.num}` : f.kr; }
+  furnOf(id) { return (this.furn && this.furn[id]) || []; }
+  summary(id, n) {
+    const cnt = {};
+    for (const f of this.furnOf(id)) cnt[f.kr] = (cnt[f.kr] || 0) + 1;
+    const top = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, n);
+    return top.map(([k, c]) => c > 1 ? `${k} ${c}` : k).join(' · ');
+  }
+  // 출발점 = 드론 현재 위치. 우선순위:
+  //   비행 애니메이션 중 > 서버가 알려준 위치(시뮬레이터/홈) > 로컬 착륙 지점 > 방 중앙
+  dronePose() {
+    const st = this.state, meta = st.meta;
+    if (st.flight && !st.flight.done) return { room: st.flight.room, pos: st.flight.pos, z: st.flight.z, floor: st.flight.floor };
+    if (st.drone) {
+      const f = this.floorOfZ(st.drone.z);
+      return { room: this.roomAt(f, st.drone.x, st.drone.y) || this.droneRoomId(),
+               pos: [st.drone.x, st.drone.y], z: st.drone.z, floor: f };
+    }
+    if (st.droneAt) return st.droneAt;
+    const id = this.droneRoomId(), rm = meta.rooms[id];
+    return { room: id, pos: [rm.center[0], rm.center[1]], z: rm.center[2], floor: rm.floor };
+  }
+
+  // ── 강화학습 경로 계획 ────────────────────────────────────────
+  // 출발/도착 두 점이 정해지면 백엔드(web_server.py)의 학습된 SAC 정책을
+  // 실제로 굴려서 3D 궤적을 받아온다. 서버가 없으면 방그래프 직선(buildWps)
+  // 으로 자동 폴백해 UI 자체는 계속 동작한다.
+  // 출발점은 보내지 않는다 — 서버가 드론 현재 위치를 직접 읽어 쓰는 게 원칙이라
+  // (폴링과 요청 사이에 드론이 움직여도 항상 최신 위치에서 출발한다).
+  requestPlan(dest) {
+    if (!dest) return;
+    const seq = ++this.planSeq;
+    this.setState({ planning: true, planErr: null, plan: null });
+    const body = { goal: [dest.x, dest.y, dest.z] };
+    fetch('plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(r => r.ok ? r.json() : r.json().then(j => Promise.reject(new Error(j.error || ('HTTP ' + r.status)))))
+      .then(j => {
+        if (seq !== this.planSeq) return;                      // 더 최신 요청이 있음
+        this.setState({ plan: j, planning: false });
+        this.toast(j.success
+          ? `강화학습 경로 생성 — ${j.steps}스텝 · ${j.flown.toFixed(1)}m`
+          : `정책이 목표에 도달하지 못했습니다 (${j.steps}스텝, 남은거리 ${j.dist.toFixed(1)}m)`);
+      })
+      .catch(e => {
+        if (seq !== this.planSeq) return;
+        this.setState({ planning: false, planErr: String(e.message || e) });
+        this.toast(`RL 서버 응답 없음 — 방그래프 직선 경로로 대체 (${e.message || e})`);
+      });
+  }
+  // RL 궤적 [[x,y,z]..] → 내부 웨이포인트 형식. 층은 z 로 판정한다.
+  floorOfZ(z) { return z < 0.2 ? 0 : (z < 2.9 ? 1 : 2); }
+  pathToWps(path) {
+    const meta = this.state.meta;
+    return path.map(p => {
+      const f = this.floorOfZ(p[2]);
+      return { x: p[0], y: p[1], z: p[2], floor: f, room: this.roomAt(f, p[0], p[1]) || '' };
+    });
+  }
+  // 화면에 그릴 경로: RL 결과가 있으면 그것, 없으면 방그래프 폴백
+  routeWpsFor(pose, dest) {
+    const st = this.state;
+    if (st.flight) return st.flight.wps;
+    if (st.plan && st.plan.path && st.plan.path.length > 1) return this.pathToWps(st.plan.path);
+    return dest ? this.buildWps(pose, dest) : null;
+  }
+  findPath(a, b) {
+    if (a === b) return [a];
+    const g = {};
+    for (const e of this.state.meta.edges) { (g[e.a] = g[e.a] || []).push(e.b); (g[e.b] = g[e.b] || []).push(e.a); }
+    const prev = { [a]: null }, q = [a];
+    while (q.length) {
+      const cur = q.shift();
+      if (cur === b) break;
+      for (const nx of g[cur] || []) if (!(nx in prev)) { prev[nx] = cur; q.push(nx); }
+    }
+    if (!(b in prev)) return null;
+    const path = []; for (let c = b; c !== null; c = prev[c]) path.unshift(c);
+    return path;
+  }
+  buildWps(pose, dest) {
+    const meta = this.state.meta;
+    const wps = [{ x: pose.pos[0], y: pose.pos[1], z: pose.z, floor: pose.floor, room: pose.room }];
+    const path = this.findPath(pose.room, dest.room);
+    if (path) for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i], b = path[i + 1];
+      const e = meta.edges.find(e => (e.a === a && e.b === b) || (e.a === b && e.b === a));
+      if (!e) continue;
+      const fa = meta.rooms[a].floor, fb = meta.rooms[b].floor;
+      wps.push({ x: e.door_center[0], y: e.door_center[1], z: e.door_center[2], floor: fa, room: a });
+      if (fb !== fa) wps.push({ x: e.door_center[0], y: e.door_center[1], z: meta.rooms[b].center[2], floor: fb, room: b });
+    }
+    wps.push({ x: dest.x, y: dest.y, z: dest.z, floor: dest.floor, room: dest.room });
+    return wps;
+  }
+  pathLen(wps) { let t = 0; for (let i = 0; i < wps.length - 1; i++) t += Math.hypot(wps[i + 1].x - wps[i].x, wps[i + 1].y - wps[i].y); return t; }
+  tick = (ts) => {
+    const f = this.state.flight;
+    if (!f || f.done) return;
+    if (this.lastTs == null) this.lastTs = ts;
+    const dt = Math.min((ts - this.lastTs) / 1000, 0.1); this.lastTs = ts;
+    let remain = dt * 1.6, seg = f.seg, pos = [...f.pos], floor = f.floor, room = f.room, z = f.z, travel = f.travel || 0;
+    const wps = f.wps;
+    while (remain > 0 && seg < wps.length - 1) {
+      const tgt = wps[seg + 1];
+      const dx = tgt.x - pos[0], dy = tgt.y - pos[1], d = Math.hypot(dx, dy);
+      if (d <= remain) { pos = [tgt.x, tgt.y]; floor = tgt.floor; room = tgt.room; z = tgt.z; travel += d; remain -= (d || 1e-9); seg++; }
+      else { pos = [pos[0] + dx / d * remain, pos[1] + dy / d * remain]; travel += remain; remain = 0; room = tgt.room; z = tgt.z; }
+    }
+    const done = seg >= wps.length - 1;
+    const patch = { flight: { ...f, seg, pos, floor, room, z, travel, done, prog: Math.min(1, travel / (f.total || 1)) } };
+    const floorChanged = floor !== this.state.floor;
+    if (floorChanged) patch.floor = floor;
+    if (done) patch.droneAt = { room, pos, z, floor };
+    this.setState(patch, () => {
+      if (floorChanged) this.fitView();
+      if (!done) this.raf = requestAnimationFrame(this.tick);
+      else this.toast(`착륙 — ${this.label(room)} 도착`);
+    });
+  };
+  pickFurn(roomId, f) {
+    const meta = this.state.meta, rm = meta.rooms[roomId];
+    const dest = { room: roomId, floor: rm.floor, x: f.center[0], y: f.center[1], z: rm.center[2], furnKey: f.key, furnName: this.furnName(f) };
+    this.setState({ dest, sent: false, floor: rm.floor });
+    this.toast(`도착지: ${this.label(roomId)} — ${this.furnName(f)} 앞`);
+    this.requestPlan(dest);
+  }
+  droneRoomId(meta) {
+    const m = meta || this.state.meta;
+    const id = this.props.droneRoom ?? "007";
+    return m.rooms[id] ? id : "007";
+  }
+  fmeta(f) { return this.state.meta.floors[String(f)]; }
+  w2p(f, x, y) { const m = this.fmeta(f); return [(x - m.xmin) / this.state.meta.res, (m.ymax - y) / this.state.meta.res]; }
+  p2w(f, col, row) { const m = this.fmeta(f); return [m.xmin + col * this.state.meta.res, m.ymax - row * this.state.meta.res]; }
+
+  fitScale(f) {
+    const el = this.mapRef.current, m = this.fmeta(f);
+    if (!el) return 1;
+    const r = el.getBoundingClientRect();
+    return Math.min((r.width - 70) / m.width, (r.height - 90) / m.height);
+  }
+  fitView() {
+    const el = this.mapRef.current; if (!el || !this.state.meta) return;
+    const m = this.fmeta(this.state.floor), r = el.getBoundingClientRect();
+    const s = this.fitScale(this.state.floor);
+    this.setState({ view: { tx: (r.width - m.width * s) / 2, ty: (r.height - m.height * s - 20) / 2, s } });
+  }
+  setFloor(f) { if (f === this.state.floor) return; this.setState({ floor: f, hoverId: null }, () => this.fitView()); }
+  focusRoom(id) {
+    const meta = this.state.meta, rm = meta.rooms[id];
+    const go = () => {
+      const el = this.mapRef.current, r = el.getBoundingClientRect();
+      const [c0] = [this.w2p(rm.floor, (rm.bbox_min[0] + rm.bbox_max[0]) / 2, (rm.bbox_min[1] + rm.bbox_max[1]) / 2)];
+      const s = Math.min(Math.max(this.fitScale(rm.floor) * 2, 0.8), 4);
+      this.setState({ view: { tx: r.width / 2 - c0[0] * s, ty: (r.height - 20) / 2 - c0[1] * s, s }, hoverId: id });
+    };
+    if (rm.floor !== this.state.floor) this.setState({ floor: rm.floor, selRoom: id }, go); else { this.setState({ selRoom: id }); go(); }
+  }
+
+  onWheel = (e) => {
+    e.preventDefault();
+    const el = this.mapRef.current, r = el.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    const { tx, ty, s } = this.state.view;
+    const s2 = Math.min(Math.max(s * Math.exp(-e.deltaY * 0.0012), 0.15), 8);
+    this.setState({ view: { tx: mx - (mx - tx) * (s2 / s), ty: my - (my - ty) * (s2 / s), s: s2 } });
+  };
+  onWinMove = (e) => {
+    if (!this.drag) return;
+    const dx = e.clientX - this.drag.sx, dy = e.clientY - this.drag.sy;
+    if (Math.abs(dx) + Math.abs(dy) > 4) this.drag.moved = true;
+    if (this.drag.moved) this.setState({ view: { tx: this.drag.tx + dx, ty: this.drag.ty + dy, s: this.state.view.s }, dragging: true });
+  };
+  onWinUp = () => { if (this.drag) { this.lastDragMoved = this.drag.moved; this.drag = null; this.setState({ dragging: false }); } };
+  onResize = () => { /* keep view; user can refit */ };
+
+  clientToWorld(e) {
+    const el = this.mapRef.current, r = el.getBoundingClientRect();
+    const { tx, ty, s } = this.state.view;
+    const col = (e.clientX - r.left - tx) / s, row = (e.clientY - r.top - ty) / s;
+    const [x, y] = this.p2w(this.state.floor, col, row);
+    return { col, row, x, y };
+  }
+  roomAt(f, x, y) {
+    const meta = this.state.meta;
+    let best = null, bestA = Infinity;
+    for (const id of this.fmeta(f).rooms) {
+      const rm = meta.rooms[id];
+      if (x >= rm.bbox_min[0] && x <= rm.bbox_max[0] && y >= rm.bbox_min[1] && y <= rm.bbox_max[1]) {
+        const a = (rm.bbox_max[0] - rm.bbox_min[0]) * (rm.bbox_max[1] - rm.bbox_min[1]);
+        if (a < bestA) { bestA = a; best = id; }
+      }
+    }
+    return best;
+  }
+
+  toast(text) {
+    const id = ++this.toastSeq;
+    this.setState(s => ({ toasts: [...s.toasts, { id, text }] }));
+    setTimeout(() => this.setState(s => ({ toasts: s.toasts.filter(t => t.id !== id) })), 3000);
+  }
+
+  renderVals() {
+    const st = this.state, meta = st.meta;
+    const fmt = n => (Math.round(n * 100) / 100).toFixed(2);
+    const showPass = this.props.showPassages ?? true;
+    const FLOOR_LABEL = ["1층", "2층", "3층"];
+    const base = {
+      nlValue: st.nl,
+      onNlChange: e => this.setState({ nl: e.target.value }),
+      onNlKey: e => { if (e.key === 'Enter') this.sendNl(); },
+      onNlSend: () => this.sendNl(),
+      loaded: !!meta, notLoaded: !meta,
+      mapRef: this.mapRef,
+      mapCursor: st.dragging ? 'grabbing' : 'crosshair',
+      toasts: st.toasts,
+      zoomIn: () => this.onWheel({ preventDefault() {}, clientX: this.mapRef.current.getBoundingClientRect().left + this.mapRef.current.clientWidth / 2, clientY: this.mapRef.current.getBoundingClientRect().top + this.mapRef.current.clientHeight / 2, deltaY: -260 }),
+      zoomOut: () => this.onWheel({ preventDefault() {}, clientX: this.mapRef.current.getBoundingClientRect().left + this.mapRef.current.clientWidth / 2, clientY: this.mapRef.current.getBoundingClientRect().top + this.mapRef.current.clientHeight / 2, deltaY: 260 }),
+      zoomFit: () => this.fitView(),
+      onMapDown: e => { this.drag = { sx: e.clientX, sy: e.clientY, tx: st.view.tx, ty: st.view.ty, moved: false }; this.lastDragMoved = false; },
+      onMapMove: e => {
+        if (!meta) return;
+        const el = this.mapRef.current, r = el.getBoundingClientRect();
+        const w = this.clientToWorld(e);
+        this.setState({ mouse: { x: e.clientX - r.left, y: e.clientY - r.top }, cursorW: w });
+      },
+      onMapLeave: () => this.setState({ mouse: null, hoverId: null, cursorW: null }),
+      // Unity 창 화면 공유 (셸과 같은 window.__simShare 스트림을 공유한다)
+      simShareOn: !!window.__simShare.stream,
+      simShareOff: !window.__simShare.stream,
+      simVideoEl: simVideo(),
+      simVideoEl2: simVideo(),
+      simShareErr: window.__simShare.error || '',
+      onSimShare: () => window.__simShare.start(),
+      // 클릭 = 도착지 지정. 출발점은 언제나 드론 현재 위치라 고르지 않는다.
+      onMapClick: e => {
+        if (!meta || this.lastDragMoved) return;
+        if (this.state.flight && !this.state.flight.done) { this.toast('비행 중에는 도착지를 바꿀 수 없습니다'); return; }
+        const w = this.clientToWorld(e);
+        const id = this.roomAt(st.floor, w.x, w.y);
+        if (!id) { this.toast('방 내부를 클릭해 주세요'); return; }
+        const z = meta.rooms[id].center[2];
+        const dest = { room: id, floor: st.floor, x: w.x, y: w.y, z };
+        this.setState({ dest, sent: false, selRoom: id });
+        this.toast(`도착지 지정: ${this.label(id)} [${fmt(w.x)}, ${fmt(w.y)}, ${fmt(z)}]`);
+        this.requestPlan(dest);
+      },
+    };
+    if (!meta) return { ...base, hasPng: false, floorTabs: [], sidebarGroups: [], toasts: st.toasts, chipTxt: '—', chipColor: '#8a7478', chipBorder: '#3a161c', chipBg: 'transparent', jsonTxt: '// 로딩 중', startRoomTxt: '—', launchDisabled: true, launchBg: '#2a1015', launchColor: '#5f4a4e', launchCursor: 'default', launchTxt: '비행 시작', goalUnset: true, goalSet: false, goalBoxBorder: '#3a161c', goalBoxBg: '#150a0d', goalDot: '#5f4a4e', goalTitleColor: '#a8969a', curFloorLabel: '', zoomTxt: '', cursorTxt: '', hoverVisible: false, destVisible: false, droneVisible: false, roomRects: [], passageDots: [], stairChips: [], crossFloor: false, startFloorTxt: '', startCoordTxt: '', panelVisible: false, panelItems: [], furnDots: [], goalFurn: false, goalFurnTxt: '', hoverFurn: '', routeRuns: [], flightActive: false, flightPct: 0, flightPctTxt: '', flightRoomTxt: '', simVisible: false, simStatusTxt: '', simDotColor: '#4ade80', simCoordTxt: '', simRoomTxt: '', simMax: false, mapL: '0', mapT: '0', mapR: '0', mapB: '0', mapWd: 'auto', mapHt: 'auto', mapBorder: 'none', mapRadius: '0', mapShadow: 'none', mapZ: 1,
+      startDotAnim: 'none', startSrcTxt: '', startSrcColor: '#5f4a4e', startSrcBorder: '#3a161c',
+      planBoxVisible: false, planStatsVisible: false, planRetryVisible: false, planRows: [], planStatusTxt: '', planEngineTxt: '',
+      planBorder: '#2a1015', planBg: '#10070a', planDot: '#5f4a4e', planDotAnim: 'none', planTitleColor: '#a8969a' };
+
+    const pose = this.dronePose();
+    const droneId = pose.room;
+    const droneFloor = pose.floor;
+    const dronePos = [pose.pos[0], pose.pos[1], pose.z];
+    const flying = !!st.flight && !st.flight.done;
+    const arrived = !!st.flight && st.flight.done;
+    const dest = st.dest;
+    const plan = st.plan;
+    const simLive = !!(st.drone && st.drone.source === 'sim');   // 시뮬레이터 실시간 위치인가
+    const fm = this.fmeta(st.floor);
+    const area = rm => (rm.bbox_max[0] - rm.bbox_min[0]) * (rm.bbox_max[1] - rm.bbox_min[1]);
+
+    const floorTabs = [0, 1, 2].map(f => ({
+      label: FLOOR_LABEL[f],
+      count: meta.floors[String(f)].rooms.length,
+      onClick: () => this.setFloor(f),
+      active: f === st.floor,
+      bg: f === st.floor ? '#16283d' : '#111927',
+      border: f === st.floor ? '#ef4444' : '#3a161c',
+      color: f === st.floor ? '#f87171' : '#a8969a',
+      droneHere: droneFloor === f,
+      destHere: !!dest && dest.floor === f,
+    }));
+
+    const sidebarGroups = [0, 1, 2].map(f => ({
+      label: `${FLOOR_LABEL[f]} — FLOOR ${f}`,
+      rooms: meta.floors[String(f)].rooms.map(id => {
+        const rm = meta.rooms[id];
+        const isDrone = id === droneId, isDest = dest && dest.room === id;
+        return {
+          id, name: this.label(id), onClick: () => this.focusRoom(id),
+          areaTxt: `${area(rm).toFixed(1)}㎡`,
+          furnTxt: this.summary(id, 2) || '감지된 가구 없음',
+          dot: isDrone ? '#34d399' : (isDest ? '#f87171' : '#4a3a3e'),
+          bg: isDest ? '#1c1113' : (isDrone ? '#0e1a14' : 'transparent'),
+          border: isDest ? '#7f1d1d' : (isDrone ? '#1e3a2a' : '#2a1015'),
+          tag: isDrone ? '드론' : (isDest ? '도착' : ''),
+          tagColor: isDrone ? '#34d399' : '#f87171',
+        };
+      }),
+    }));
+
+    const roomRects = fm.rooms.map(id => {
+      const rm = meta.rooms[id];
+      const [c0, r0] = this.w2p(st.floor, rm.bbox_min[0], rm.bbox_max[1]);
+      const [c1, r1] = this.w2p(st.floor, rm.bbox_max[0], rm.bbox_min[1]);
+      const hov = st.hoverId === id, isDest = dest && dest.room === id && dest.floor === st.floor, isDrone = id === droneId && droneFloor === st.floor;
+      return {
+        id, name: this.label(id), left: Math.round(c0), top: Math.round(r0), w: Math.round(c1 - c0), h: Math.round(r1 - r0),
+        border: isDest ? '#ef4444' : (isDrone ? '#34d399aa' : (hov ? '#ef4444' : '#ef44443d')),
+        bg: isDest ? '#ef444414' : (hov ? '#ef444414' : (isDrone ? '#34d3990d' : 'transparent')),
+        labelColor: isDest ? '#fca5a5' : (isDrone ? '#6ee7b7' : (hov ? '#f87171' : '#f8717199')),
+        onEnter: () => this.setState({ hoverId: id }),
+        onLeave: () => this.setState(s => (s.hoverId === id ? { hoverId: null } : null)),
+      };
+    });
+
+    const passageDots = [];
+    if (showPass) for (const id of fm.rooms) for (const p of meta.rooms[id].passages) {
+      const [c, r] = this.w2p(st.floor, p[0], p[1]);
+      passageDots.push({ left: Math.round(c), top: Math.round(r) });
+    }
+    const stairChips = [];
+    for (const e of meta.edges) if (e.type === 'stairs') {
+      const fa = meta.rooms[e.a].floor, fb = meta.rooms[e.b].floor;
+      if (fa === st.floor || fb === st.floor) {
+        const [c, r] = this.w2p(st.floor, e.door_center[0], e.door_center[1]);
+        stairChips.push({ left: Math.round(c), top: Math.round(r) });
+      }
+    }
+
+    const [dc, dr] = this.w2p(droneFloor, dronePos[0], dronePos[1]);
+    let destLeft = 0, destTop = 0;
+    if (dest) { const [c, r] = this.w2p(dest.floor, dest.x, dest.y); destLeft = Math.round(c); destTop = Math.round(r); }
+
+    const hovRm = st.hoverId ? meta.rooms[st.hoverId] : null;
+    const el = this.mapRef.current;
+    let hoverX = 0, hoverY = 0;
+    if (st.mouse && el) {
+      hoverX = Math.min(st.mouse.x + 18, el.clientWidth - 200);
+      hoverY = Math.min(st.mouse.y + 18, el.clientHeight - 140);
+    }
+
+    const start = dronePos.map(v => Math.round(v * 100) / 100);
+    const goal = dest ? [dest.x, dest.y, dest.z].map(v => Math.round(v * 100) / 100) : null;
+    const payload = { start, goal: goal ?? '(도착지 미지정)', start_room: droneId, goal_room: dest ? dest.room : null };
+    if (dest && dest.furnName) payload.goal_object = dest.furnName;
+    const jsonTxt = JSON.stringify(payload, null, 2);
+    const selId = st.selRoom;
+    const selRm = selId ? meta.rooms[selId] : null;
+    const panelItems = selId ? this.furnOf(selId).map(f => ({
+      key: f.key, name: this.furnName(f),
+      coordTxt: `[${f.center.map(fmt).join(', ')}]`,
+      active: !!dest && dest.furnKey === f.key,
+      border: dest && dest.furnKey === f.key ? '#7f1d1d' : '#2a1015',
+      bg: dest && dest.furnKey === f.key ? '#1c1113' : 'transparent',
+      dotColor: dest && dest.furnKey === f.key ? '#f87171' : '#ef4444',
+      onClick: () => this.pickFurn(selId, f),
+    })) : [];
+    const furnDots = (selRm && selRm.floor === st.floor) ? this.furnOf(selId).map(f => {
+      const [c, r] = this.w2p(st.floor, f.center[0], f.center[1]);
+      const sel = !!dest && dest.furnKey === f.key;
+      return { key: f.key, left: Math.round(c), top: Math.round(r), name: this.furnName(f),
+        color: sel ? '#ef4444' : '#ef4444',
+        onClick: e => { e.stopPropagation(); this.pickFurn(selId, f); } };
+    }) : [];
+    const crossFloor = !!dest && dest.floor !== droneFloor;
+
+    const chip = flying ? { t: '비행 중', c: '#f87171', b: '#7f1d1d', bg: '#450a0a44' }
+      : arrived ? { t: '도착 완료', c: '#4ade80', b: '#1e3a2a', bg: '#101d16' }
+      : dest ? { t: '목적지 설정됨', c: '#fbbf24', b: '#57431a', bg: '#1c150a' }
+      : { t: '대기 중', c: '#a8969a', b: '#3a161c', bg: 'transparent' };
+    let routeWps = this.routeWpsFor(pose, dest);
+    const routeRuns = [];
+    if (routeWps) {
+      let cur = null;
+      for (let i = 0; i < routeWps.length - 1; i++) {
+        const a = routeWps[i], b = routeWps[i + 1];
+        if (a.floor === st.floor && b.floor === st.floor) {
+          const [c1, r1] = this.w2p(st.floor, a.x, a.y), [c2, r2] = this.w2p(st.floor, b.x, b.y);
+          if (!cur) { cur = { key: routeRuns.length, pts: `${Math.round(c1)},${Math.round(r1)}` }; routeRuns.push(cur); }
+          cur.pts += ` ${Math.round(c2)},${Math.round(r2)}`;
+        } else cur = null;
+      }
+    }
+
+    return {
+      ...base,
+      floorTabs, sidebarGroups, roomRects, passageDots, stairChips,
+      vtx: st.view.tx, vty: st.view.ty, vs: st.view.s,
+      planeW: fm.width, planeH: fm.height,
+      floorImg: React.createElement('img', { src: 'uploads/' + fm.png, draggable: false, style: { position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', userSelect: 'none', filter: 'brightness(.6) saturate(.45) sepia(.25) hue-rotate(-15deg) contrast(1.08)' } }),
+      droneVisible: droneFloor === st.floor, droneLeft: Math.round(dc), droneTop: Math.round(dr), droneRoomId: droneId, droneName: this.label(droneId),
+      destVisible: !!dest && dest.floor === st.floor, destLeft, destTop, destRoomId: dest ? dest.room : '', destName: dest ? (dest.furnName ? `${this.label(dest.room)} · ${dest.furnName}` : this.label(dest.room)) : '',
+      hoverVisible: !!hovRm && !!st.mouse && !st.dragging && !st.simMax, hoverX, hoverY,
+      hoverId: st.hoverId, hoverName: st.hoverId ? this.label(st.hoverId) : '', hoverFloor: hovRm ? FLOOR_LABEL[hovRm.floor] : '',
+      hoverSize: hovRm ? `${(hovRm.bbox_max[0] - hovRm.bbox_min[0]).toFixed(1)} × ${(hovRm.bbox_max[1] - hovRm.bbox_min[1]).toFixed(1)} m` : '',
+      hoverArea: hovRm ? `${area(hovRm).toFixed(1)} ㎡` : '',
+      hoverPass: hovRm ? `${hovRm.passages.length}개` : '',
+      hoverFurn: st.hoverId ? (this.summary(st.hoverId, 3) || '없음') : '',
+      curFloorLabel: `${FLOOR_LABEL[st.floor]} · FLOOR ${st.floor}`,
+      zoomTxt: `${Math.round(st.view.s * 100)}%`,
+      cursorTxt: st.cursorW ? `x ${fmt(st.cursorW.x)}  y ${fmt(st.cursorW.y)} m` : '',
+      startRoomTxt: this.label(droneId), startFloorTxt: `${droneId} · ${FLOOR_LABEL[droneFloor]}`,
+      startCoordTxt: `[${start.map(fmt).join(', ')}]`,
+      goalSet: !!dest, goalUnset: !dest,
+      goalFurn: !!dest && !!dest.furnName, goalFurnTxt: dest && dest.furnName ? `${dest.furnName} 앞` : '',
+      panelVisible: !!selId, panelItems, furnDots,
+      panelTitle: selId ? this.label(selId) : '', panelSub: selId ? `${selId} · 가구 ${panelItems.length}개 감지` : '',
+      onPanelClose: () => this.setState({ selRoom: null }),
+      goalRoomTxt: dest ? this.label(dest.room) : '', goalFloorTxt: dest ? `${dest.room} · ${FLOOR_LABEL[dest.floor]}` : '',
+      goalCoordTxt: goal ? `[${goal.map(fmt).join(', ')}]` : '',
+      goalBoxBorder: dest ? '#3f2021' : '#3a161c', goalBoxBg: dest ? '#170f11' : '#150a0d',
+      goalDot: dest ? '#f87171' : '#5f4a4e', goalTitleColor: dest ? '#fca5a5' : '#a8969a',
+      onClear: () => {
+        if (flying) { this.toast('비행 중에는 지울 수 없습니다'); return; }
+        this.planSeq++;
+        this.setState({ dest: null, sent: false, flight: null, plan: null, planErr: null, planning: false });
+        this.toast('도착지를 지웠습니다 — 다시 클릭해 지정하세요');
+      },
+      crossFloor, jsonTxt,
+      chipTxt: chip.t, chipColor: chip.c, chipBorder: chip.b, chipBg: chip.bg,
+      routeRuns, flightActive: flying,
+      simVisible: st.simOpen && !st.simMax, onSimClose: () => this.setState({ simOpen: false }), onSimOpen: () => this.setState({ simOpen: true, simMax: false }),
+      simMax: st.simMax,
+      onSimMax: () => this.setState({ simMax: true, simOpen: false }, () => requestAnimationFrame(() => this.fitView())),
+      onSimMin: () => this.setState({ simMax: false }, () => requestAnimationFrame(() => this.fitView())),
+      mapL: st.simMax ? 'auto' : '0', mapT: st.simMax ? 'auto' : '0', mapR: st.simMax ? '12px' : '0', mapB: st.simMax ? '42px' : '0',
+      mapWd: st.simMax ? '400px' : 'auto', mapHt: st.simMax ? '270px' : 'auto',
+      mapBorder: st.simMax ? '1px solid #4a1d24' : 'none', mapRadius: st.simMax ? '10px' : '0',
+      mapShadow: st.simMax ? '0 12px 34px #000000b0' : 'none', mapZ: st.simMax ? 7 : 1,
+      simStatusTxt: flying ? 'LIVE · 비행 중' : (arrived ? 'LIVE · 착륙' : 'STANDBY'),
+      simDotColor: flying ? '#f87171' : '#4ade80',
+      simCoordTxt: `x ${fmt(dronePos[0])}  y ${fmt(dronePos[1])}  z ${fmt(dronePos[2])}`,
+      simRoomTxt: this.label(droneId),
+      flightRoomTxt: flying ? `현재 통과 중: ${this.label(st.flight.room)}` : '',
+      flightPct: flying ? Math.round((st.flight.prog || 0) * 100) : 0,
+      flightPctTxt: flying ? `${Math.round((st.flight.prog || 0) * 100)}%` : '',
+      // ── 출발점(드론 현재 위치) 출처 표시 ───────────────────────
+      startDotAnim: simLive ? 'blinkDot 1.4s infinite' : 'none',
+      startSrcTxt: simLive ? '시뮬레이터 실시간' : (st.drone ? '스폰(홈) 위치' : '기본값'),
+      startSrcColor: simLive ? '#6ee7b7' : '#8a7478',
+      startSrcBorder: simLive ? '#1e3a2a' : '#3a161c',
+      // ── 강화학습 경로 패널 ────────────────────────────────────
+      planBoxVisible: !!dest,
+      planBorder: st.planning ? '#3a3f57' : (st.planErr ? '#57431a' : (plan ? (plan.success ? '#1e3a2a' : '#57431a') : '#2a1015')),
+      planBg: st.planning ? '#12131c' : (st.planErr ? '#1c150a' : (plan ? (plan.success ? '#0e1a14' : '#1c150a') : '#10070a')),
+      planDot: st.planning ? '#818cf8' : (st.planErr ? '#f59e0b' : (plan ? (plan.success ? '#4ade80' : '#f59e0b') : '#5f4a4e')),
+      planDotAnim: st.planning ? 'blinkDot .7s infinite' : 'none',
+      planTitleColor: st.planning ? '#a5b4fc' : (plan && plan.success ? '#6ee7b7' : '#fbbf24'),
+      planEngineTxt: plan ? plan.engine : (st.planErr ? 'fallback' : ''),
+      planStatusTxt: st.planning ? '정책 추론 중… (SAC 결정론 롤아웃)'
+        : st.planErr ? `RL 서버 연결 실패 — 방그래프 직선으로 대체 중 (${st.planErr})`
+        : plan ? (plan.success ? '정책이 목표에 도달했습니다' : '정책이 목표에 도달하지 못했습니다 (경로는 시도 궤적)')
+        : '경로 대기 중',
+      planStatsVisible: !!plan,
+      planRows: plan ? [
+        { k: '결과', v: plan.success ? '도착 성공' : '미도달', c: plan.success ? '#4ade80' : '#f59e0b' },
+        { k: '스텝 수', v: `${plan.steps}`, c: '#57c4b8' },
+        { k: '비행 거리', v: `${plan.flown.toFixed(2)} m`, c: '#e8dde0' },
+        { k: '남은 거리', v: `${plan.dist.toFixed(2)} m`, c: '#a8969a' },
+        { k: '충돌(범프)', v: `${plan.bumps}회`, c: plan.bumps ? '#f59e0b' : '#4d9e6a' },
+        { k: '추론 시간', v: `${Math.round(plan.ms)} ms`, c: '#8a7478' },
+      ] : [],
+      planRetryVisible: !!dest && !st.planning,
+      onReplan: () => this.requestPlan(dest),
+
+      launchDisabled: !dest || flying || st.planning,
+      launchBg: flying ? '#450a0a' : (st.planning ? '#2a1015' : (dest ? '#991b1b' : '#2a1015')),
+      launchColor: dest && !st.planning ? '#fef2f2' : '#5f4a4e',
+      launchCursor: dest && !flying && !st.planning ? 'pointer' : 'default',
+      launchTxt: st.planning ? '경로 계산 중…' : (flying ? '비행 중…' : (arrived ? '재비행' : '비행 시작')),
+      onLaunch: () => {
+        if (!dest || flying || st.planning) return;
+        const wps = routeWps || this.buildWps(pose, dest);
+        if (this.props.onLaunchMission) {
+          this.props.onLaunchMission({
+            start, goal, start_room: droneId, goal_room: dest.room,
+            goal_object: dest.furnName || null,
+            startLabel: this.label(droneId), goalLabel: this.label(dest.room),
+            // 상위 화면(HAUNTED OPS)이 브리핑/작전 지도에 그대로 쓰는 실제 RL 궤적
+            path: plan && plan.path ? plan.path : null,
+            plan: plan || null,
+            wps,
+          });
+          return;
+        }
+        const flight = { wps, seg: 0, done: false, pos: [wps[0].x, wps[0].y], floor: wps[0].floor, room: wps[0].room, z: wps[0].z, travel: 0, prog: 0, total: this.pathLen(wps) };
+        this.lastTs = null;
+        cancelAnimationFrame(this.raf);
+        this.setState({ sent: true, flight, floor: wps[0].floor, simOpen: true }, () => { this.raf = requestAnimationFrame(this.tick); });
+        this.toast(`이륙 — ${this.label(dest.room)}(으)로 비행 시작${crossFloor ? ' · 계단 경유' : ''}`);
+      },
+    };
+  }
+
+  sendNl() {
+    const t = this.state.nl.trim();
+    if (!t) { this.toast('명령을 입력해 주세요'); return; }
+    const hit = this.parseNl(t);
+    if (hit) {
+      if (hit.furn) this.pickFurn(hit.room, hit.furn);
+      else {
+        const rm = this.state.meta.rooms[hit.room];
+        const dest = { room: hit.room, floor: rm.floor, x: rm.center[0], y: rm.center[1], z: rm.center[2] };
+        this.setState({ dest, sent: false, floor: rm.floor, selRoom: hit.room });
+        this.toast(`도착지: ${this.label(hit.room)} (방 중앙)`);
+        this.requestPlan(dest);
+      }
+      this.focusRoom(hit.room);
+    } else {
+      this.toast(`명령 해석 실패: "${t}" — 방 이름이나 가구를 함께 말해 주세요`);
+    }
+    this.setState({ nl: '' });
+  }
+  parseNl(t) {
+    if (!this.state.meta || !this.furn) return null;
+    let furnEn = null;
+    for (const [en, kr] of Object.entries(this.KR)) if (!this.EXCLUDE.has(en) && t.includes(kr)) { furnEn = en; break; }
+    let bestRoom = null, bestScore = 0;
+    for (const [id, name] of Object.entries(this.LABELS)) {
+      let score = 0;
+      for (const tok of name.split(/[^가-힣A-Za-z0-9]+/)) {
+        if (tok.length >= 2 && t.includes(tok)) score += tok.length;
+      }
+      if (score > bestScore) { bestScore = score; bestRoom = id; }
+    }
+    if (bestRoom && furnEn) {
+      const f = this.furnOf(bestRoom).find(f => f.label === furnEn);
+      if (f) return { room: bestRoom, furn: f };
+      return { room: bestRoom, furn: null };
+    }
+    if (bestRoom) return { room: bestRoom, furn: null };
+    if (furnEn) {
+      let best = null, bestN = 0;
+      for (const id of Object.keys(this.furn)) for (const f of this.furnOf(id)) if (f.label === furnEn && f.n > bestN) { bestN = f.n; best = { room: id, furn: f }; }
+      return best;
+    }
+    return null;
+  }
+}
+</script>
+</body>
+</html>

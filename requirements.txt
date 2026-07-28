@@ -1,0 +1,19 @@
+# 드론 제어 (Tello)
+djitellopy==2.5.0
+mediapipe==0.10.9
+opencv-python==4.8.1.78
+DroneBlocksTelloSimulator
+
+# 3D 세그멘테이션 및 시각화
+open3d>=0.17.0
+scikit-learn
+numpy>=1.23.5,<2.0.0
+
+# 강화학습 추론/학습 (reinforce_inference.py)
+scipy
+gymnasium
+stable-baselines3>=2.0
+torch
+
+# 웹 관제 UI 백엔드 (web_server.py)
+flask>=3.0

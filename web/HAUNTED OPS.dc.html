@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=East+Sea+Dokdo&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;background:#0a0405;overflow:hidden}
+*{box-sizing:border-box}
+a{color:#f87171}a:hover{color:#fca5a5}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#3a1a20;border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
+input[type=range]{accent-color:#ef4444}
+@keyframes blinkDot{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes pulse{0%{transform:translate(-50%,-50%) scale(.6);opacity:.9}100%{transform:translate(-50%,-50%) scale(3.2);opacity:0}}
+@keyframes flicker{0%,88%,100%{opacity:1}89%{opacity:.35}90%{opacity:1}93%{opacity:.55}94%{opacity:1}}
+@keyframes dripStretch{0%{height:8px}55%{height:54px}100%{height:8px}}
+@keyframes toastIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes shake{0%,100%{transform:translate(0,0)}25%{transform:translate(1.5px,-1px)}50%{transform:translate(-1.5px,1px)}75%{transform:translate(1px,1.5px)}}
+@keyframes glitchTxt{0%,92%,100%{transform:translate(0);opacity:1}93%{transform:translate(-2px,1px);opacity:.6}95%{transform:translate(2px,-1px);opacity:.9}97%{transform:translate(-1px,0);opacity:.5}}
+@keyframes ghostFloat{0%,100%{transform:translate(-50%,-50%) translateY(0)}50%{transform:translate(-50%,-50%) translateY(-4px)}}
+@keyframes scanMove{0%{background-position:0 0}100%{background-position:0 4px}}
+@keyframes redSweep{0%{opacity:0}10%{opacity:.85}100%{opacity:0}}
+@keyframes tvStatic{0%{opacity:0}14%{opacity:0}14.1%{opacity:.9}14.45%{opacity:.25}14.8%{opacity:.85}15.15%{opacity:.15}15.5%{opacity:.55}15.8%{opacity:0}47%{opacity:0}47.1%{opacity:.9}47.45%{opacity:.25}47.8%{opacity:.85}48.15%{opacity:.15}48.5%{opacity:.55}48.8%{opacity:0}86%{opacity:0}86.1%{opacity:.9}86.45%{opacity:.25}86.8%{opacity:.85}87.15%{opacity:.15}87.5%{opacity:.55}87.8%{opacity:0}100%{opacity:0}}
+@keyframes tvRoll{0%{background-position:0 0}100%{background-position:0 -1400px}}
+@keyframes tvTear{0%{opacity:0;transform:translateY(0) scaleY(1)}14%{opacity:0;transform:translateY(0) scaleY(1)}14.15%{opacity:1;transform:translateY(-22vh) scaleY(2.2)}14.7%{opacity:1;transform:translateY(30vh) scaleY(1.4)}15.25%{opacity:1;transform:translateY(-6vh) scaleY(3)}15.7%{opacity:0;transform:translateY(0) scaleY(1)}47%{opacity:0;transform:translateY(0) scaleY(1)}47.15%{opacity:1;transform:translateY(-22vh) scaleY(2.2)}47.7%{opacity:1;transform:translateY(30vh) scaleY(1.4)}48.25%{opacity:1;transform:translateY(-6vh) scaleY(3)}48.7%{opacity:0;transform:translateY(0) scaleY(1)}86%{opacity:0;transform:translateY(0) scaleY(1)}86.15%{opacity:1;transform:translateY(-22vh) scaleY(2.2)}86.7%{opacity:1;transform:translateY(30vh) scaleY(1.4)}87.25%{opacity:1;transform:translateY(-6vh) scaleY(3)}87.7%{opacity:0;transform:translateY(0) scaleY(1)}100%{opacity:0;transform:translateY(0) scaleY(1)}}
+@keyframes tvKill{0%{opacity:0}14%{opacity:0}14.35%{opacity:1}14.55%{opacity:0}15.3%{opacity:.85}15.45%{opacity:0}47%{opacity:0}47.35%{opacity:1}47.55%{opacity:0}48.3%{opacity:.85}48.45%{opacity:0}86%{opacity:0}86.35%{opacity:1}86.55%{opacity:0}87.3%{opacity:.85}87.45%{opacity:0}100%{opacity:0}}
+@keyframes tvJolt{0%{transform:translate(0,0) scale(1);filter:none}14%{transform:translate(0,0) scale(1);filter:none}14.15%{transform:translate(-4px,3px) scale(1.006);filter:saturate(.15) contrast(1.35)}14.55%{transform:translate(5px,-2px) scale(.997);filter:hue-rotate(14deg) saturate(.5)}14.95%{transform:translate(-3px,-3px) scale(1);filter:contrast(1.2)}15.4%{transform:translate(2px,1px) scale(1);filter:saturate(.3)}15.75%{transform:translate(0,0) scale(1);filter:none}47%{transform:translate(0,0) scale(1);filter:none}47.15%{transform:translate(-4px,3px) scale(1.006);filter:saturate(.15) contrast(1.35)}47.55%{transform:translate(5px,-2px) scale(.997);filter:hue-rotate(14deg) saturate(.5)}47.95%{transform:translate(-3px,-3px) scale(1);filter:contrast(1.2)}48.4%{transform:translate(2px,1px) scale(1);filter:saturate(.3)}48.75%{transform:translate(0,0) scale(1);filter:none}86%{transform:translate(0,0) scale(1);filter:none}86.15%{transform:translate(-4px,3px) scale(1.006);filter:saturate(.15) contrast(1.35)}86.55%{transform:translate(5px,-2px) scale(.997);filter:hue-rotate(14deg) saturate(.5)}86.95%{transform:translate(-3px,-3px) scale(1);filter:contrast(1.2)}87.4%{transform:translate(2px,1px) scale(1);filter:saturate(.3)}87.75%{transform:translate(0,0) scale(1);filter:none}100%{transform:translate(0,0) scale(1);filter:none}}
+@keyframes tvResync{0%{opacity:0}14.3%{opacity:0}14.45%{opacity:.9}15.25%{opacity:.6}15.6%{opacity:0}47.3%{opacity:0}47.45%{opacity:.9}48.25%{opacity:.6}48.6%{opacity:0}86.3%{opacity:0}86.45%{opacity:.9}87.25%{opacity:.6}87.6%{opacity:0}100%{opacity:0}}
+@keyframes introTitle{0%{opacity:0;transform:translateY(10px) scale(.97);letter-spacing:.3em;filter:blur(6px)}60%{filter:blur(0)}100%{opacity:1;transform:none;letter-spacing:.02em;filter:blur(0)}}
+@keyframes introLine{0%,25%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:none}}
+@keyframes introSub{0%,45%{opacity:0}100%{opacity:1}}
+@keyframes introBar{0%{width:0}100%{width:100%}}
+@keyframes introOut{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.05);filter:blur(4px)}}
+</style>
+</helmet>
+<div style="width:100vw;height:100vh;background:#0a0405;color:#d8cfd2;font-family:'IBM Plex Sans KR',sans-serif;font-size:13px;overflow:hidden;position:relative;animation:tvJolt 29s linear infinite">
+  <div style="position:fixed;inset:0;z-index:95;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 2px,#00000030 2px 4px);opacity:{{scanOpacity}};animation:scanMove .4s linear infinite"></div>
+  <div style="position:fixed;inset:0;z-index:97;pointer-events:none;mix-blend-mode:screen;background-image:url(&quot;data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E&quot;);animation:tvStatic 29s linear infinite,tvRoll .35s linear infinite"></div>
+  <div style="position:fixed;left:0;right:0;top:40%;height:9vh;z-index:98;pointer-events:none;background:linear-gradient(180deg,transparent,#ffffff22 18%,#ef444433 45%,#ffffff1a 72%,transparent);animation:tvTear 29s linear infinite"></div>
+  <div style="position:fixed;inset:0;z-index:99;pointer-events:none;background:#000;animation:tvKill 29s linear infinite"></div>
+  <div style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99;pointer-events:none;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.4em;color:#f87171;text-shadow:0 0 12px #dc2626;animation:tvResync 29s linear infinite">SIGNAL RE-SYNC</div>
+  <div style="position:fixed;inset:0;z-index:94;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,#12000090 100%)"></div>
+  <sc-if value="{{introVisible}}" hint-placeholder-val="{{true}}">
+    <div style="position:absolute;inset:0;z-index:90;display:grid;place-items:center;background:radial-gradient(ellipse at center,#12070a 0%,#0a0405 72%);animation:{{introAnim}}">
+      <div style="text-align:center">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#8a7478;letter-spacing:.55em;margin-bottom:10px;animation:introLine 1.4s ease-out both">HAUNTED OPS</div>
+        <div style="font-family:'East Sea Dokdo',cursive;font-size:76px;line-height:1;color:#ef4444;text-shadow:0 0 26px #dc262688,0 4px 10px #000;animation:introTitle 1.8s ease-out both,flicker 5s 1.8s infinite">흉가 드론 관제</div>
+        <div style="font-size:13px;color:#a8969a;margin-top:12px;letter-spacing:.14em;animation:introSub 2.2s ease-out both">자연어 기반 자율 드론 회수 작전</div>
+        <div style="width:260px;height:2px;margin:26px auto 0;background:#2a1015;border-radius:2px;overflow:hidden">
+          <div style="height:100%;background:linear-gradient(90deg,#7f1d1d,#ef4444);animation:introBar {{introBarDur}} linear both"></div>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5f4a4e;letter-spacing:.2em;margin-top:10px;animation:introSub 2.6s ease-out both">{{introStatus}}</div>
+      </div>
+    </div>
+  </sc-if>
+  <sc-if value="{{loaded}}" hint-placeholder-val="{{false}}">
+
+  <sc-if value="{{isLobby}}" hint-placeholder-val="{{false}}">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0">
+      <div style="position:absolute;inset:0;overflow:hidden;opacity:.28">
+        <img src="uploads/floor_1.png" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(1.4);filter:brightness(.5) saturate(.35) sepia(.3) hue-rotate(-15deg);pointer-events:none">
+      </div>
+      <sc-for list="{{lobbyBlips}}" as="b" hint-placeholder-count="3">
+        <span style="position:absolute;left:{{b.left}};top:{{b.top}};width:8px;height:8px;border-radius:50%;background:{{b.color}};box-shadow:0 0 10px {{b.color}};animation:blinkDot {{b.dur}} infinite;pointer-events:none"></span>
+      </sc-for>
+      <div style="position:relative;text-align:center;z-index:2">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#8a7478;letter-spacing:.5em;margin-bottom:4px">HAUNTED OPS</div>
+        <div style="font-family:'East Sea Dokdo',cursive;font-size:96px;line-height:1;color:#ef4444;text-shadow:0 0 26px #dc262688,0 4px 8px #000;animation:flicker 7s infinite">흉가 드론 관제</div>
+        <div style="font-size:14px;color:#a8969a;margin-top:8px;letter-spacing:.12em">자연어 기반 자율 드론 회수 작전</div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:26px;z-index:2;font-family:'IBM Plex Mono',monospace;font-size:11px">
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:#170a0dcc;border:1px solid #2a1015;border-radius:6px;color:#4d9e6a"><span style="width:6px;height:6px;border-radius:50%;background:#4ade80;animation:blinkDot 1.6s infinite"></span>드론 연결됨</div>
+        <div style="padding:6px 12px;background:#170a0dcc;border:1px solid #2a1015;border-radius:6px;color:#4d9e6a">SLAM 정상</div>
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:#170a0dcc;border:1px solid #57431a;border-radius:6px;color:#f59e0b"><span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;animation:blinkDot .9s infinite"></span>생존 신호: 불안정</div>
+      </div>
+      <div style="display:flex;gap:14px;margin-top:22px;z-index:2">
+        <div style="width:150px;padding:12px 14px;background:#10070ae6;border:1px solid #2a1015;border-radius:9px;text-align:center">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:#e8dde0">{{runCount}}</div>
+          <div style="font-size:10px;color:#8a7478;margin-top:2px">누적 작전 수</div>
+        </div>
+        <div style="width:150px;padding:12px 14px;background:#10070ae6;border:1px solid #2a1015;border-radius:9px;text-align:center">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:{{bestColor}}">{{bestScore}}</div>
+          <div style="font-size:10px;color:#8a7478;margin-top:2px">최고 점수 {{bestTag}}</div>
+        </div>
+        <div style="width:230px;padding:12px 14px;background:#10070ae6;border:1px solid #2a1015;border-radius:9px">
+          <div style="font-size:10px;color:#8a7478;margin-bottom:5px">최근 작전</div>
+          <div style="font-size:11px;color:#cfc2c5;line-height:1.6">인형 회수 — <span style="color:#4ade80">성공 · A</span><br>램프 운반 — <span style="color:#ef4444">실패 · 포획됨</span></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:30px;z-index:2">
+        <button onClick="{{onStartMission}}" style="width:340px;height:52px;border:1px solid #ef4444;border-radius:9px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:700;font-size:16px;letter-spacing:.06em;cursor:pointer;box-shadow:0 0 22px #dc262655" style-hover="background:#7f1d1d;box-shadow:0 0 30px #dc262699">새로운 회수 작전 시작</button>
+        <button onClick="{{goRecords}}" style="width:340px;height:38px;border:1px solid #3a161c;border-radius:8px;background:#170a0dcc;color:#cfc2c5;font-family:'IBM Plex Sans KR',sans-serif;font-size:13px;cursor:pointer" style-hover="border-color:#ef4444">미션 기록</button>
+      </div>
+      <div style="position:absolute;bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5f4a4e;z-index:2">SCENE 00809_Qpor2mEya8F · 3 FLOORS · 22 ROOMS · 점군 596,356</div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isCreate}}" hint-placeholder-val="{{false}}">
+    <div style="position:absolute;inset:0">
+      <dc-import name="드론 관제" on-launch-mission="{{onMissionFromMap}}" hint-size="100%,100%" style="position:absolute;inset:0"></dc-import>
+      <div style="position:absolute;right:328px;bottom:42px;z-index:60;display:flex;align-items:center;gap:8px">
+        <sc-if value="{{runChipVisible}}" hint-placeholder-val="{{false}}">
+          <div style="height:32px;display:flex;align-items:center;padding:0 14px;border:1px solid #1e3a2a;border-radius:8px;background:#101d16f0;color:#4ade80;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;box-shadow:0 6px 18px #000000a0">{{runChipTxt}}</div>
+        </sc-if>
+        <button onClick="{{goLobby}}" style="height:32px;padding:0 14px;border:1px solid #4a1d24;border-radius:8px;background:#10070af0;color:#a8969a;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif;box-shadow:0 6px 18px #000000a0" style-hover="border-color:#ef4444;color:#f87171">← 로비로</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isBriefing}}" hint-placeholder-val="{{false}}">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column">
+      <div style="flex:none;height:52px;display:flex;align-items:center;gap:14px;padding:0 18px;background:#10070a;border-bottom:1px solid #2a1015">
+        <button onClick="{{goCreate}}" style="height:30px;padding:0 12px;border:1px solid #3a161c;border-radius:7px;background:#170a0d;color:#a8969a;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">← 관제로</button>
+        <div style="font-family:'East Sea Dokdo',cursive;font-size:24px;color:#ef4444">미션 브리핑</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.2em">STEP 2 / 3 — ANALYSIS</div>
+        <div style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#57c4b8">해석 신뢰도 96.4%</div>
+      </div>
+      <div style="flex:1;min-height:0;display:flex;gap:14px;padding:14px 18px">
+        <div style="width:330px;flex:none;display:flex;flex-direction:column;gap:10px;overflow-y:auto">
+          <div style="border:1px solid #2a1015;background:#10070a;border-radius:10px;padding:12px 14px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;letter-spacing:.18em;margin-bottom:7px">입력 명령</div>
+            <div style="font-size:13px;color:#e8dde0;line-height:1.6">"{{briefCmd}}"</div>
+          </div>
+          <div style="border:1px solid #2a1015;background:#10070a;border-radius:10px;padding:12px 14px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;letter-spacing:.18em;margin-bottom:8px">분석 결과</div>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:12px">
+              <sc-for list="{{briefRows}}" as="r" hint-placeholder-count="6">
+                <span style="color:#8a7478">{{r.k}}</span><span style="color:{{r.c}};font-family:'IBM Plex Mono',monospace;text-align:right">{{r.v}}</span>
+              </sc-for>
+            </div>
+          </div>
+          <div style="border:1px solid #57431a;background:#1c150a;border-radius:10px;padding:10px 14px;font-size:11px;color:#f59e0b;line-height:1.7">⚠ 3층 복도(CCTV 사각지대)에서 비정상 생체 신호 2건 감지됨. 물체 확보 시 개체가 활성화될 수 있습니다.</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:auto">
+            <button onClick="{{onLaunchPrep}}" style="height:46px;border:1px solid #ef4444;border-radius:9px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 0 18px #dc262644" style-hover="background:#7f1d1d">작전 시작</button>
+            <button onClick="{{goLobby}}" style="height:34px;border:1px solid #3a161c;border-radius:8px;background:#170a0d;color:#a8969a;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">작전 취소</button>
+          </div>
+        </div>
+        <div style="flex:1;min-width:0;display:flex;gap:12px">
+          <sc-for list="{{briefMaps}}" as="m" hint-placeholder-count="3">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;border:1px solid #2a1015;background:#0d0608;border-radius:10px;overflow:hidden">
+              <div style="flex:none;display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #2a1015;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#a8969a">{{m.label}}<span style="margin-left:auto;color:{{m.tagColor}}">{{m.tag}}</span></div>
+              <div style="flex:1;position:relative;overflow:hidden">
+                <div style="position:absolute;left:0;top:0;transform-origin:0 0;transform:translate({{m.tx}}px,{{m.ty}}px) scale({{m.s}});width:{{m.w}}px;height:{{m.h}}px">
+                  {{m.imgEl}}
+                  <sc-for list="{{m.runs}}" as="rr" hint-placeholder-count="0">
+                    <svg width="{{m.w}}" height="{{m.h}}" style="position:absolute;left:0;top:0;pointer-events:none;overflow:visible"><polyline points="{{rr.pts}}" fill="none" stroke="#ef4444" stroke-width="4" stroke-dasharray="10 8" opacity="0.85"></polyline></svg>
+                  </sc-for>
+                  <sc-for list="{{m.marks}}" as="mk" hint-placeholder-count="0">
+                    <div style="position:absolute;left:{{mk.left}}px;top:{{mk.top}}px;transform:translate(-50%,-50%);pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:2px">
+                      <span style="width:{{mk.size}}px;height:{{mk.size}}px;border-radius:50%;background:{{mk.bg}};border:2px solid {{mk.ring}};box-shadow:0 0 12px {{mk.bg}}"></span>
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:{{mk.ring}};background:#0a0405d9;padding:1px 6px;border-radius:4px;white-space:nowrap">{{mk.label}}</span>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{m.danger}}" hint-placeholder-val="{{false}}">
+                    <div style="position:absolute;left:{{m.dl}}px;top:{{m.dt}}px;width:{{m.dw}}px;height:{{m.dh}}px;background:#ef444418;border:2px dashed #ef444466;border-radius:6px;pointer-events:none"></div>
+                  </sc-if>
+                </div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <sc-if value="{{prepVisible}}" hint-placeholder-val="{{false}}">
+        <div style="position:absolute;inset:0;z-index:60;background:#0a0405f0;display:grid;place-items:center">
+          <div style="width:420px">
+            <div style="font-family:'East Sea Dokdo',cursive;font-size:38px;color:#ef4444;text-align:center;margin-bottom:20px;animation:flicker 3s infinite">작전 준비 중</div>
+            <div style="display:flex;flex-direction:column;gap:9px;font-family:'IBM Plex Mono',monospace;font-size:12px">
+              <sc-for list="{{prepLines}}" as="p" hint-placeholder-count="5">
+                <div style="display:flex;align-items:center;gap:10px;color:{{p.c}}"><span style="width:14px;text-align:center">{{p.icon}}</span>{{p.txt}}</div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isUnity}}" hint-placeholder-val="{{false}}">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column">
+      <div style="flex:none;height:52px;display:flex;align-items:center;gap:12px;padding:0 18px;background:#10070a;border-bottom:1px solid #2a1015">
+        <button onClick="{{onBackBrief}}" style="height:30px;padding:0 12px;border:1px solid #3a161c;border-radius:7px;background:#170a0d;color:#a8969a;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">← 브리핑</button>
+        <div style="font-family:'East Sea Dokdo',cursive;font-size:24px;color:#ef4444;animation:flicker 6s infinite">작전 진행 중</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.2em">STEP 3 / 3 — LIVE OPERATION</div>
+        <div style="flex:1;min-width:0;font-size:12px;color:#cfc2c5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center">"{{briefCmd}}"</div>
+        <div style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;padding:5px 11px;border:1px solid #1e3a2a;background:#101d16;border-radius:6px;color:#4ade80">{{streakChip}}</div>
+      </div>
+      <div style="flex:1;position:relative;background:repeating-linear-gradient(135deg,#0d0608 0 18px,#120709 18px 36px)">
+        <sc-if value="{{simShareOn}}" hint-placeholder-val="{{false}}">
+          <div style="position:absolute;inset:0">{{simVideoEl}}</div>
+        </sc-if>
+        <sc-if value="{{simShareOff}}" hint-placeholder-val="{{true}}">
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:20px;letter-spacing:.2em;color:#8a7478">SIM FEED · 미연결</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5f4a4e;text-align:center;line-height:1.9">시뮬레이터(Unity) 창을 이 화면에 띄우려면<br>아래 버튼을 눌러 그 창을 공유해 주세요</span>
+            <button onClick="{{onSimShare}}" style="margin-top:6px;height:38px;padding:0 20px;border:1px solid #ef4444;border-radius:8px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:700;font-size:13px;cursor:pointer" style-hover="background:#7f1d1d">시뮬레이터 화면 연결</button>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f59e0b">{{simShareErr}}</span>
+          </div>
+        </sc-if>
+        <span style="position:absolute;left:16px;top:14px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#f87171;animation:blinkDot 1.4s infinite">REC ●</span>
+        <span style="position:absolute;right:16px;top:14px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#8a7478">CAM 01 · 3RD PERSON</span>
+        <sc-if value="{{simShareOn}}" hint-placeholder-val="{{false}}">
+          <button onClick="{{onSimShareStop}}" style="position:absolute;right:16px;bottom:14px;height:26px;padding:0 12px;border:1px solid #4a1d24;border-radius:6px;background:#10070ae6;color:#a8969a;font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer" style-hover="border-color:#ef4444;color:#f87171">화면 공유 해제</button>
+        </sc-if>
+        <div style="position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 2px,#00000025 2px 4px)"></div>
+      </div>
+      <div style="flex:none;display:flex;align-items:center;gap:10px;padding:10px 18px;background:#10070a;border-top:1px solid #2a1015">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5f4a4e">데모 결과 처리 (Unity 연동 전 목업)</span>
+        <span style="flex:1"></span>
+        <button onClick="{{onOpsReplay}}" style="height:36px;padding:0 18px;border:1px solid #3f3a6b;border-radius:8px;background:#15162a;color:#a5b4fc;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#1d1e3a">관제 지도에서 RL 경로 재생</button>
+        <button onClick="{{onDemoSuccess}}" style="height:36px;padding:0 18px;border:1px solid #1e3a2a;border-radius:8px;background:#101d16;color:#4ade80;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#14261b">미션 성공 처리</button>
+        <button onClick="{{onDemoOver}}" style="height:36px;padding:0 18px;border:1px solid #7f1d1d;border-radius:8px;background:#450a0a44;color:#f87171;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#450a0a">포획됨 처리</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isOps}}" hint-placeholder-val="{{false}}">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column">
+      <div style="flex:none;height:54px;display:flex;align-items:center;gap:8px;padding:0 14px;background:#10070a;border-bottom:1px solid #2a1015;font-family:'IBM Plex Mono',monospace;font-size:11px">
+        <div style="font-family:'East Sea Dokdo',cursive;font-size:22px;color:#ef4444;margin-right:6px;flex:none">흉가 드론 관제</div>
+        <div style="padding:5px 10px;background:#170a0d;border:1px solid #2a1015;border-radius:6px;color:#57c4b8;flex:none">SCORE {{hudScore}}</div>
+        <div style="padding:5px 10px;background:#170a0d;border:1px solid #2a1015;border-radius:6px;color:#a8969a;flex:none">경과 {{hudElapsed}}</div>
+        <div style="padding:5px 10px;background:#170a0d;border:1px solid {{hudTimeBorder}};border-radius:6px;color:{{hudTimeColor}};flex:none">남은 {{hudRemain}}</div>
+        <div style="padding:5px 10px;background:#170a0d;border:1px solid #2a1015;border-radius:6px;color:{{hudDuraColor}};flex:none">내구도 {{hudDura}}%</div>
+        <div style="padding:5px 10px;background:#170a0d;border:1px solid #2a1015;border-radius:6px;color:#4d9e6a;flex:none">신호 ▮▮▮▯</div>
+        <div style="padding:5px 12px;background:#450a0a44;border:1px solid #7f1d1d;border-radius:6px;color:#fca5a5;flex:none">{{hudPhase}}</div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex:none">
+          <span style="color:#4d9e6a">SLAM {{hudSlam}}</span>
+          <span style="color:#8a7478">RTT {{hudRtt}}</span>
+          <button onClick="{{onPause}}" style="height:28px;padding:0 12px;border:1px solid #3a161c;border-radius:6px;background:#170a0d;color:#cfc2c5;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:11px" style-hover="border-color:#ef4444">{{pauseTxt}}</button>
+        </div>
+      </div>
+      <div style="flex:none;display:flex;align-items:center;gap:12px;padding:7px 16px;background:{{sanBarBg}};border-bottom:1px solid {{sanBarBorder}};transition:background .4s">
+        <span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.22em;color:{{sanColor}};font-weight:600;animation:{{sanAnim}}">정신력</span>
+        <span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:600;line-height:1;color:{{sanColor}};width:74px;animation:{{sanAnim}}">{{sanPct}}%</span>
+        <div style="flex:1;height:16px;background:#1a0d10;border:1px solid #2a1015;border-radius:9px;overflow:hidden;position:relative">
+          <div style="height:100%;width:{{sanWidth}}%;background:{{sanFill}};transition:width .25s linear;box-shadow:0 0 14px {{sanGlow}}"></div>
+          <div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 13px,#00000044 13px 14px);pointer-events:none"></div>
+        </div>
+        <span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;color:{{sanNearColor}};animation:{{sanNearAnim}}">근접 {{nearCountTxt}}</span>
+        <span style="flex:none;font-size:11px;font-weight:700;color:{{threatColor}};animation:{{threatAnim}}">{{threatTxt}}</span>
+      </div>
+      <div style="flex:1;min-height:0;display:flex">
+        <aside style="width:212px;flex:none;background:#10070a;border-right:1px solid #2a1015;display:flex;flex-direction:column;min-height:0">
+          <div style="padding:10px;border-bottom:1px solid #2a1015;display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px">
+            <sc-for list="{{floorTabs}}" as="t" hint-placeholder-count="3">
+              <button onClick="{{t.onClick}}" style="height:34px;border:1px solid {{t.border}};border-radius:7px;background:{{t.bg}};color:{{t.color}};font-weight:600;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">{{t.label}}</button>
+            </sc-for>
+          </div>
+          <div style="flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:4px">
+            <sc-for list="{{opsRooms}}" as="r" hint-placeholder-count="6">
+              <div style="display:flex;align-items:center;gap:7px;padding:6px 8px;border:1px solid {{r.border}};border-radius:7px;background:{{r.bg}}">
+                <span style="width:6px;height:6px;flex:none;border-radius:50%;background:{{r.dot}}"></span>
+                <span style="flex:1;min-width:0;font-size:11px;color:#e8dde0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{r.name}}</span>
+                <span style="font-size:9px;color:{{r.tagColor}};flex:none;font-family:'IBM Plex Mono',monospace">{{r.tag}}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="flex:none;padding:9px 12px;border-top:1px solid #2a1015;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;line-height:1.7">탐색 완료 {{explored}}<br>위험 개체 <span style="color:#f87171">{{ghostCountTxt}} 감지</span></div>
+        </aside>
+        <main ref="{{opsRef}}" style="flex:1;position:relative;min-width:0;overflow:hidden;background:#0a0405;animation:{{mapShake}}">
+          <div style="position:absolute;left:0;top:0;transform-origin:0 0;transform:translate({{ov.tx}}px,{{ov.ty}}px) scale({{ov.s}});width:{{ov.w}}px;height:{{ov.h}}px">
+            {{ovImg}}
+            <sc-for list="{{ovRooms}}" as="r" hint-placeholder-count="4">
+              <div style="position:absolute;left:{{r.left}}px;top:{{r.top}}px;width:{{r.w}}px;height:{{r.h}}px;border:1px solid {{r.border}};border-radius:3px;pointer-events:none">
+                <span style="position:absolute;left:4px;top:3px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:{{r.labelColor}};background:#0a0405cc;padding:1px 5px;border-radius:4px;white-space:nowrap">{{r.name}}</span>
+              </div>
+            </sc-for>
+            <sc-for list="{{ovRuns}}" as="rr" hint-placeholder-count="0">
+              <svg width="{{ov.w}}" height="{{ov.h}}" style="position:absolute;left:0;top:0;pointer-events:none;overflow:visible"><polyline points="{{rr.pts}}" fill="none" stroke="#ef4444" stroke-width="3" stroke-dasharray="9 7" opacity="0.7"></polyline></svg>
+            </sc-for>
+            <sc-for list="{{ovTrail}}" as="tr" hint-placeholder-count="0">
+              <svg width="{{ov.w}}" height="{{ov.h}}" style="position:absolute;left:0;top:0;pointer-events:none;overflow:visible"><polyline points="{{tr.pts}}" fill="none" stroke="#57c4b8" stroke-width="3" opacity="0.9"></polyline></svg>
+            </sc-for>
+            <sc-for list="{{ovWps}}" as="w" hint-placeholder-count="0">
+              <span style="position:absolute;left:{{w.left}}px;top:{{w.top}}px;width:8px;height:8px;transform:translate(-50%,-50%) rotate(45deg);background:#f59e0b;box-shadow:0 0 8px #f59e0b99;pointer-events:none"></span>
+            </sc-for>
+            <sc-for list="{{ovStairs}}" as="s" hint-placeholder-count="0">
+              <span style="position:absolute;left:{{s.left}}px;top:{{s.top}}px;transform:translate(-50%,-130%);font-family:'IBM Plex Mono',monospace;font-size:11px;color:#fbbf24;background:#0a0405d9;border:1px solid #57431a;border-radius:5px;padding:2px 6px;pointer-events:none;white-space:nowrap">계단 ↕</span>
+            </sc-for>
+            <sc-for list="{{ovGhosts}}" as="g" hint-placeholder-count="0">
+              <div style="position:absolute;left:{{g.left}}px;top:{{g.top}}px;pointer-events:none">
+                <span style="position:absolute;left:0;top:0;width:{{g.range}}px;height:{{g.range}}px;border:1px dashed {{g.color}};border-radius:50%;transform:translate(-50%,-50%);opacity:.35"></span>
+                <span style="position:absolute;left:0;top:0;width:26px;height:26px;border:2px solid {{g.color}};border-radius:50%;transform:translate(-50%,-50%);animation:pulse 1.6s ease-out infinite"></span>
+                <span style="position:absolute;left:0;top:0;width:16px;height:16px;background:{{g.color}};border-radius:50% 50% 45% 45%;transform:translate(-50%,-50%);box-shadow:0 0 14px {{g.color}};animation:ghostFloat 2.4s ease-in-out infinite"></span>
+                <span style="position:absolute;left:0;top:0;transform:translate(-50%,120%);font-family:'IBM Plex Mono',monospace;font-size:11px;color:{{g.color}};background:#0a0405d9;padding:1px 6px;border-radius:4px;white-space:nowrap">{{g.label}}</span>
+              </div>
+            </sc-for>
+            <sc-for list="{{ovMarks}}" as="mk" hint-placeholder-count="0">
+              <div style="position:absolute;left:{{mk.left}}px;top:{{mk.top}}px;pointer-events:none">
+                <span style="position:absolute;left:0;top:0;width:24px;height:24px;border:2px solid {{mk.ring}};border-radius:50%;transform:translate(-50%,-50%);animation:pulse 2s ease-out infinite"></span>
+                <span style="position:absolute;left:0;top:0;width:15px;height:15px;background:{{mk.bg}};border:2px solid {{mk.ring}};border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 12px {{mk.bg}}"></span>
+                <span style="position:absolute;left:0;top:0;transform:translate(-50%,-200%);font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:{{mk.txtC}};background:{{mk.txtBg}};border:1px solid {{mk.txtBorder}};border-radius:5px;padding:2px 7px;white-space:nowrap">{{mk.label}}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="position:absolute;inset:0;pointer-events:none;z-index:3;box-shadow:{{dangerGlow}}"></div>
+          <div style="position:absolute;inset:0;pointer-events:none;z-index:3;background:repeating-linear-gradient(0deg,transparent 0 3px,#ef444408 3px 6px);opacity:{{mapNoise}}"></div>
+          <div style="position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:5px;z-index:4">
+            <button onClick="{{zoomFitOps}}" title="화면 맞춤" style="width:30px;height:30px;border:1px solid #4a1d24;border-radius:7px;background:#10070ae6;color:#cfc2c5;font-size:12px;cursor:pointer" style-hover="border-color:#ef4444">⤢</button>
+          </div>
+          <div style="position:absolute;left:0;right:0;bottom:0;height:88px;background:#0a0405e6;border-top:1px solid #2a1015;padding:7px 12px;z-index:4;overflow:hidden">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;letter-spacing:.18em;margin-bottom:4px">EVENT LOG</div>
+            <div style="display:flex;flex-direction:column-reverse;gap:2px;font-family:'IBM Plex Mono',monospace;font-size:11px">
+              <sc-for list="{{logLines}}" as="l" hint-placeholder-count="3">
+                <div style="color:{{l.c}};white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="color:#5f4a4e">[{{l.t}}]</span> {{l.msg}}</div>
+              </sc-for>
+            </div>
+          </div>
+        </main>
+        <aside style="width:264px;flex:none;background:#10070a;border-left:1px solid #2a1015;display:flex;flex-direction:column;min-height:0">
+          <div style="padding:12px 14px;border-bottom:1px solid #2a1015">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;letter-spacing:.18em;margin-bottom:6px">MISSION</div>
+            <div style="font-size:12px;color:#e8dde0;line-height:1.6">"{{briefCmd}}"</div>
+          </div>
+          <div style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:6px">
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;font-size:12px">
+              <sc-for list="{{opsRows}}" as="r" hint-placeholder-count="8">
+                <span style="color:#8a7478">{{r.k}}</span><span style="color:{{r.c}};font-family:'IBM Plex Mono',monospace;text-align:right;animation:{{r.anim}}">{{r.v}}</span>
+              </sc-for>
+            </div>
+          </div>
+          <div style="flex:none;padding:12px 14px;border-top:1px solid #2a1015">
+            <button onClick="{{onAbort}}" style="width:100%;height:38px;border:1px solid #7f1d1d;border-radius:8px;background:#170a0d;color:#f87171;font-family:'IBM Plex Sans KR',sans-serif;font-weight:600;font-size:13px;cursor:pointer" style-hover="background:#450a0a">미션 포기</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isGrab}}" hint-placeholder-val="{{false}}">
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:22px;background:radial-gradient(ellipse at center,#12070a 0%,#0a0405 70%)">
+      <div style="width:640px;height:470px;position:relative;border:1px solid #4a1d24;border-radius:12px;overflow:hidden;background:repeating-linear-gradient(135deg,#0d0608 0 16px,#120709 16px 32px);box-shadow:0 20px 50px #000000c0">
+        <span style="position:absolute;left:14px;top:12px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f87171;animation:blinkDot 1.4s infinite;z-index:2">REC ●</span>
+        <span style="position:absolute;right:14px;top:12px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a7478;z-index:2">DRONE CAM · NIGHT VISION</span>
+        <span style="position:absolute;left:14px;bottom:12px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#57c4b8;z-index:2">{{grabCoordTxt}}</span>
+        <div style="position:absolute;inset:0;display:grid;place-items:center">
+          <div style="position:relative;width:230px;height:190px;border:2px solid #4ade80;border-radius:4px;box-shadow:0 0 20px #4ade8055">
+            <span style="position:absolute;left:-2px;top:-26px;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:#4ade80;background:#0a0405d9;padding:2px 8px;border-radius:4px">{{grabObjName}} · 87.2%</span>
+            <span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a7478;text-align:center;line-height:1.8">물체 카메라 프레임<br>(Unity 스트림 자리)</span>
+            <span style="position:absolute;right:6px;bottom:5px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#4ade80">GRASPABLE</span>
+          </div>
+        </div>
+        <div style="position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 2px,#00000025 2px 4px)"></div>
+      </div>
+      <div style="width:330px;display:flex;flex-direction:column;gap:10px">
+        <div style="font-family:'East Sea Dokdo',cursive;font-size:40px;color:#ef4444;line-height:1">회수 대상 발견</div>
+        <div style="border:1px solid #2a1015;background:#10070a;border-radius:10px;padding:12px 14px">
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:12px">
+            <span style="color:#8a7478">대상 물체</span><span style="color:#e8dde0;text-align:right;font-weight:600">{{grabObjName}}</span>
+            <span style="color:#8a7478">위치</span><span style="color:#cfc2c5;text-align:right">{{grabRoomTxt}}</span>
+            <span style="color:#8a7478">인식 신뢰도</span><span style="color:#4ade80;font-family:'IBM Plex Mono',monospace;text-align:right">87.2%</span>
+            <span style="color:#8a7478">물체 상태</span><span style="color:#f59e0b;text-align:right">취급 주의 (+150점)</span>
+            <span style="color:#8a7478">파지 가능</span><span style="color:#4ade80;text-align:right">가능</span>
+            <span style="color:#8a7478">파지 성공률</span><span style="color:#57c4b8;font-family:'IBM Plex Mono',monospace;text-align:right">92%</span>
+          </div>
+        </div>
+        <div style="border:1px solid #57431a;background:#1c150a;border-radius:10px;padding:10px 14px;font-size:11px;color:#f59e0b;line-height:1.7">⚠ 파지 순간 비정상 생체 신호가 활성화될 수 있습니다. 확보 즉시 목적지로 이동하십시오.</div>
+        <button onClick="{{onGrab}}" style="height:50px;border:1px solid #ef4444;border-radius:9px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:700;font-size:16px;cursor:pointer;box-shadow:0 0 20px #dc262655" style-hover="background:#7f1d1d">파지 시작</button>
+      </div>
+      <sc-if value="{{grabFx}}" hint-placeholder-val="{{false}}">
+        <div style="position:absolute;inset:0;z-index:70;background:#000000;display:grid;place-items:center;animation:redSweep 2.4s ease-out forwards">
+          <div style="text-align:center">
+            <div style="font-family:'East Sea Dokdo',cursive;font-size:56px;color:#ef4444;text-shadow:0 0 30px #dc2626;animation:glitchTxt 1s infinite">회수 대상 확보</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:#f87171;margin-top:10px;animation:blinkDot .5s infinite">비정상 생체 신호가 활성화되었습니다</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#a8969a;margin-top:6px">즉시 목적지까지 운반하십시오</div>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isSuccess}}" hint-placeholder-val="{{false}}">
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:26px;background:radial-gradient(ellipse at center,#0e1a14 0%,#0a0405 75%)">
+      <div style="width:400px;text-align:center">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#4d9e6a;letter-spacing:.4em">MISSION COMPLETE</div>
+        <div style="font-family:'East Sea Dokdo',cursive;font-size:74px;line-height:1.1;color:#4ade80;text-shadow:0 0 26px #4ade8066">회수 작전 성공</div>
+        <div style="margin-top:10px;font-size:12px;color:#a8969a;line-height:1.7">"{{briefCmd}}"</div>
+        <div style="margin-top:8px;font-size:12px;color:#4ade80">{{streakTxt}}</div>
+        <div style="margin-top:14px;display:flex;gap:10px;justify-content:center">
+          <div style="width:190px;padding:9px 12px;border:1px solid #1e3a2a;background:#0e1a14;border-radius:9px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#4d9e6a;letter-spacing:.16em">여기서 회수하면</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:21px;font-weight:600;color:#4ade80;margin-top:3px">{{bankTxt}}</div>
+            <div style="font-size:10px;color:#8a7478;margin-top:2px">기록에 등록 · 안전</div>
+          </div>
+          <div style="width:190px;padding:9px 12px;border:1px solid #57431a;background:#1c150a;border-radius:9px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#f59e0b;letter-spacing:.16em">한 번 더 가면</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:21px;font-weight:600;color:#f59e0b;margin-top:3px">×{{nextMult}}</div>
+            <div style="font-size:10px;color:#8a7478;margin-top:2px">유령 {{nextGhosts}}마리 · 정신력 {{carrySanity}}%부터</div>
+          </div>
+        </div>
+        <div style="margin-top:22px;display:inline-block;width:130px;height:130px;border:3px solid #4ade80;border-radius:50%;display:inline-grid;place-items:center;box-shadow:0 0 30px #4ade8044">
+          <span style="font-family:'East Sea Dokdo',cursive;font-size:80px;color:#4ade80;line-height:1">{{grade}}</span>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:#8a7478">미션 등급</div>
+        <div style="display:flex;gap:8px;margin-top:24px;justify-content:center;flex-wrap:wrap">
+          <button onClick="{{onCashOut}}" style="height:42px;padding:0 22px;border:1px solid #4ade80;border-radius:8px;background:#0e1a14;color:#6ee7b7;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#14261b">회수하고 등록</button>
+          <button onClick="{{goCreate}}" style="height:42px;padding:0 22px;border:1px solid #ef4444;border-radius:8px;background:#450a0a;color:#fecaca;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#7f1d1d">한 번 더 (×{{nextMult}})</button>
+          <button onClick="{{onReplay}}" style="height:38px;padding:0 16px;border:1px solid #3a161c;border-radius:8px;background:#170a0d;color:#cfc2c5;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">경로 리플레이</button>
+          <button onClick="{{goLobby}}" style="height:38px;padding:0 16px;border:1px solid #3a161c;border-radius:8px;background:#170a0d;color:#a8969a;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">로비로</button>
+        </div>
+      </div>
+      <div style="width:400px;border:1px solid #2a1015;background:#10070ae6;border-radius:12px;padding:16px 18px">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;letter-spacing:.18em;margin-bottom:10px">점수 정산</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;min-height:300px">
+          <sc-for list="{{scoreItems}}" as="s" hint-placeholder-count="5">
+            <div style="display:flex;align-items:baseline;gap:8px;animation:toastIn .25s ease-out">
+              <span style="color:#a8969a">{{s.k}}</span>
+              <span style="flex:1;border-bottom:1px dotted #2a1015"></span>
+              <span style="font-family:'IBM Plex Mono',monospace;color:{{s.c}}">{{s.v}}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #2a1015">
+          <span style="font-size:14px;font-weight:700;color:#e8dde0">최종 점수</span>
+          <span style="flex:1"></span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:600;color:#4ade80">{{finalScore}}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:12px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;text-align:center">
+          <div style="padding:7px;background:#0d0608;border-radius:7px">이동 {{sumDist}}</div>
+          <div style="padding:7px;background:#0d0608;border-radius:7px">시간 {{sumTime}}</div>
+          <div style="padding:7px;background:#0d0608;border-radius:7px">층 이동 3회</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isOver}}" hint-placeholder-val="{{false}}">
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:26px;background:radial-gradient(ellipse at 50% 40%,#2a0508 0%,#0a0405 70%)">
+      <div style="position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,#ef444414 3px 6px);animation:flicker 2.5s infinite"></div>
+      <div style="width:430px;text-align:center;z-index:2">
+        <div style="font-family:'East Sea Dokdo',cursive;font-size:80px;line-height:1.05;color:#ef4444;text-shadow:0 0 34px #dc2626aa;animation:glitchTxt 3s infinite">생존 신호 소실</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:15px;color:#f87171;letter-spacing:.4em;margin-top:8px">MISSION FAILED</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a7478;letter-spacing:.5em;margin-top:2px">— GAME OVER —</div>
+        <div style="margin-top:20px;display:inline-block;border:1px solid #7f1d1d;background:#450a0a44;border-radius:9px;padding:10px 18px;font-size:14px;font-weight:700;color:#fca5a5">{{overCause}}</div>
+        <div style="margin-top:22px;display:flex;align-items:center;justify-content:center;gap:18px">
+          <div style="width:110px;height:110px;border:3px solid {{overRankC}};border-radius:50%;display:grid;place-items:center;box-shadow:0 0 26px {{overRankC}}55">
+            <span style="font-family:'East Sea Dokdo',cursive;font-size:66px;color:{{overRankC}};line-height:1">{{overRank}}</span>
+          </div>
+          <div style="text-align:left">
+            <div style="font-size:11px;color:#8a7478">이번 도전 랭크</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;color:#57c4b8;margin-top:2px">{{overTotalTxt}}<span style="font-size:12px;color:#8a7478"> 점</span></div>
+            <div style="font-size:11px;color:#f87171;margin-top:2px">{{overStreakTxt}}</div>
+          </div>
+        </div>
+        <div style="margin-top:16px;font-size:12px;color:#a8969a">개체에게 포획되어 <span style="color:#f87171;font-weight:700">누적 {{lostTxt}}점이 전부 소멸</span>했습니다. 회수하지 않은 점수는 기록에 남지 않습니다.</div>
+        <div style="display:flex;gap:8px;margin-top:18px;justify-content:center;flex-wrap:wrap">
+          <button onClick="{{goCreate}}" style="height:40px;padding:0 20px;border:1px solid #ef4444;border-radius:8px;background:#450a0a;color:#fecaca;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#7f1d1d">새로운 도전 시작</button>
+          <button onClick="{{goLobby}}" style="height:40px;padding:0 20px;border:1px solid #3a161c;border-radius:8px;background:#170a0d;color:#a8969a;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">로비로</button>
+        </div>
+      </div>
+      <div style="width:410px;display:flex;flex-direction:column;gap:10px;z-index:2">
+        <div style="border:1px solid #2a1015;background:#10070ae6;border-radius:11px;padding:13px 15px">
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:12px">
+            <sc-for list="{{overRows}}" as="r" hint-placeholder-count="6">
+              <span style="color:#8a7478">{{r.k}}</span><span style="color:{{r.c}};font-family:'IBM Plex Mono',monospace;text-align:right">{{r.v}}</span>
+            </sc-for>
+          </div>
+        </div>
+        <div style="border:1px solid #2a1015;background:#0d0608;border-radius:11px;overflow:hidden">
+          <div style="padding:7px 10px;border-bottom:1px solid #2a1015;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;letter-spacing:.18em">마지막 확인 위치</div>
+          <div style="position:relative;height:210px;overflow:hidden">
+            <div style="position:absolute;left:0;top:0;transform-origin:0 0;transform:translate({{om.tx}}px,{{om.ty}}px) scale({{om.s}});width:{{om.w}}px;height:{{om.h}}px">
+              {{omImg}}
+              <div style="position:absolute;left:{{om.xl}}px;top:{{om.xt}}px;transform:translate(-50%,-50%);pointer-events:none">
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:32px;font-weight:600;color:#ef4444;text-shadow:0 0 14px #dc2626">✕</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="border:1px solid #2a1015;background:#0d0608;border-radius:11px;padding:9px 12px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;line-height:1.8">
+          <sc-for list="{{overLog}}" as="l" hint-placeholder-count="3">
+            <div style="color:{{l.c}}"><span style="color:#5f4a4e">[{{l.t}}]</span> {{l.msg}}</div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isRecords}}" hint-placeholder-val="{{false}}">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column">
+      <div style="flex:none;height:52px;display:flex;align-items:center;gap:14px;padding:0 18px;background:#10070a;border-bottom:1px solid #2a1015">
+        <button onClick="{{goLobby}}" style="height:30px;padding:0 12px;border:1px solid #3a161c;border-radius:7px;background:#170a0d;color:#a8969a;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">← 로비</button>
+        <div style="font-family:'East Sea Dokdo',cursive;font-size:24px;color:#ef4444">미션 기록</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.2em">OPERATION ARCHIVE</div>
+      </div>
+      <div style="flex:none;display:grid;grid-template-columns:repeat(6,1fr);gap:10px;padding:14px 18px">
+        <sc-for list="{{recStats}}" as="s" hint-placeholder-count="6">
+          <div style="padding:11px 12px;background:#10070a;border:1px solid #2a1015;border-radius:9px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;color:{{s.c}}">{{s.v}}</div>
+            <div style="font-size:10px;color:#8a7478;margin-top:2px">{{s.k}}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="flex:1;min-height:0;overflow-y:auto;padding:0 18px 20px;display:flex;flex-direction:column;gap:6px">
+        <sc-for list="{{recRows}}" as="r" hint-placeholder-count="5">
+          <div style="border:1px solid {{r.border}};background:{{r.bg}};border-radius:9px;overflow:hidden">
+            <button onClick="{{r.onClick}}" style="width:100%;display:flex;align-items:center;gap:12px;padding:10px 14px;border:none;background:transparent;cursor:pointer;text-align:left;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#170a0d">
+              <span style="font-family:'East Sea Dokdo',cursive;font-size:26px;width:30px;color:{{r.gradeC}};flex:none">{{r.grade}}</span>
+              <span style="flex:1;min-width:0;font-size:12px;color:#e8dde0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">"{{r.cmd}}"</span>
+              <span style="font-size:10px;color:#8a7478;flex:none">{{r.diff}}</span>
+              <span style="font-size:11px;font-weight:700;color:{{r.resultC}};flex:none;width:40px;text-align:center">{{r.result}}</span>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#57c4b8;flex:none;width:56px;text-align:right">{{r.score}}</span>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;flex:none;width:52px;text-align:right">{{r.dist}}</span>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;flex:none;width:44px;text-align:right">{{r.time}}</span>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5f4a4e;flex:none;width:70px;text-align:right">{{r.date}}</span>
+            </button>
+            <sc-if value="{{r.open}}" hint-placeholder-val="{{false}}">
+              <div style="border-top:1px solid #2a1015;padding:10px 14px;display:flex;gap:18px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;line-height:1.9">
+                <div style="flex:1">{{r.route}}</div>
+                <div style="flex:1">{{r.log1}}<br>{{r.log2}}<br>{{r.log3}}</div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  </sc-if>
+  <div style="position:fixed;left:50%;bottom:30px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:96;align-items:center">
+    <sc-for list="{{toasts}}" as="t" hint-placeholder-count="0">
+      <div style="background:#170a0df2;border:1px solid #4a1d24;border-radius:9px;padding:9px 16px;font-size:12px;color:#e8dde0;box-shadow:0 8px 24px #000000a0;animation:toastIn .2s ease-out;max-width:520px">{{t.text}}</div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+// ── Unity 창 화면 공유 (getDisplayMedia) ─────────────────────────
+// exe 는 네이티브 창이라 브라우저에 임베드할 수 없다. 대신 사용자가 한 번
+// 허용해 주면 그 창을 캡처해 <video> 로 페이지 안에 그린다. localhost 는
+// secure context 라 http 로도 동작하고, 권한 요청은 클릭(사용자 제스처)
+// 안에서만 뜬다. 스트림은 두 컴포넌트(셸/지도)가 같이 쓰므로 window 에 둔다.
+if (!window.__simShare) {
+  window.__simShare = {
+    stream: null, error: null, subs: new Set(),
+    notify() { for (const f of this.subs) { try { f(); } catch (e) {} } },
+    supported() { return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia); },
+    start() {
+      if (!this.supported()) {
+        this.error = '이 브라우저는 화면 공유를 지원하지 않습니다 (Chrome/Edge 권장)';
+        this.notify(); return;
+      }
+      // await 하지 않는다 — 사용자 제스처 안에서 바로 호출해야 권한창이 뜬다.
+      navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: false })
+        .then(s => {
+          this.stream = s; this.error = null;
+          const t = s.getVideoTracks()[0];
+          if (t) t.addEventListener('ended', () => { this.stream = null; this.notify(); });
+          this.notify();
+        })
+        .catch(e => {
+          this.error = (e && e.name === 'NotAllowedError')
+            ? '화면 공유가 취소되었습니다' : String((e && e.message) || e);
+          this.notify();
+        });
+    },
+    stop() {
+      if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
+      this.error = null; this.notify();
+    },
+  };
+}
+// 공유 스트림을 그리는 <video>. srcObject 는 props 로 못 넘겨서 ref 로 꽂는다.
+function simVideo(extra) {
+  const s = window.__simShare.stream;
+  if (!s) return null;
+  return React.createElement('video', {
+    autoPlay: true, muted: true, playsInline: true,
+    ref: el => { if (el && el.srcObject !== s) el.srcObject = s; },
+    style: Object.assign({ position: 'absolute', inset: 0, width: '100%', height: '100%',
+                           objectFit: 'contain', background: '#000' }, extra || {}),
+  });
+}
+
+class Component extends DCLogic {
+  LABELS = {
+    "002": "현우의 수상한 지하 벙커", "003": "규철이 숨겨둔 비밀 무기고",
+    "004": "다 같이 모이는 척하는 감시실", "005": "채원의 심문실(추정)", "006": "민영의 정체불명 실험실",
+    "007": "현우의 도청 장비실", "008": "규철의 알리바이 조작실", "009": "지윤의 블랙박스 보관소", "010": "그냥 복도 (아마도)",
+    "011": "2층 복도 (CCTV 사각지대)", "012": "채원의 금고가 있다는 소문의 방", "013": "민영의 출입금지 구역", "014": "현우의 이중장부 서재",
+    "015": "지윤의 위장 세탁소", "016": "규철의 지하조직 본부", "017": "채원의 변장 도구실", "018": "민영의 해킹 작전실",
+    "019": "현우의 음모 회의실", "020": "지윤의 증거 인멸실", "021": "규철의 탈출 통로 입구", "022": "채원의 폭탄 해체 연습실", "023": "그냥 복도 (믿지 마세요)"
+  };
+  FLOORS = ['1층', '2층', '3층'];
+  MISSION = { cmd: '3층 수납장에 있는 인형을 1층 현관 앞으로 옮겨줘.', objRoom: '016', objName: '낡은 인형', startRoom: '007', goalRoom: '002' };
+  EXAMPLES = ['3층 수납장에 있는 인형을 1층 현관 앞으로 옮겨줘', '2층 심문실의 램프를 3층 본부로 옮겨줘', '감시실 탁자 위 상자를 지하 벙커로 가져와'];
+  DIFFS = { easy: { title: '쉬움', mult: '1.0', ghosts: 1, time: 420, dist: '약 24m', floors: '1회', timeTxt: '7:00' }, normal: { title: '보통', mult: '1.3', ghosts: 2, time: 300, dist: '약 38m', floors: '3회', timeTxt: '5:00' }, hard: { title: '어려움', mult: '1.6', ghosts: 3, time: 210, dist: '약 52m', floors: '3회+', timeTxt: '3:30' } };
+  RECORDS = [
+    { grade: 'A', cmd: '3층 수납장에 있는 인형을 1층 현관 앞으로 옮겨줘', diff: '보통', ok: true, score: 2140, dist: '38.2m', time: '3:41', date: '07.19', route: '경로: 도청 장비실 → 복도 → 3층 → 본부 → (회수) → 1층 현관', logs: ['[00:12] 경로 생성 완료', '[02:10] 회수 대상 확보 — 개체 활성화', '[03:41] 목적지 배치 완료'] },
+    { grade: 'S', cmd: '감시실 탁자 위 상자를 지하 벙커로 가져와', diff: '쉬움', ok: true, score: 3240, dist: '21.4m', time: '2:05', date: '07.18', route: '경로: 감시실 → 계단 → 지하 벙커', logs: ['[00:08] 경로 생성 완료', '[01:22] 물체 파지 완료', '[02:05] 무충돌 완료 보너스'] },
+    { grade: 'D', cmd: '2층 심문실의 램프를 3층 본부로 옮겨줘', diff: '어려움', ok: false, score: 380, dist: '17.9m', time: '1:58', date: '07.18', route: '경로: 심문실 → 감시실 → 복도 → 3층 (실패 지점)', logs: ['[01:30] 미확인 개체 감지', '[01:52] 추적당하는 중 — 오염도 92%', '[01:58] 신호 소실 — 포획됨'] },
+    { grade: 'B', cmd: '3층 실험실 표본을 1층 무기고로 옮겨줘', diff: '보통', ok: true, score: 1620, dist: '41.0m', time: '4:52', date: '07.17', route: '경로: 3층 → 2층 → 1층 무기고', logs: ['[02:44] 충돌 1회 (-50)', '[03:10] 경로 재계획', '[04:52] 배치 완료'] },
+    { grade: 'C', cmd: '금고 방의 열쇠를 탈출 통로 입구로', diff: '어려움', ok: true, score: 940, dist: '12.6m', time: '2:47', date: '07.16', route: '경로: 금고 방 → 3층 복도 → 탈출 통로', logs: ['[00:41] 개체 접근 중', '[01:55] 물체 낙하 (-100)', '[02:47] 배치 완료'] },
+    { grade: 'D', cmd: '해킹 작전실 노트북을 1층으로', diff: '보통', ok: false, score: 210, dist: '9.3m', time: '5:00', date: '07.15', route: '경로: 해킹 작전실 → 복도 (시간 초과)', logs: ['[04:02] 경로 재계획 3회', '[04:58] 제한 시간 임박', '[05:00] 제한 시간 초과'] },
+  ];
+  state = {
+    // 인트로: 로비 위에 덮여 있다가 약 3초 뒤 천천히 걷힌다.
+    // (2.6초 동안 타이틀·게이지가 차오르고, 이후 0.6초 페이드아웃)
+    intro: true, introFade: false,
+    meta: null, screen: 'lobby', cmd: '', diff: 'normal', prep: -1,
+    sim: null, over: null, tally: 0, selRecord: null, toasts: [], opsBox: { w: 1100, h: 640 }, streak: 0, deadStreak: 0, totalScore: 0,
+    banked: [],      // banked = 「회수」로 등록된 기록들
+    sanity: 100,                // 도전(run) 단위 정신력. 미션 간 이어진다
+  };
+  // 연속 성공 회차 -> (점수 배수, 다음 라운드 유령 수).
+  // 죽지 않고 이어갈수록 배수가 오르지만 유령도 늘어난다. 실패하면 누적 0,
+  // 「회수」하면 그 시점 누적이 기록에 등록되고 배수는 처음으로 돌아간다.
+  RUN_MULTS = [1.0, 1.3, 1.7, 2.2, 3.0];      // 회차별 점수 배수 (마지막이 상한)
+  GHOST_BASE = 4;                              // 1회차 유령 수
+  GHOST_MAX = 64;                              // 렌더/연산 상한
+  // 회차가 오를 때마다 유령이 2배. 4 -> 8 -> 16 -> 32 -> 64.
+  ghostCount(streak) {
+    return Math.min(this.GHOST_MAX, this.GHOST_BASE * Math.pow(2, streak));
+  }
+  tier(streak) {
+    return { mult: this.RUN_MULTS[Math.min(streak, this.RUN_MULTS.length - 1)],
+             ghosts: this.ghostCount(streak) };
+  }
+
+  // 신호 오염도: 유령이 가까울수록 빨리 차고 멀어지면 천천히 빠진다.
+  // ★ 미션이 끝나도 0 으로 안 돌아가고 다음 미션에 그대로 이어진다.
+  //   회수하거나 죽어서 도전이 끝날 때만 초기화된다. 그래서 "한 번 더"를
+  //   누를수록 시작 오염도가 높아지고, 이게 회수 판단의 근거가 된다.
+  // 정신력: 100 에서 시작해 유령이 가까울수록 깎이고, 멀어지면 천천히 회복.
+  // 0 이 되면 포획. 반경 prox 안 유령 "전부"가 각자 (prox-거리)x drain 만큼
+  // 깎는다(최근접 하나만 보면 마릿수를 늘려도 포화돼서 의미가 없었다).
+  // cap 은 순간 폭락 방지(100 -> 0 까지 최소 2.5초).
+  // ★ 미션이 끝나도 회복되지 않고 다음 미션에 그대로 이어진다.
+  SANITY = { prox: 5.0, drain: 0.9, regen: 1.5, cap: 40, max: 100 };
+
+  // 연출/규칙 상수. 설정 화면은 없앴고(조작할 게 없었다) 값만 여기 고정한다.
+  SETTINGS = { horror: 70, scan: true, glitch: true, shake: true, ghostShow: true,
+               gSpeed: 10, tLimit: 300, cAllow: 3,
+               route: true, waypts: true, access: false };
+  opsRef = React.createRef();
+  toastSeq = 0;
+
+  STORE_KEY = 'hauntedOps.banked';
+  loadBanked() {
+    try { return JSON.parse(localStorage.getItem(this.STORE_KEY) || '[]'); }
+    catch (e) { return []; }
+  }
+  saveBanked(list) {
+    try { localStorage.setItem(this.STORE_KEY, JSON.stringify(list.slice(0, 50))); }
+    catch (e) { /* 사생활 모드 등 - 저장만 못 할 뿐 동작엔 지장 없다 */ }
+  }
+  // 최고 점수 = 회수해서 등록된 기록 + 기본 아카이브 중 최대.
+  // 회수하지 않고 잃은 점수는 여기 안 들어간다(그게 회수의 의미다).
+  bestOf(banked) {
+    return Math.max(0, ...banked.map(b => b.score), ...this.RECORDS.map(r => r.score));
+  }
+
+  componentDidMount() {
+    this.setState({ banked: this.loadBanked() });
+    Promise.all([
+      fetch('uploads/web_meta.json').then(r => r.json()),
+      fetch('uploads/detections.json').then(r => r.json()).catch(() => []),
+    ]).then(([meta, dets]) => {
+      this.dets = dets;
+      const KR = { sofa: '소파', chair: '의자', table: '테이블', bed: '침대', cabinet: '수납장', desk: '책상', refrigerator: '냉장고', toilet: '변기', bathtub: '욕조', counter: '조리대', bookshelf: '책장', sink: '세면대', television: 'TV', shower: '샤워부스' };
+      const EX = new Set(['door', 'window', 'curtain', 'picture', 'otherfurniture']);
+      const cnt = {};
+      for (const dd of dets) {
+        if (EX.has(dd.label) || dd.n_points < 300) continue;
+        const id = dd.room_name.slice(-3), k = KR[dd.label] || dd.label;
+        (cnt[id] = cnt[id] || {})[k] = (cnt[id][k] || 0) + 1;
+      }
+      this.furnSum = {};
+      for (const id of Object.keys(cnt)) this.furnSum[id] = Object.entries(cnt[id]).sort((a, b) => b[1] - a[1]).map(([k, c]) => c > 1 ? `${k} ${c}` : k).join(' · ');
+      let obj = null;
+      for (const d of dets) if (d.room_name.slice(-3) === this.MISSION.objRoom && d.label === 'cabinet' && (!obj || d.n_points > obj.n_points)) obj = d;
+      const oRm = meta.rooms[this.MISSION.objRoom];
+      this.objPos = obj ? [obj.center[0], obj.center[1]] : [oRm.center[0], oRm.center[1]];
+      this.goalPos = [0.666, -3.9];
+      this.metaCache = meta;
+      this.setState({ meta, screen: 'lobby' });
+    });
+    window.addEventListener('resize', this.onResize);
+    this._shareSub = () => this.setState(st => ({ shareTick: (st.shareTick || 0) + 1 }));
+    window.__simShare.subs.add(this._shareSub);
+    this.introT1 = setTimeout(() => this.setState({ introFade: true }), 2600);
+    this.introT2 = setTimeout(() => this.setState({ intro: false }), 3200);
+  }
+  componentWillUnmount() {
+    window.removeEventListener('resize', this.onResize);
+    cancelAnimationFrame(this.raf);
+    clearInterval(this.prepIv); clearInterval(this.tallyIv);
+    clearTimeout(this.introT1); clearTimeout(this.introT2);
+    window.__simShare.subs.delete(this._shareSub);
+  }
+
+  componentDidUpdate(pp, ps) {
+    if (ps && ps.screen !== this.state.screen && (this.state.screen === 'ops' || this.state.screen === 'chase')) requestAnimationFrame(() => this.measureOps());
+  }
+  onResize = () => { if (this.state.screen === 'ops' || this.state.screen === 'chase') this.measureOps(); };
+  measureOps() {
+    const el = this.opsRef.current; if (!el) return;
+    const r = el.getBoundingClientRect();
+    this.setState({ opsBox: { w: r.width, h: r.height - 88 } });
+  }
+
+  label(id) { return this.LABELS[id] || id; }
+  fm(f) { return this.state.meta.floors[String(f)]; }
+  w2p(f, x, y) { const m = this.fm(f); return [(x - m.xmin) / this.state.meta.res, (m.ymax - y) / this.state.meta.res]; }
+  mmss(t) { t = Math.max(0, Math.round(t)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; }
+
+  findPath(a, b) {
+    if (a === b) return [a];
+    const g = {};
+    for (const e of this.state.meta.edges) { (g[e.a] = g[e.a] || []).push(e.b); (g[e.b] = g[e.b] || []).push(e.a); }
+    const prev = { [a]: null }, q = [a];
+    while (q.length) { const c = q.shift(); if (c === b) break; for (const n of g[c] || []) if (!(n in prev)) { prev[n] = c; q.push(n); } }
+    if (!(b in prev)) return null;
+    const p = []; for (let c = b; c !== null; c = prev[c]) p.unshift(c); return p;
+  }
+  buildWps(fromRoom, fromPos, toRoom, toPos) {
+    const meta = this.state.meta;
+    const wps = [{ x: fromPos[0], y: fromPos[1], floor: meta.rooms[fromRoom].floor, room: fromRoom }];
+    const path = this.findPath(fromRoom, toRoom);
+    if (path) for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i], b = path[i + 1];
+      const e = meta.edges.find(e => (e.a === a && e.b === b) || (e.a === b && e.b === a));
+      if (!e) continue;
+      const fa = meta.rooms[a].floor, fb = meta.rooms[b].floor;
+      wps.push({ x: e.door_center[0], y: e.door_center[1], floor: fa, room: a });
+      if (fb !== fa) wps.push({ x: e.door_center[0], y: e.door_center[1], floor: fb, room: b, stairs: true });
+    }
+    wps.push({ x: toPos[0], y: toPos[1], floor: meta.rooms[toRoom].floor, room: toRoom });
+    return wps;
+  }
+  pathLen(wps) { let t = 0; for (let i = 0; i < wps.length - 1; i++) if (wps[i].floor === wps[i + 1].floor) t += Math.hypot(wps[i + 1].x - wps[i].x, wps[i + 1].y - wps[i].y); return t; }
+
+  // ── 강화학습 궤적 수용 ────────────────────────────────────────
+  // 관제 화면(드론 관제)이 넘겨준 payload.path 는 백엔드에서 SAC 정책을
+  // 실제로 굴려 얻은 3D 궤적([[x,y,z]..]). 방그래프 직선(buildWps) 대신
+  // 이걸 브리핑/작전 지도에 그대로 그린다.
+  floorOfZ(z) { return z < 0.2 ? 0 : (z < 2.9 ? 1 : 2); }
+  roomAtXY(f, x, y) {
+    const meta = this.state.meta;
+    let best = null, bestA = Infinity;
+    for (const id of this.fm(f).rooms) {
+      const rm = meta.rooms[id];
+      if (x >= rm.bbox_min[0] && x <= rm.bbox_max[0] && y >= rm.bbox_min[1] && y <= rm.bbox_max[1]) {
+        const a = (rm.bbox_max[0] - rm.bbox_min[0]) * (rm.bbox_max[1] - rm.bbox_min[1]);
+        if (a < bestA) { bestA = a; best = id; }
+      }
+    }
+    return best;
+  }
+  pathToWps(path) {
+    return path.map(p => {
+      const f = this.floorOfZ(p[2]);
+      return { x: p[0], y: p[1], z: p[2], floor: f, room: this.roomAtXY(f, p[0], p[1]) || '', stairs: false };
+    });
+  }
+  // 이번 미션의 경로. RL 궤적이 있으면 그것, 없으면 방그래프 폴백.
+  liveWps() {
+    const live = this.live;
+    if (!live) return null;
+    if (live.path && live.path.length > 1) return this.pathToWps(live.path);
+    if (live.wps && live.wps.length > 1) return live.wps;
+    return this.buildWps(live.start_room, [live.start[0], live.start[1]], live.goal_room, [live.goal[0], live.goal[1]]);
+  }
+
+  toast(text) {
+    const id = ++this.toastSeq;
+    this.setState(s => ({ toasts: [...s.toasts, { id, text }] }));
+    setTimeout(() => this.setState(s => ({ toasts: s.toasts.filter(t => t.id !== id) })), 3000);
+  }
+  go(screen) { this.setState({ screen }); }
+
+  startPrep() {
+    this.setState({ prep: 0 });
+    clearInterval(this.prepIv);
+    this.prepIv = setInterval(() => {
+      const p = this.state.prep + 1;
+      if (p >= 5) { clearInterval(this.prepIv); this.setState({ prep: -1 }); this.startMission(); }
+      else this.setState({ prep: p });
+    }, 650);
+  }
+  // 유령은 특정 층에 묶이지 않고 집 전체(3층 22방)를 돌아다닌다.
+  allRoomIds() { return Object.keys(this.state.meta.rooms); }
+  spawnGhosts(n) {
+    const meta = this.state.meta, ids = this.allRoomIds();
+    return Array.from({ length: n }, (_, i) => {
+      const rm = meta.rooms[ids[(i * 7 + 3) % ids.length]];   // 방마다 고르게
+      return { x: rm.center[0], y: rm.center[1], floor: rm.floor,
+               tx: rm.center[0], ty: rm.center[1] };
+    });
+  }
+  startMission() { this.setState({ screen: 'unity', over: null }); }
+  // Unity 빌드 없이도 강화학습 궤적을 관제 지도 위에서 그대로 재생한다.
+  startOpsReplay() {
+    const wps = this.liveWps();
+    if (!wps || wps.length < 2) { this.toast('재생할 경로가 없습니다 — 관제 화면에서 두 점을 먼저 지정하세요'); return; }
+    const S = this.SETTINGS;
+    const total = wps.reduce((t, w, i) => i ? t + Math.hypot(w.x - wps[i - 1].x, w.y - wps[i - 1].y) : 0, 0);
+    const sim = {
+      wps, seg: 0, pos: [wps[0].x, wps[0].y], floor: wps[0].floor, viewFloor: wps[0].floor,
+      room: wps[0].room || this.MISSION.startRoom, t: 0, limit: S.tLimit, travel: 0, total,
+      score: 0, trail: [], explored: new Set(wps[0].room ? [wps[0].room] : []),
+      ghosts: this.spawnGhosts(this.ghostCount(this.state.streak)),
+      collisions: 0, replans: 0, events: {}, log: [], phase: 'toGoal', grabbed: false, paused: false,
+      sanity: this.state.sanity,          // 지난 미션에서 이어받은 정신력
+      nearCount: 0,
+    };
+    this.pushLog(sim, '강화학습(SAC) 궤적 재생 시작', '#a5b4fc');
+    if (sim.sanity < 100) this.pushLog(sim, `정신력 ${Math.round(sim.sanity)}% 로 시작 (지난 미션 이월)`, '#f59e0b');
+    this.lastTs = null;
+    cancelAnimationFrame(this.raf);
+    this.setState({ sim, screen: 'ops' }, () => { this.raf = requestAnimationFrame(this.tick); });
+  }
+  demoSuccess() {
+    const d = this.DIFFS[this.state.diff];
+    let dist = 38.2, stairs = 3;
+    if (this.live) {
+      const wps = this.liveWps();
+      dist = this.live.plan ? this.live.plan.flown : this.pathLen(wps);
+      stairs = wps.reduce((n, w, i) => n + (i && w.floor !== wps[i - 1].floor ? 1 : 0), 0) || wps.filter(w => w.stairs).length;
+    }
+    const gained = Math.round((100 + dist * 10 + [0, 200, 450, 750][Math.min(3, stairs)] + 250 + 150 + 180) * parseFloat(d.mult));
+    const total = this.state.totalScore + gained;
+    this.setState({ totalScore: total, streak: this.state.streak + 1, screen: 'create' });
+    this.toast(`✅ 작전 성공 +${gained.toLocaleString()}점 — 누적 ${total.toLocaleString()}점. 바로 다음 목적지를 지정하세요`);
+  }
+  demoOver() {
+    const rm = this.state.meta.rooms['011'];
+    this.setState({
+      over: { cause: '미확인 개체에게 포획됨', room: '011', pos: [rm.center[0], rm.center[1]], floor: 2, t: 118, travel: 17.9, score: 380, phase: 'toGoal', total: this.state.totalScore, log: [{ t: '1:30', msg: '미확인 개체 감지', c: '#f59e0b' }, { t: '1:52', msg: '추적당하는 중 — 신호 오염도 92%', c: '#ef4444' }, { t: '1:58', msg: '생존 신호 소실', c: '#ef4444' }] },
+      screen: 'gameover', deadStreak: this.state.streak, streak: 0, totalScore: 0,
+    });
+  }
+  pushLog(sim, msg, c) { sim.log = [...sim.log.slice(-30), { t: this.mmss(sim.t), msg, c: c || '#a8969a' }]; }
+
+  tick = (ts) => {
+    const st = this.state, sim = st.sim;
+    if (!sim || (st.screen !== 'ops' && st.screen !== 'chase')) return;
+    if (this.lastTs == null) this.lastTs = ts;
+    const dt = Math.min((ts - this.lastTs) / 1000, 0.1); this.lastTs = ts;
+    if (sim.paused) { this.raf = requestAnimationFrame(this.tick); return; }
+    const ns = { ...sim };
+    ns.t += dt;
+    let remain = dt * 2.1, seg = ns.seg, pos = [...ns.pos], floor = ns.floor, room = ns.room;
+    const wps = ns.wps;
+    while (remain > 0 && seg < wps.length - 1) {
+      const tgt = wps[seg + 1];
+      const dx = tgt.x - pos[0], dy = tgt.y - pos[1], dd = Math.hypot(dx, dy);
+      if (dd <= remain) {
+        pos = [tgt.x, tgt.y];
+        if (tgt.floor !== floor) { floor = tgt.floor; this.pushLog(ns, `계단 통과 — ${this.FLOORS[floor]} 진입`, '#fbbf24'); }
+        if (tgt.room !== room) { room = tgt.room; ns.explored = new Set([...ns.explored, room]); this.pushLog(ns, `${this.label(room)} 진입`); }
+        ns.travel += dd; remain -= (dd || 1e-9); seg++;
+      } else { pos = [pos[0] + dx / dd * remain, pos[1] + dy / dd * remain]; ns.travel += remain; remain = 0; }
+    }
+    ns.seg = seg; ns.pos = pos; ns.floor = floor; ns.room = room;
+    ns.score = Math.round(100 + ns.travel * 10);
+    ns.trail = [...ns.trail.slice(-240), { x: pos[0], y: pos[1], floor }];
+    if (!ns.events.obstacle && ns.travel > ns.total * 0.35) { ns.events.obstacle = true; ns.collisions = 1; this.pushLog(ns, '장애물 감지 — 경미한 충돌 (-50)', '#f59e0b'); }
+    if (!ns.events.replan && ns.travel > ns.total * 0.55) { ns.events.replan = true; ns.replans = 1; this.pushLog(ns, '경로 재계획 완료 (-20)', '#f59e0b'); }
+    const gs = ns.grabbed ? 0.9 * (this.SETTINGS.gSpeed / 10) : 0.5;
+    ns.ghosts = ns.ghosts.map(g => {
+      let { x, y, floor: gf, tx, ty } = g;
+      if (ns.grabbed) {
+        if (gf !== ns.floor) { gf = ns.floor; x = ns.pos[0] + 4; y = ns.pos[1] + 3; }
+        tx = ns.pos[0]; ty = ns.pos[1];
+      } else if (Math.hypot(tx - x, ty - y) < 0.3) {
+        // 다음 목적지는 집 전체에서 고른다. 다른 층이면 유령은 벽을 통과해
+        // 그 층으로 넘어간다(계단을 쓰지 않는다).
+        const ids = this.allRoomIds();
+        const rm = this.state.meta.rooms[ids[Math.floor(Math.random() * ids.length)]];
+        if (rm.floor !== gf) { gf = rm.floor; x = rm.center[0]; y = rm.center[1]; }
+        tx = rm.center[0] + (Math.random() - 0.5); ty = rm.center[1] + (Math.random() - 0.5);
+      }
+      const dx = tx - x, dy = ty - y, dd = Math.hypot(dx, dy) || 1;
+      const step = Math.min(gs * dt, Math.max(0, dd - (ns.grabbed ? 1.5 : 0)));
+      return { x: x + dx / dd * step, y: y + dy / dd * step, floor: gf, tx, ty };
+    });
+    // 정신력: 같은 층에서 반경 안에 든 유령들이 각자 깎는다(회복은 그 밖일 때)
+    const C = this.SANITY;
+    const dists = ns.ghosts.filter(g => g.floor === ns.floor)
+      .map(g => Math.hypot(g.x - ns.pos[0], g.y - ns.pos[1]))
+      .filter(d => d < C.prox);
+    ns.nearCount = dists.length;
+    const drain = dists.length
+      ? Math.min(C.cap, dists.reduce((a, d) => a + (C.prox - d) * C.drain, 0))
+      : -C.regen;
+    const prev = ns.sanity;
+    ns.sanity = Math.max(0, Math.min(C.max, ns.sanity - drain * dt));
+    if (prev > 40 && ns.sanity <= 40) this.pushLog(ns, '정신력 40% 미만 - 개체가 근접해 있습니다', '#f59e0b');
+    if (prev > 15 && ns.sanity <= 15) this.pushLog(ns, '⚠ 정신력 15% - 곧 신호를 잃습니다', '#ef4444');
+    if (ns.sanity <= 0) { this.gameOver(ns, '정신력 소진 - 개체에게 포획됨'); return; }
+
+    const done = seg >= wps.length - 1;
+    if (done && ns.phase === 'toObj') {
+      this.pushLog(ns, '회수 대상이 있는 방 도착 — 물체 스캔 중', '#4ade80');
+      this.setState({ sim: ns, screen: 'grab' });
+      return;
+    }
+    if (done && ns.phase === 'toGoal') {
+      this.pushLog(ns, '목적지 도착 — 물체 배치 완료', '#4ade80');
+      this.finishSuccess(ns);
+      return;
+    }
+    if (ns.t > ns.limit) { this.gameOver(ns, '제한 시간 초과'); return; }
+    this.setState({ sim: ns }, () => { this.raf = requestAnimationFrame(this.tick); });
+  };
+
+  onGrab() {
+    const sim = { ...this.state.sim };
+    this.setState({ grabFx: true });
+    setTimeout(() => {
+      sim.grabbed = true; sim.phase = 'toGoal';
+      sim.wps = this.buildWps(this.MISSION.objRoom, this.objPos, this.MISSION.goalRoom, this.goalPos);
+      sim.seg = 0; sim.pos = [sim.wps[0].x, sim.wps[0].y]; sim.total = this.pathLen(sim.wps) + sim.travel;
+      this.pushLog(sim, '물체 파지 완료 — 운반 경로 생성', '#4ade80');
+      this.pushLog(sim, '⚠ 비정상 생체 신호 활성화 — 개체 3점 추적 개시', '#ef4444');
+      this.lastTs = null;
+      this.setState({ sim, screen: 'chase', grabFx: false }, () => { cancelAnimationFrame(this.raf); this.raf = requestAnimationFrame(this.tick); });
+    }, 2300);
+  }
+  finishSuccess(sim) {
+    cancelAnimationFrame(this.raf);
+    const d = this.DIFFS[this.state.diff];
+    const timeBonus = Math.max(0, Math.round((sim.limit - sim.t) / sim.limit * 300));
+    const items = [
+      { k: '기본 점수', v: '+100', n: 100, c: '#e8dde0' },
+      { k: `이동 거리 (${sim.travel.toFixed(1)}m × 10)`, v: `+${Math.round(sim.travel * 10)}`, n: Math.round(sim.travel * 10), c: '#e8dde0' },
+      { k: '층 이동 3회', v: '+750', n: 750, c: '#e8dde0' },
+      { k: '취급 주의 물체', v: '+150', n: 150, c: '#f59e0b' },
+      { k: '유령 추격 보너스', v: '+250', n: 250, c: '#f87171' },
+      { k: '물체 무낙하', v: '+150', n: 150, c: '#4ade80' },
+      { k: `시간 보너스 (${this.mmss(sim.limit - sim.t)} 남음)`, v: `+${timeBonus}`, n: timeBonus, c: '#4ade80' },
+      { k: `충돌 ${sim.collisions}회`, v: `-${sim.collisions * 50}`, n: -sim.collisions * 50, c: '#ef4444' },
+      { k: `경로 재계획 ${sim.replans}회`, v: `-${sim.replans * 20}`, n: -sim.replans * 20, c: '#ef4444' },
+      { k: `연속 ${this.state.streak + 1}회차 배수`, v: `×${this.tier(this.state.streak).mult}`, n: 0, c: '#f59e0b' },
+    ];
+    const sub = items.reduce((a, i) => a + i.n, 0);
+    this.finalItems = items;
+    this.finalScoreN = Math.round(sub * this.tier(this.state.streak).mult);
+    this.finalSim = sim;
+    this.setState({ sim, screen: 'success', tally: 0, streak: this.state.streak + 1,
+                    totalScore: this.state.totalScore + this.finalScoreN,
+                    sanity: sim.sanity });     // 다음 미션이 이 값에서 시작한다
+    clearInterval(this.tallyIv);
+    this.tallyIv = setInterval(() => {
+      const t = this.state.tally + 1;
+      if (t > items.length) { clearInterval(this.tallyIv); return; }
+      this.setState({ tally: t });
+    }, 280);
+  }
+  // 「회수하고 등록」 — 누적 점수를 기록에 남기고 도전을 끝낸다.
+  // 실패(포획/시간초과)로 끝나면 누적은 0 이 되므로, 언제 회수할지가 유일한
+  // 플레이어 판단이 된다.
+  cashOut() {
+    const total = this.state.totalScore;
+    if (total <= 0) { this.toast('등록할 점수가 없습니다'); return; }
+    const rec = {
+      score: total, rounds: this.state.streak,
+      grade: total >= 8000 ? 'S' : total >= 5000 ? 'A' : total >= 3000 ? 'B' : total >= 1500 ? 'C' : 'D',
+      cmd: this.state.cmd.trim() || this.MISSION.cmd,
+    };
+    const banked = [rec, ...this.state.banked];
+    const isBest = total >= this.bestOf(this.state.banked);
+    this.saveBanked(banked);
+    this.setState({ banked, totalScore: 0, streak: 0, sanity: 100, screen: 'lobby', sim: null });
+    this.toast(isBest
+      ? `🏆 신기록! ${total.toLocaleString()}점 등록 (${rec.rounds}연속, 등급 ${rec.grade})`
+      : `${total.toLocaleString()}점 등록 (${rec.rounds}연속, 등급 ${rec.grade}) - 누적 초기화`);
+  }
+
+  gameOver(sim, cause) {
+    cancelAnimationFrame(this.raf);
+    // 도전 종료: 회수하지 않은 누적 점수와 오염도가 전부 사라진다.
+    this.setState({
+      sim,
+      over: { cause, room: sim.room, pos: [...sim.pos], floor: sim.floor, t: sim.t,
+              travel: sim.travel, score: sim.score, phase: sim.phase,
+              sanity: Math.round(sim.sanity || 0), total: this.state.totalScore,
+              log: sim.log.slice(-4) },
+      screen: 'gameover',
+      deadStreak: this.state.streak, streak: 0, totalScore: 0, sanity: 100,
+    });
+  }
+
+  renderVals() {
+    const st = this.state, meta = st.meta;
+    const S = this.SETTINGS;
+    const base = {
+      // 인트로는 로비 위에 겹쳐 뜬다(z-index 90). 그래서 로비는 인트로가
+      // 걷히기 전에 이미 렌더·이미지 로드를 끝내 놓는다.
+      loaded: !!meta, toasts: st.toasts,
+      introVisible: st.intro || !meta,
+      introAnim: st.introFade ? 'introOut .6s ease-in both' : 'none',
+      introBarDur: '2.6s',
+      introStatus: meta
+        ? `SCENE ${meta.scene} · 3 FLOORS · ${Object.keys(meta.rooms).length} ROOMS`
+        : '저택의 기록을 불러오는 중…',
+      scanOpacity: S.scan && !S.access ? 0.5 : 0,
+      goLobby: () => { cancelAnimationFrame(this.raf); this.setState({ screen: 'lobby', sim: null }); },
+      goCreate: () => this.setState({ screen: 'create', sim: null }),
+      goRecords: () => this.go('records'),
+      // 작전 시작 = 시뮬레이터 화면 공유 요청 + 관제 화면 진입.
+      // 권한창은 클릭 안에서만 뜨므로 여기서 바로 호출하고, 화면은 기다리지
+      // 않고 넘어간다(거절해도 지도는 그대로 쓸 수 있다).
+      onStartMission: () => {
+        if (!window.__simShare.stream) window.__simShare.start();
+        this.setState({ screen: 'create', sim: null });
+      },
+      simShareOn: !!window.__simShare.stream,
+      simShareOff: !window.__simShare.stream,
+      simVideoEl: simVideo(),
+      simShareErr: window.__simShare.error || '',
+      onSimShare: () => window.__simShare.start(),
+      onSimShareStop: () => window.__simShare.stop(),
+    };
+    if (!meta) return base;
+    const fmt = n => n.toFixed(2);
+    const d = this.DIFFS[st.diff];
+    const scr = st.screen;
+    const sim = st.sim;
+
+    const mv = (floor, bw, bh) => {
+      const m = this.fm(floor);
+      const s = Math.min(bw / m.width, bh / m.height) * 0.94;
+      return { tx: (bw - m.width * s) / 2, ty: (bh - m.height * s) / 2, s, w: m.width, h: m.height, img: 'uploads/' + m.png };
+    };
+    const imgEl = (src, dark) => React.createElement('img', { src, style: { position: 'absolute', inset: 0, width: '100%', height: '100%', filter: dark ? 'brightness(.45) saturate(.3) sepia(.3) hue-rotate(-15deg) contrast(1.1)' : 'brightness(.6) saturate(.45) sepia(.25) hue-rotate(-15deg)', pointerEvents: 'none' } });
+    const runsFor = (wps, floor) => {
+      const runs = []; let cur = null;
+      if (!wps) return runs;
+      for (let i = 0; i < wps.length - 1; i++) {
+        const a = wps[i], b = wps[i + 1];
+        if (a.floor === floor && b.floor === floor) {
+          const [c1, r1] = this.w2p(floor, a.x, a.y), [c2, r2] = this.w2p(floor, b.x, b.y);
+          if (!cur) { cur = { key: runs.length, pts: `${Math.round(c1)},${Math.round(r1)}` }; runs.push(cur); }
+          cur.pts += ` ${Math.round(c2)},${Math.round(r2)}`;
+        } else cur = null;
+      }
+      return runs;
+    };
+    const M = this.MISSION;
+    const sRm = meta.rooms[M.startRoom];
+    const fullWps = () => {
+      const w1 = this.buildWps(M.startRoom, [sRm.center[0], sRm.center[1]], M.objRoom, this.objPos);
+      const w2 = this.buildWps(M.objRoom, this.objPos, M.goalRoom, this.goalPos);
+      return w1.concat(w2.slice(1));
+    };
+
+    const vals = {
+      ...base,
+      isLobby: scr === 'lobby', isCreate: scr === 'create', isBriefing: scr === 'briefing',
+      isOps: scr === 'ops' || scr === 'chase', isGrab: scr === 'grab', isSuccess: scr === 'success',
+      isOver: scr === 'gameover', isRecords: scr === 'records',
+      isChaseMode: scr === 'chase', isUnity: scr === 'unity',
+    };
+
+    if (scr === 'lobby') {
+      const best = this.bestOf(st.banked);
+      const mine = st.banked.length ? Math.max(...st.banked.map(b => b.score)) : 0;
+      vals.bestScore = best.toLocaleString();
+      vals.bestColor = mine >= best && mine > 0 ? '#4ade80' : '#57c4b8';
+      vals.bestTag = mine >= best && mine > 0 ? '· 내 기록' : '';
+      vals.runCount = `${this.RECORDS.length + st.banked.length}`;
+      vals.lobbyBlips = [
+        { left: '30%', top: '36%', color: '#4ade80', dur: '2.2s' },
+        { left: '62%', top: '58%', color: '#ef4444', dur: '3.4s' },
+        { left: '48%', top: '70%', color: '#ef4444', dur: '4.1s' },
+      ];
+    }
+    if (scr === 'create') {
+      vals.runChipVisible = st.streak > 0;
+      vals.runChipTxt = `누적 ${st.totalScore.toLocaleString()}점 · 연속 ${st.streak}회`;
+      vals.onMissionFromMap = (p) => {
+        this.live = p;
+        const cmd = p.goal_object ? `${p.goalLabel}의 ${p.goal_object} 앞으로 가줘` : `${p.goalLabel}(으)로 가줘`;
+        this.setState({ cmd, screen: 'briefing' });
+      };
+    }
+    if (scr === 'briefing') {
+      const live = this.live;
+      const sRoom = live ? live.start_room : M.startRoom;
+      const gRoom = live ? live.goal_room : M.goalRoom;
+      const sPos = live ? [live.start[0], live.start[1]] : [sRm.center[0], sRm.center[1]];
+      const gPos = live ? [live.goal[0], live.goal[1]] : this.goalPos;
+      const wpsAll = live ? this.liveWps() : fullWps();
+      const rl = live && live.plan ? live.plan : null;
+      const distM = rl ? rl.flown : this.pathLen(wpsAll);
+      // RL 궤적은 층을 z 로 넘나드므로 '계단 경유'를 층 전환 횟수로 센다.
+      const stairsN = rl ? wpsAll.reduce((n, w, i) => n + (i && w.floor !== wpsAll[i - 1].floor ? 1 : 0), 0)
+                         : wpsAll.filter(w => w.stairs).length;
+      const estScore = Math.round((100 + distM * 10 + [0, 200, 450, 750][Math.min(3, stairsN)]) * parseFloat(d.mult));
+      vals.briefCmd = st.cmd.trim() || M.cmd;
+      vals.briefRows = [
+        { k: '출발', v: `${this.FLOORS[meta.rooms[sRoom].floor]} · ${this.label(sRoom)}`, c: '#4ade80' },
+        { k: '출발 좌표', v: `[${fmt(sPos[0])}, ${fmt(sPos[1])}]`, c: '#57c4b8' },
+        { k: '도착', v: `${this.FLOORS[meta.rooms[gRoom].floor]} · ${this.label(gRoom)}`, c: '#f87171' },
+        { k: '목표 지점', v: live && live.goal_object ? `${live.goal_object} 앞` : '방 내 지정 지점', c: '#f59e0b' },
+        { k: '배치 좌표', v: `[${fmt(gPos[0])}, ${fmt(gPos[1])}]`, c: '#57c4b8' },
+        { k: rl ? '경로 길이 (RL 실측)' : '예상 측지거리', v: `${distM.toFixed(1)} m`, c: '#e8dde0' },
+        { k: '층 이동', v: stairsN ? `${stairsN}회 (계단 경유)` : '없음', c: '#fbbf24' },
+        ...(rl ? [
+          { k: '경로 생성 엔진', v: rl.engine, c: '#a5b4fc' },
+          { k: '정책 도달 여부', v: rl.success ? '도착 성공' : '미도달', c: rl.success ? '#4ade80' : '#f59e0b' },
+          { k: '정책 스텝 수', v: `${rl.steps}`, c: '#57c4b8' },
+          { k: '충돌(범프)', v: `${rl.bumps}회`, c: rl.bumps ? '#f59e0b' : '#4d9e6a' },
+        ] : []),
+        { k: '시작 정신력', v: st.sanity < 100 ? `${Math.round(st.sanity)}% (이월)` : '100%',
+          c: st.sanity < 40 ? '#ef4444' : (st.sanity < 100 ? '#f59e0b' : '#4ade80') },
+        { k: '제한 시간', v: d.timeTxt, c: '#e8dde0' },
+        { k: '난이도', v: `${d.title} ×${d.mult}`, c: '#f87171' },
+        { k: '예상 점수', v: `약 ${estScore.toLocaleString()}+`, c: '#57c4b8' },
+        { k: '출현 예상 개체', v: `${d.ghosts}`, c: '#ef4444' },
+      ];
+      vals.briefMaps = [0, 1, 2].map(f => {
+        const v = mv(f, 380, 470);
+        const marks = [];
+        if (meta.rooms[sRoom].floor === f) { const [c, r] = this.w2p(f, sPos[0], sPos[1]); marks.push({ left: Math.round(c), top: Math.round(r), size: 14, bg: '#10b981', ring: '#a7f3d0', label: 'DRONE' }); }
+        if (!live && meta.rooms[M.objRoom].floor === f) { const [c, r] = this.w2p(f, this.objPos[0], this.objPos[1]); marks.push({ left: Math.round(c), top: Math.round(r), size: 14, bg: '#f59e0b', ring: '#fde68a', label: '인형' }); }
+        if (meta.rooms[gRoom].floor === f) { const [c, r] = this.w2p(f, gPos[0], gPos[1]); marks.push({ left: Math.round(c), top: Math.round(r), size: 14, bg: '#ef4444', ring: '#fecaca', label: live && live.goal_object ? live.goal_object : 'GOAL' }); }
+        for (const e of meta.edges) if (e.type === 'stairs' && (meta.rooms[e.a].floor === f || meta.rooms[e.b].floor === f)) {
+          const [c, r] = this.w2p(f, e.door_center[0], e.door_center[1]);
+          marks.push({ left: Math.round(c), top: Math.round(r), size: 10, bg: '#fbbf24', ring: '#57431a', label: '계단' });
+        }
+        let danger = false, dl = 0, dt2 = 0, dw = 0, dh = 0;
+        if (f === 2) { const rm = meta.rooms['011']; const [c0, r0] = this.w2p(2, rm.bbox_min[0] + 3, rm.bbox_max[1]); const [c1, r1] = this.w2p(2, rm.bbox_max[0], rm.bbox_min[1] + 4); danger = true; dl = Math.round(c0); dt2 = Math.round(r0); dw = Math.round(c1 - c0); dh = Math.round(r1 - r0); }
+        const tag = f === 2 ? '⚠ 위험 구역' : (f === 0 ? '목적지 층' : '출발 층');
+        return { ...v, imgEl: imgEl(v.img), label: `${this.FLOORS[f]} · FLOOR ${f}`, tag, tagColor: f === 2 ? '#f87171' : '#8a7478', runs: runsFor(wpsAll, f), marks, danger, dl, dt: dt2, dw, dh };
+      });
+      vals.onLaunchPrep = () => this.startPrep();
+      vals.prepVisible = st.prep >= 0;
+      const PREP = ['SLAM 지도 동기화 중', '출발 위치 확인 중', '회수 대상 탐색 중', '비정상 생체 신호 확인 중', '경로 생성 완료'];
+      vals.prepLines = PREP.map((t, i) => ({
+        txt: t,
+        icon: i < st.prep ? '✓' : (i === st.prep ? '▸' : '·'),
+        c: i < st.prep ? '#4ade80' : (i === st.prep ? '#f87171' : '#5f4a4e'),
+      }));
+    }
+    if ((scr === 'ops' || scr === 'chase') && sim) {
+      const showF = sim.viewFloor ?? sim.floor;
+      const ov = mv(showF, st.opsBox.w, st.opsBox.h);
+      // 관제 화면에서 실제로 지정한 미션이 있으면 그쪽 목적지를 쓴다
+      // (없으면 데모용 MISSION 상수).
+      const live = this.live;
+      const objRoom = live ? null : M.objRoom;                     // live 미션엔 회수 물체가 없음
+      const goalRoom = live ? live.goal_room : M.goalRoom;
+      const goalXY = live ? [live.goal[0], live.goal[1]] : this.goalPos;
+      const goalName = live ? (live.goalLabel || this.label(goalRoom)) : '1층 현관';
+      vals.opsRef = this.opsRef;
+      vals.ov = ov;
+      vals.ovImg = imgEl(ov.img);
+      vals.zoomFitOps = () => this.measureOps();
+      vals.hudScore = sim.score.toLocaleString();
+      vals.hudElapsed = this.mmss(sim.t);
+      const remain = sim.limit - sim.t;
+      vals.hudRemain = this.mmss(remain);
+      vals.hudTimeColor = remain < 60 ? '#ef4444' : (remain < 120 ? '#f59e0b' : '#a8969a');
+      vals.hudTimeBorder = remain < 60 ? '#7f1d1d' : '#2a1015';
+      const dura = 100 - sim.collisions * 15;
+      vals.hudDura = dura; vals.hudDuraColor = dura > 70 ? '#4d9e6a' : '#f59e0b';
+      vals.hudPhase = sim.phase === 'toObj' ? '2/6 물체 탐색 이동' : '5/6 운반 중';
+      vals.hudSlam = scr === 'chase' ? '불안정' : '정상';
+      vals.hudRtt = `${38 + Math.round(Math.sin(sim.t * 1.7) * 6)}ms`;
+      vals.pauseTxt = sim.paused ? '▶ 재개' : '⏸ 일시정지';
+      vals.onPause = () => this.setState({ sim: { ...sim, paused: !sim.paused } });
+      vals.onAbort = () => this.gameOver(sim, scr === 'chase' ? '미확인 개체에게 포획됨' : '통신 신호 소실 — 작전 중단');
+      vals.floorTabs = [0, 1, 2].map(f => ({
+        label: this.FLOORS[f],
+        onClick: () => this.setState({ sim: { ...sim, viewFloor: f } }),
+        border: showF === f ? '#ef4444' : '#3a161c',
+        bg: showF === f ? '#3d1016' : '#170a0d',
+        color: showF === f ? '#f87171' : '#a8969a',
+      }));
+      vals.opsRooms = this.fm(showF).rooms.map(id => {
+        const isDrone = id === sim.room, isObj = !!objRoom && id === objRoom && !sim.grabbed, isGoal = id === goalRoom, exp = sim.explored.has(id);
+        const gHere = sim.ghosts.some(g => g.floor === showF && Math.hypot(g.x - meta.rooms[id].center[0], g.y - meta.rooms[id].center[1]) < 2.5);
+        return {
+          name: this.label(id),
+          dot: isDrone ? '#34d399' : (isObj ? '#f59e0b' : (isGoal ? '#ef4444' : (exp ? '#57c4b8' : '#4a3a3e'))),
+          border: isDrone ? '#1e3a2a' : '#2a1015', bg: isDrone ? '#0e1a14' : 'transparent',
+          tag: gHere ? '⚠개체' : (isDrone ? '드론' : (isObj ? '물체' : (isGoal ? '목적지' : (exp ? '탐색됨' : '')))),
+          tagColor: gHere ? '#ef4444' : (isDrone ? '#34d399' : (isObj ? '#f59e0b' : (isGoal ? '#f87171' : '#57c4b8'))),
+        };
+      });
+      vals.explored = `${sim.explored.size} / 22`;
+      vals.ghostCountTxt = `${sim.ghosts.length}`;
+      vals.ovRooms = this.fm(showF).rooms.map(id => {
+        const rm = meta.rooms[id];
+        const [c0, r0] = this.w2p(showF, rm.bbox_min[0], rm.bbox_max[1]);
+        const [c1, r1] = this.w2p(showF, rm.bbox_max[0], rm.bbox_min[1]);
+        return { name: this.label(id), left: Math.round(c0), top: Math.round(r0), w: Math.round(c1 - c0), h: Math.round(r1 - r0), border: '#ef44442e', labelColor: '#f8717180' };
+      });
+      vals.ovRuns = S.route ? runsFor(sim.wps, showF) : [];
+      const trailRuns = []; let cur = null;
+      for (let i = 0; i < sim.trail.length - 1; i++) {
+        const a = sim.trail[i], b = sim.trail[i + 1];
+        if (a.floor === showF && b.floor === showF) {
+          const [c1, r1] = this.w2p(showF, a.x, a.y), [c2, r2] = this.w2p(showF, b.x, b.y);
+          if (!cur) { cur = { key: trailRuns.length, pts: `${Math.round(c1)},${Math.round(r1)}` }; trailRuns.push(cur); }
+          cur.pts += ` ${Math.round(c2)},${Math.round(r2)}`;
+        } else cur = null;
+      }
+      vals.ovTrail = trailRuns;
+      vals.ovWps = S.waypts ? sim.wps.slice(sim.seg + 1, -1).filter(w => w.floor === showF).map((w, i) => { const [c, r] = this.w2p(showF, w.x, w.y); return { key: i, left: Math.round(c), top: Math.round(r) }; }) : [];
+      vals.ovStairs = meta.edges.filter(e => e.type === 'stairs' && (meta.rooms[e.a].floor === showF || meta.rooms[e.b].floor === showF)).map((e, i) => { const [c, r] = this.w2p(showF, e.door_center[0], e.door_center[1]); return { key: i, left: Math.round(c), top: Math.round(r) }; });
+      vals.ovGhosts = S.ghostShow ? sim.ghosts.filter(g => g.floor === showF).map((g, i) => {
+        const [c, r] = this.w2p(showF, g.x, g.y);
+        return { key: i, left: Math.round(c), top: Math.round(r), range: 120, color: sim.grabbed ? '#ef4444' : '#b794f6', label: sim.grabbed ? `개체-${i + 1} 추적` : `개체-${i + 1}` };
+      }) : [];
+      const marks = [];
+      { const [c, r] = this.w2p(sim.floor, sim.pos[0], sim.pos[1]); if (sim.floor === showF) marks.push({ left: Math.round(c), top: Math.round(r), bg: '#10b981', ring: '#a7f3d0', label: 'DRONE', txtC: '#a7f3d0', txtBg: '#022c22cc', txtBorder: '#14532d' }); }
+      if (objRoom && !sim.grabbed && meta.rooms[objRoom].floor === showF) { const [c, r] = this.w2p(showF, this.objPos[0], this.objPos[1]); marks.push({ left: Math.round(c), top: Math.round(r), bg: '#f59e0b', ring: '#fde68a', label: '인형', txtC: '#fde68a', txtBg: '#1c150acc', txtBorder: '#57431a' }); }
+      if (meta.rooms[goalRoom].floor === showF) { const [c, r] = this.w2p(showF, goalXY[0], goalXY[1]); marks.push({ left: Math.round(c), top: Math.round(r), bg: '#ef4444', ring: '#fecaca', label: 'GOAL', txtC: '#fecaca', txtBg: '#450a0acc', txtBorder: '#7f1d1d' }); }
+      vals.ovMarks = marks;
+      const sameFloorG = sim.ghosts.filter(g => g.floor === sim.floor);
+      const minD = sameFloorG.length ? Math.min(...sameFloorG.map(g => Math.hypot(g.x - sim.pos[0], g.y - sim.pos[1]))) : 99;
+      const san = Math.round(sim.sanity != null ? sim.sanity : 100);
+      const contam = 100 - san;     // 연출(글로우/노이즈/흔들림)은 위험도 기준
+      const fx = (S.horror / 100) * (S.access ? 0.3 : 1);
+      vals.dangerGlow = contam > 15
+        ? `inset 0 0 ${Math.round(contam * 1.6 * fx)}px ${Math.round(contam * 0.5 * fx)}px #7f1d1d${contam > 60 ? '99' : '55'}`
+        : 'none';
+      vals.mapNoise = S.glitch ? Math.min(0.9, contam / 110) * fx : 0;
+      vals.mapShake = S.shake && contam > 72 && !S.access ? 'shake .28s infinite' : 'none';
+      const nearest = sameFloorG.length ? sameFloorG.reduce((a, g) => Math.hypot(g.x - sim.pos[0], g.y - sim.pos[1]) < Math.hypot(a.x - sim.pos[0], a.y - sim.pos[1]) ? g : a) : null;
+      const dirTxt = nearest ? (() => { const ang = Math.atan2(nearest.y - sim.pos[1], nearest.x - sim.pos[0]) * 180 / Math.PI; const dirs = ['동', '북동', '북', '북서', '서', '남서', '남', '남동']; return dirs[Math.round(((ang + 360) % 360) / 45) % 8]; })() : '—';
+      const rows = [
+        { k: '현재 단계', v: sim.phase === 'toObj' ? '물체 탐색 이동' : '운반 중', c: '#f87171' },
+        { k: '다음 목표', v: sim.phase === 'toObj' && objRoom ? this.label(objRoom) : goalName, c: '#e8dde0' },
+        { k: '남은 거리', v: `${Math.max(0, sim.total - sim.travel).toFixed(1)} m`, c: '#57c4b8' },
+        { k: '물체 파지', v: sim.grabbed ? '확보됨' : '미확보', c: sim.grabbed ? '#4ade80' : '#8a7478' },
+        { k: '충돌 횟수', v: `${sim.collisions} / ${S.cAllow}`, c: sim.collisions ? '#f59e0b' : '#a8969a' },
+        { k: '경로 재계획', v: `${sim.replans}회`, c: '#a8969a' },
+        { k: '가장 가까운 개체', v: minD > 90 ? '다른 층' : `${minD.toFixed(1)} m`, c: minD < 4 ? '#ef4444' : '#a8969a', anim: minD < 4 ? 'blinkDot 1s infinite' : 'none' },
+        { k: `근접 개체 (${this.SANITY.prox}m 내)`, v: `${sim.nearCount || 0}마리`,
+          c: (sim.nearCount || 0) >= 4 ? '#ef4444' : ((sim.nearCount || 0) ? '#f59e0b' : '#4d9e6a'),
+          anim: (sim.nearCount || 0) >= 4 ? 'blinkDot 1s infinite' : 'none' },
+        { k: '정신력', v: `${san}% / 100%`, c: san < 40 ? '#ef4444' : (san < 70 ? '#f59e0b' : '#4ade80') },
+        { k: '시작 시 이월', v: `${Math.round(st.sanity)}%`, c: st.sanity < 100 ? '#f59e0b' : '#8a7478' },
+        { k: '예상 점수', v: `${sim.score.toLocaleString()}`, c: '#57c4b8' },
+      ];
+      if (scr === 'chase') rows.push({ k: '점수 배율', v: `×${d.mult} + 추격`, c: '#f87171' }, { k: '추격 보너스', v: '+250', c: '#f87171' });
+      vals.opsRows = rows.map(r => ({ ...r, anim: r.anim || 'none' }));
+      // 상단 정신력 게이지
+      vals.sanPct = san;
+      vals.sanWidth = san;
+      vals.sanColor = san < 25 ? '#ef4444' : san < 50 ? '#f59e0b' : san < 75 ? '#e8dde0' : '#4ade80';
+      vals.sanFill = san < 25 ? 'linear-gradient(90deg,#7f1d1d,#ef4444)'
+        : san < 50 ? 'linear-gradient(90deg,#7c4a10,#f59e0b)'
+        : 'linear-gradient(90deg,#14532d,#4ade80)';
+      vals.sanGlow = san < 25 ? '#ef4444aa' : san < 50 ? '#f59e0b88' : '#4ade8066';
+      vals.sanBarBg = san < 25 ? '#2a0a0e' : san < 50 ? '#1c150a' : '#10070a';
+      vals.sanBarBorder = san < 25 ? '#7f1d1d' : '#2a1015';
+      vals.sanAnim = san < 25 ? 'blinkDot 1s infinite' : 'none';
+      vals.sanNearColor = (sim.nearCount || 0) >= 4 ? '#ef4444' : ((sim.nearCount || 0) ? '#f59e0b' : '#5f4a4e');
+      vals.sanNearAnim = (sim.nearCount || 0) >= 4 ? 'blinkDot .8s infinite' : 'none';
+      vals.nearCountTxt = `${sim.nearCount || 0}마리`;
+      vals.threatTxt = contam < 20 ? '안전' : contam < 40 ? '비정상 신호 감지' : contam < 60 ? '개체 접근 중' : contam < 80 ? '추적당하는 중' : '치명적 위험';
+      vals.threatColor = contam < 40 ? '#f59e0b' : '#ef4444';
+      vals.threatAnim = contam > 80 && S.glitch && !S.access ? 'glitchTxt 1.2s infinite' : 'none';
+      vals.ghostDir = dirTxt;
+      vals.briefCmd = st.cmd.trim() || M.cmd;
+      vals.logLines = sim.log.slice(-5).reverse().map((l, i) => ({ ...l, key: i }));
+    }
+    if (scr === 'unity') {
+      vals.briefCmd = st.cmd.trim() || M.cmd;
+      vals.streakChip = `누적 ${st.totalScore.toLocaleString()}점 · 연속 ${st.streak}회`;
+      vals.onDemoSuccess = () => this.demoSuccess();
+      vals.onDemoOver = () => this.demoOver();
+      vals.onOpsReplay = () => this.startOpsReplay();
+      vals.onBackBrief = () => this.go('briefing');
+    }
+    if (scr === 'grab' && sim) {
+      vals.grabObjName = M.objName;
+      vals.grabRoomTxt = `3층 · ${this.label(M.objRoom)}`;
+      vals.grabCoordTxt = `x ${fmt(this.objPos[0])}  y ${fmt(this.objPos[1])}  z 4.42`;
+      vals.onGrab = () => this.onGrab();
+      vals.grabFx = !!st.grabFx;
+    }
+    if (scr === 'success') {
+      vals.briefCmd = st.cmd.trim() || M.cmd;
+      vals.scoreItems = (this.finalItems || []).slice(0, st.tally);
+      vals.finalScore = st.tally > (this.finalItems || []).length - 1 ? this.finalScoreN.toLocaleString() : '…';
+      vals.grade = this.finalScoreN >= 2600 ? 'S' : this.finalScoreN >= 1900 ? 'A' : this.finalScoreN >= 1200 ? 'B' : 'C';
+      vals.sumDist = this.finalSim ? `${this.finalSim.travel.toFixed(1)}m` : '';
+      vals.sumTime = this.finalSim ? this.mmss(this.finalSim.t) : '';
+      vals.onReplay = () => this.startOpsReplay();
+      vals.onCashOut = () => this.cashOut();
+      vals.bankTxt = `${st.totalScore.toLocaleString()}점`;
+      vals.nextMult = this.tier(st.streak).mult;
+      vals.nextGhosts = this.tier(st.streak).ghosts;
+      vals.carrySanity = Math.round(st.sanity);
+      vals.streakTxt = `연속 작전 성공 ${st.streak}회 - 누적 ${st.totalScore.toLocaleString()}점 (아직 미등록)`;
+    }
+    if (scr === 'gameover' && st.over) {
+      const o = st.over;
+      vals.overCause = o.cause;
+      const tot = o.total || 0;
+      vals.overRank = tot >= 8000 ? 'S' : tot >= 5000 ? 'A' : tot >= 3000 ? 'B' : tot >= 1500 ? 'C' : 'D';
+      vals.overRankC = tot >= 5000 ? '#f59e0b' : tot >= 1500 ? '#f87171' : '#8a7478';
+      vals.overTotalTxt = tot.toLocaleString();
+      vals.overStreakTxt = `연속 성공 ${st.deadStreak}회`;
+      vals.lostTxt = (o.total || 0).toLocaleString();
+      vals.overRows = [
+        { k: '실패 원인', v: o.cause, c: '#f87171' },
+        { k: '마지막 위치', v: `[${fmt(o.pos[0])}, ${fmt(o.pos[1])}]`, c: '#57c4b8' },
+        { k: '마지막 확인 방', v: this.label(o.room), c: '#e8dde0' },
+        { k: '진행 단계', v: o.phase === 'toObj' ? '2/6 물체 탐색 이동' : '5/6 운반 중', c: '#a8969a' },
+        { k: '최종 정신력', v: `${o.sanity != null ? o.sanity : 0}%`, c: '#ef4444' },
+        { k: '운반 중이던 물체', v: o.phase === 'toGoal' ? M.objName : '없음', c: '#f59e0b' },
+        { k: '이동 거리', v: `${o.travel.toFixed(1)} m`, c: '#a8969a' },
+        { k: '획득 점수', v: `${o.score.toLocaleString()}`, c: '#57c4b8' },
+        { k: '생존 시간', v: this.mmss(o.t), c: '#a8969a' },
+        { k: '누적 점수', v: (o.total || 0).toLocaleString(), c: '#57c4b8' },
+        { k: '연속 성공 기록', v: `${st.deadStreak}회에서 종료`, c: '#f87171' },
+      ];
+      const om = mv(o.floor, 408, 210);
+      const [c, r] = this.w2p(o.floor, o.pos[0], o.pos[1]);
+      vals.om = { ...om, xl: Math.round(c), xt: Math.round(r) };
+      vals.omImg = imgEl(om.img, true);
+      vals.overLog = o.log.map((l, i) => ({ ...l, key: i }));
+    }
+    if (scr === 'records') {
+      const R = this.RECORDS;
+      vals.recStats = [
+        { k: '전체 미션', v: '27', c: '#e8dde0' }, { k: '성공 / 실패', v: '19 / 8', c: '#4ade80' },
+        { k: '생존율', v: '70%', c: '#f59e0b' }, { k: '평균 점수', v: '1,480', c: '#57c4b8' },
+        { k: '포획된 횟수', v: '5', c: '#ef4444' }, { k: '가장 위험한 방', v: '2층 복도', c: '#f87171' },
+      ];
+      const banked = st.banked.map(b => ({
+        grade: b.grade, cmd: `${b.rounds}연속 도전 회수 - "${b.cmd}"`, diff: '이번 세션',
+        ok: true, score: b.score, dist: '-', time: '-', date: '방금',
+        route: `연속 ${b.rounds}회 성공 후 회수하여 등록`,
+        logs: ['도전을 회수하여 점수를 확정했습니다', '', ''],
+      }));
+      vals.recRows = banked.concat(R).map((r, i) => ({
+        grade: r.grade, gradeC: r.grade === 'S' ? '#4ade80' : r.grade === 'A' ? '#57c4b8' : r.grade === 'B' ? '#f59e0b' : '#ef4444',
+        cmd: r.cmd, diff: r.diff, result: r.ok ? '성공' : '실패', resultC: r.ok ? '#4ade80' : '#ef4444',
+        score: r.score.toLocaleString(), dist: r.dist, time: r.time, date: r.date,
+        open: st.selRecord === i, onClick: () => this.setState({ selRecord: st.selRecord === i ? null : i }),
+        border: st.selRecord === i ? '#4a1d24' : '#2a1015', bg: st.selRecord === i ? '#170a0d' : '#10070a',
+        route: r.route, log1: r.logs[0], log2: r.logs[1], log3: r.logs[2],
+      }));
+    }
+    return vals;
+  }
+}
+</script>
+</body>
+</html>

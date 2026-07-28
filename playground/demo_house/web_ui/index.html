@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>드론 관제 — 목적지 선택</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header id="topbar">
+  <div class="brand">
+    <span class="brand-dot"></span>
+    <div>
+      <div class="brand-title">Gesture Drone Control</div>
+      <div class="brand-sub">실내 자율비행 관제 · 00809_Qpor2mEya8F</div>
+    </div>
+  </div>
+  <form id="nl-form" autocomplete="off">
+    <svg viewBox="0 0 24 24" class="nl-icon"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2z" fill="currentColor"/></svg>
+    <input id="nl-input" type="text" placeholder="예: 안방 침대 앞으로 가줘">
+    <button type="submit">명령</button>
+  </form>
+  <div class="conn"><span class="conn-dot"></span>드론 연결됨</div>
+</header>
+
+<div id="layout">
+
+  <aside id="sidebar">
+    <section class="card drone-card">
+      <div class="card-title">드론 상태</div>
+      <div class="drone-row">
+        <div class="drone-avatar">
+          <svg viewBox="0 0 24 24"><path d="M6 7a2 2 0 1 1 .001-4.001A2 2 0 0 1 6 7zm12 0a2 2 0 1 1 .001-4.001A2 2 0 0 1 18 7zM6 21a2 2 0 1 1 .001-4.001A2 2 0 0 1 6 21zm12 0a2 2 0 1 1 .001-4.001A2 2 0 0 1 18 21zM9.5 9.5h5v5h-5z M7 5h1.5v3H7zm8.5 0H17v3h-1.5zM7 16h1.5v3H7zm8.5 0H17v3h-1.5z" fill="currentColor"/></svg>
+        </div>
+        <div class="drone-info">
+          <div id="drone-loc" class="drone-loc">—</div>
+          <div id="drone-coord" class="mono muted">—</div>
+        </div>
+      </div>
+      <div class="drone-meters">
+        <div class="meter"><span class="muted">배터리</span><div class="bar"><i style="width:87%"></i></div><span>87%</span></div>
+        <div class="meter"><span class="muted">상태</span><span class="badge idle">대기 중 (호버링)</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title">층 선택</div>
+      <div id="floor-tabs" class="floor-tabs"></div>
+    </section>
+
+    <section class="card grow">
+      <div class="card-title">방 둘러보기 <span id="room-count" class="muted"></span></div>
+      <ul id="room-list" class="room-list"></ul>
+    </section>
+
+    <section class="card">
+      <div class="card-title">표시 옵션</div>
+      <label class="opt"><input type="checkbox" id="opt-rooms" checked> 방 경계</label>
+      <label class="opt"><input type="checkbox" id="opt-doors" checked> 문 위치</label>
+      <label class="opt"><input type="checkbox" id="opt-passages"> 통로 지정점</label>
+    </section>
+  </aside>
+
+  <main id="map-wrap">
+    <canvas id="map"></canvas>
+    <div id="tooltip" class="tooltip" hidden></div>
+    <div id="map-hint">평면도를 클릭해 <b>목적지</b>를 지정하세요 · 드래그 이동 · 휠 확대/축소</div>
+    <div id="legend">
+      <span><i class="lg lg-drone"></i>드론 현재 위치</span>
+      <span><i class="lg lg-dest"></i>목적지</span>
+      <span><i class="lg lg-door"></i>문</span>
+      <span><i class="lg lg-stair"></i>계단</span>
+    </div>
+    <div id="zoom-ctrl">
+      <button id="zoom-in" title="확대">+</button>
+      <button id="zoom-out" title="축소">−</button>
+      <button id="zoom-fit" title="전체 보기">⤢</button>
+    </div>
+  </main>
+
+  <aside id="mission">
+    <section class="card">
+      <div class="card-title">비행 미션</div>
+
+      <div class="waypoint">
+        <div class="wp-marker wp-start"></div>
+        <div class="wp-body">
+          <div class="wp-label">출발 — 드론 현재 위치</div>
+          <div id="wp-start-room" class="wp-room">—</div>
+          <div id="wp-start-coord" class="mono muted">—</div>
+        </div>
+      </div>
+
+      <div class="wp-connector"></div>
+
+      <div class="waypoint" id="wp-dest">
+        <div class="wp-marker wp-goal"></div>
+        <div class="wp-body">
+          <div class="wp-label">도착 — 목적지 <button id="dest-clear" class="link-btn" hidden>지우기</button></div>
+          <div id="wp-dest-room" class="wp-room empty">평면도에서 지점을 클릭하세요</div>
+          <div id="wp-dest-coord" class="mono muted"></div>
+        </div>
+      </div>
+
+      <div id="cross-floor" class="note" hidden>층간 이동 — 계단 경유 구간 포함</div>
+
+      <button id="plan-btn" class="primary" disabled>비행 경로 계획</button>
+    </section>
+
+    <section class="card">
+      <div class="card-title">요청 페이로드 <span class="muted">POST /plan</span></div>
+      <pre id="payload" class="payload mono">목적지를 선택하면 표시됩니다</pre>
+      <div class="note dim">※ UI 목업 — 백엔드 연동은 별도 구현</div>
+    </section>
+  </aside>
+
+</div>
+
+<div id="toast" hidden></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
