@@ -1,0 +1,11 @@
+{
+  "relativeToDrone": true,
+  "props": [
+    { "name": "package_orange", "shape": "box",    "x":  1.5, "y": 0.4, "z": 3.0, "scale": 0.35, "color": "#FF8C26", "mass": 0.4 },
+    { "name": "package_blue",   "shape": "box",    "x": -1.2, "y": 0.4, "z": 4.0, "scale": 0.45, "color": "#4090FF", "mass": 0.6 },
+    { "name": "barrel_purple",  "shape": "barrel", "x":  0.4, "y": 0.4, "z": 5.5, "scale": 0.35, "color": "#9966E6", "mass": 0.5 }
+  ],
+  "zones": [
+    { "name": "dropzone", "x": 0.0, "y": 0.0, "z": 8.5, "radius": 1.5, "color": "#26FF73" }
+  ]
+}

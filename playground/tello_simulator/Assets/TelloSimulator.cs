@@ -43,6 +43,11 @@ public class TelloSimulator : MonoBehaviour
     [Tooltip("Minimum seconds between two recorded collision events.")]
     public float collisionDebounce = 0.2f;
 
+    // Extension hooks so add-on systems (e.g. the cargo simulation) can handle extra
+    // UDP commands and append fields to the state payload without owning the socket.
+    [NonSerialized] public Func<string, bool> commandHook;
+    [NonSerialized] public Func<string> stateExtraProvider;
+
     private readonly ConcurrentQueue<string> commandQueue = new ConcurrentQueue<string>();
 
     private UdpClient udpServer;
@@ -338,10 +343,38 @@ public class TelloSimulator : MonoBehaviour
             return;
         }
 
+        if (commandHook != null && commandHook(cmd))
+        {
+            return;
+        }
+
         Debug.Log($"[Tello] Unknown command: '{cmd}'");
     }
 
     void SendState()
+    {
+        Vector3 pos = transform.position;
+        float yaw = transform.eulerAngles.y;
+        string extra = stateExtraProvider != null ? stateExtraProvider() : null;
+        string payload =
+            "{"
+            + "\"x\":" + pos.x.ToString("F4", CultureInfo.InvariantCulture) + ","
+            + "\"y\":" + pos.y.ToString("F4", CultureInfo.InvariantCulture) + ","
+            + "\"z\":" + pos.z.ToString("F4", CultureInfo.InvariantCulture) + ","
+            + "\"yaw\":" + yaw.ToString("F4", CultureInfo.InvariantCulture) + ","
+            + "\"flying\":" + (isFlying ? "true" : "false") + ","
+            + "\"had_collision\":" + (hadCollision ? "true" : "false") + ","
+            + "\"collision_count\":" + collisionCount.ToString(CultureInfo.InvariantCulture) + ","
+            + (string.IsNullOrEmpty(extra) ? "" : extra + ",")
+            + "\"time\":" + Time.time.ToString("F4", CultureInfo.InvariantCulture)
+            + "}";
+
+        SendJson(payload);
+    }
+
+    // Sends an arbitrary JSON payload to the state port of the last connected client.
+    // Also used by add-on systems (cargo simulation) to answer queries like "objects".
+    public void SendJson(string payload)
     {
         if (udpServer == null || lastRemoteEndPoint == null)
         {
@@ -350,20 +383,6 @@ public class TelloSimulator : MonoBehaviour
 
         try
         {
-            Vector3 pos = transform.position;
-            float yaw = transform.eulerAngles.y;
-            string payload =
-                "{"
-                + "\"x\":" + pos.x.ToString("F4", CultureInfo.InvariantCulture) + ","
-                + "\"y\":" + pos.y.ToString("F4", CultureInfo.InvariantCulture) + ","
-                + "\"z\":" + pos.z.ToString("F4", CultureInfo.InvariantCulture) + ","
-                + "\"yaw\":" + yaw.ToString("F4", CultureInfo.InvariantCulture) + ","
-                + "\"flying\":" + (isFlying ? "true" : "false") + ","
-                + "\"had_collision\":" + (hadCollision ? "true" : "false") + ","
-                + "\"collision_count\":" + collisionCount.ToString(CultureInfo.InvariantCulture) + ","
-                + "\"time\":" + Time.time.ToString("F4", CultureInfo.InvariantCulture)
-                + "}";
-
             byte[] bytes = Encoding.ASCII.GetBytes(payload);
             IPEndPoint stateEndpoint = new IPEndPoint(lastRemoteEndPoint.Address, statePort);
             udpServer.Send(bytes, bytes.Length, stateEndpoint);

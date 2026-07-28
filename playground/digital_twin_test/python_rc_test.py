@@ -40,6 +40,8 @@ def main():
     print("  A / D   : 좌이동 / 우이동")
     print("  R / F   : 상승 / 하강")
     print("  Q / E   : 좌회전 / 우회전")
+    print("  G / H   : 화물 잡기 / 놓기")
+    print("  B       : 앞에 박스 생성")
     print("  ESC     : 종료")
     print("=" * 50)
 
@@ -98,6 +100,19 @@ def main():
                     if resp == "ok":
                         is_flying = False
 
+                elif event.key == pygame.K_g:
+                    resp = send_command(sock, "grab")
+                    print(f"[잡기] 전송 → 응답: {resp}")
+
+                elif event.key == pygame.K_h:
+                    resp = send_command(sock, "drop")
+                    print(f"[놓기] 전송 → 응답: {resp}")
+
+                elif event.key == pygame.K_b:
+                    # 드론 기준 앞쪽 2m, 위 0.5m 지점에 박스 생성
+                    resp = send_command(sock, "spawn box 0 0.5 2 0.4 rel")
+                    print(f"[박스 생성] 전송 → 응답: {resp}")
+
         # ── RC 값 계산 ───────────────────────────────────────────────────────
         keys = pygame.key.get_pressed()
 
@@ -133,6 +148,7 @@ def main():
             ("",                               (255,255,255)),
             ("T:이륙  L:착륙  ESC:종료",       (150, 150, 150)),
             ("WASD:이동  RF:상하  QE:회전",    (150, 150, 150)),
+            ("G:잡기  H:놓기  B:박스생성",     (150, 150, 150)),
         ]
 
         for i, (text, color) in enumerate(lines):
