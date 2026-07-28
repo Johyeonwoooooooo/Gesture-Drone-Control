@@ -1,0 +1,7 @@
+djitellopy
+ollama
+opencv-python
+numpy
+Pillow
+transformers
+tqdm

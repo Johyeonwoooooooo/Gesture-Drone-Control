@@ -118,3 +118,25 @@ playground/reinforce_learning/curriculum_progress.png
 !playground/reinforce_learning/obstacles_cache.npz
 !playground/reinforce_learning/geo_graph_cache.npz
 !playground/reinforce_learning/stair_chains_cache.npz
+# =========================
+# sim-integration 병합분 (규철)
+# =========================
+# 3D 세그멘테이션 데이터셋 (점군/디텍션 — 서버에서 생성, 커밋 안 함)
+data/
+3D-segmentation/cache/*/unidet3d/
+
+# Unity 에디터 생성물 (위 일반 패턴이 대부분 잡지만 명시)
+simulator/tello_simulator/Library/
+simulator/tello_simulator/Temp/
+simulator/tello_simulator/Logs/
+simulator/tello_simulator/UserSettings/
+simulator/tello_simulator/obj/
+simulator/tello_simulator/Build/
+simulator/tello_simulator/Builds/
+simulator/tello_simulator/.vsconfig
+simulator/tello_simulator/UpgradeLog*.htm
+
+# Visual Studio / JetBrains / macOS
+.vs/
+.idea/
+.DS_Store

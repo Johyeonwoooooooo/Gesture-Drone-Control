@@ -1,0 +1,6 @@
+[submodule "unidet3d"]
+	path = unidet3d
+	url = https://github.com/filaPro/unidet3d.git
+[submodule "Mosaic3D"]
+	path = Mosaic3D
+	url = https://github.com/NVlabs/Mosaic3D.git
