@@ -316,7 +316,7 @@ input[type=range]{accent-color:#ef4444}
                 <span style="color:#8a7478">{{r.k}}</span><span style="color:{{r.c}};font-family:'IBM Plex Mono',monospace;text-align:right;animation:{{r.anim}}">{{r.v}}</span>
               </sc-for>
             </div>
-            <sc-if value="{{isChaseMode}}" hint-placeholder-val="{{false}}">
+            <sc-if value="{{threatVisible}}" hint-placeholder-val="{{false}}">
               <div style="margin-top:8px;border:1px solid {{threatBorder}};background:{{threatBg}};border-radius:9px;padding:10px 12px">
                 <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">
                   <span style="width:8px;height:8px;border-radius:50%;background:{{threatDot}};animation:blinkDot .8s infinite"></span>
@@ -395,7 +395,7 @@ input[type=range]{accent-color:#ef4444}
           <div style="width:190px;padding:9px 12px;border:1px solid #57431a;background:#1c150a;border-radius:9px">
             <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#f59e0b;letter-spacing:.16em">한 번 더 가면</div>
             <div style="font-family:'IBM Plex Mono',monospace;font-size:21px;font-weight:600;color:#f59e0b;margin-top:3px">×{{nextMult}}</div>
-            <div style="font-size:10px;color:#8a7478;margin-top:2px">유령 {{nextGhosts}}마리 · 잡히면 0점</div>
+            <div style="font-size:10px;color:#8a7478;margin-top:2px">유령 {{nextGhosts}}마리 · 오염도 {{carryContam}}%부터</div>
           </div>
         </div>
         <div style="margin-top:22px;display:inline-block;width:130px;height:130px;border:3px solid #4ade80;border-radius:50%;display:inline-grid;place-items:center;box-shadow:0 0 30px #4ade8044">
@@ -622,6 +622,7 @@ class Component extends DCLogic {
     meta: null, screen: 'lobby', cmd: '', diff: 'normal', prep: -1,
     sim: null, over: null, tally: 0, selRecord: null, toasts: [], opsBox: { w: 1100, h: 640 }, streak: 0, deadStreak: 0, totalScore: 0,
     cam: null, banked: [],      // banked = 「회수」로 등록된 기록들
+    contam: 0,                  // 도전(run) 단위 누적 오염도. 미션 간 이어진다
   };
   // 연속 성공 회차 -> (점수 배수, 다음 라운드 유령 수).
   // 죽지 않고 이어갈수록 배수가 오르지만 유령도 늘어난다. 실패하면 누적 0,
@@ -631,6 +632,12 @@ class Component extends DCLogic {
     { mult: 2.2, ghosts: 4 }, { mult: 3.0, ghosts: 5 },
   ];
   tier(streak) { return this.RUN_TIERS[Math.min(streak, this.RUN_TIERS.length - 1)]; }
+
+  // 신호 오염도: 유령이 가까울수록 빨리 차고 멀어지면 천천히 빠진다.
+  // ★ 미션이 끝나도 0 으로 안 돌아가고 다음 미션에 그대로 이어진다.
+  //   회수하거나 죽어서 도전이 끝날 때만 초기화된다. 그래서 "한 번 더"를
+  //   누를수록 시작 오염도가 높아지고, 이게 회수 판단의 근거가 된다.
+  CONTAM = { prox: 5.0, rate: 3.0, decay: 1.5, death: 100 };
 
   // 연출/규칙 상수. 설정 화면은 없앴고(조작할 게 없었다) 값만 여기 고정한다.
   SETTINGS = { horror: 70, scan: true, glitch: true, shake: true, ghostShow: true,
@@ -827,8 +834,10 @@ class Component extends DCLogic {
       score: 0, trail: [], explored: new Set(wps[0].room ? [wps[0].room] : []),
       ghosts: this.spawnGhosts(S.nGhosts, wps[0].floor),
       collisions: 0, replans: 0, events: {}, log: [], phase: 'toGoal', grabbed: false, paused: false,
+      contam: this.state.contam,          // 지난 미션에서 이어받은 오염도
     };
     this.pushLog(sim, '강화학습(SAC) 궤적 재생 시작', '#a5b4fc');
+    if (sim.contam > 0) this.pushLog(sim, `잔류 오염도 ${Math.round(sim.contam)}% 로 시작`, '#f59e0b');
     this.lastTs = null;
     cancelAnimationFrame(this.raf);
     this.setState({ sim, screen: 'ops' }, () => { this.raf = requestAnimationFrame(this.tick); });
@@ -894,6 +903,17 @@ class Component extends DCLogic {
       const step = Math.min(gs * dt, Math.max(0, dd - (ns.grabbed ? 1.5 : 0)));
       return { x: x + dx / dd * step, y: y + dy / dd * step, floor: gf, tx, ty };
     });
+    // 오염도 적산: 같은 층 최근접 유령까지 거리로 증감
+    const near = ns.ghosts.filter(g => g.floor === ns.floor)
+      .reduce((m, g) => Math.min(m, Math.hypot(g.x - ns.pos[0], g.y - ns.pos[1])), Infinity);
+    const C = this.CONTAM;
+    const delta = near < C.prox ? (C.prox - near) * C.rate : -C.decay;
+    const prev = ns.contam;
+    ns.contam = Math.max(0, Math.min(C.death, ns.contam + delta * dt));
+    if (prev < 60 && ns.contam >= 60) this.pushLog(ns, '신호 오염도 60% 돌파 - 개체가 근접해 있습니다', '#f59e0b');
+    if (prev < 85 && ns.contam >= 85) this.pushLog(ns, '⚠ 오염도 85% - 곧 신호를 잃습니다', '#ef4444');
+    if (ns.contam >= C.death) { this.gameOver(ns, '신호 오염 한계 - 개체에게 포획됨'); return; }
+
     const done = seg >= wps.length - 1;
     if (done && ns.phase === 'toObj') {
       this.pushLog(ns, '회수 대상이 있는 방 도착 — 물체 스캔 중', '#4ade80');
@@ -943,7 +963,8 @@ class Component extends DCLogic {
     this.finalScoreN = Math.round(sub * this.tier(this.state.streak).mult);
     this.finalSim = sim;
     this.setState({ sim, screen: 'success', tally: 0, streak: this.state.streak + 1,
-                    totalScore: this.state.totalScore + this.finalScoreN });
+                    totalScore: this.state.totalScore + this.finalScoreN,
+                    contam: sim.contam });      // 다음 미션이 이 값에서 시작한다
     clearInterval(this.tallyIv);
     this.tallyIv = setInterval(() => {
       const t = this.state.tally + 1;
@@ -965,7 +986,7 @@ class Component extends DCLogic {
     const banked = [rec, ...this.state.banked];
     const isBest = total >= this.bestOf(this.state.banked);
     this.saveBanked(banked);
-    this.setState({ banked, totalScore: 0, streak: 0, screen: 'lobby', sim: null });
+    this.setState({ banked, totalScore: 0, streak: 0, contam: 0, screen: 'lobby', sim: null });
     this.toast(isBest
       ? `🏆 신기록! ${total.toLocaleString()}점 등록 (${rec.rounds}연속, 등급 ${rec.grade})`
       : `${total.toLocaleString()}점 등록 (${rec.rounds}연속, 등급 ${rec.grade}) - 누적 초기화`);
@@ -973,7 +994,16 @@ class Component extends DCLogic {
 
   gameOver(sim, cause) {
     cancelAnimationFrame(this.raf);
-    this.setState({ sim, over: { cause, room: sim.room, pos: [...sim.pos], floor: sim.floor, t: sim.t, travel: sim.travel, score: sim.score, phase: sim.phase, log: sim.log.slice(-4) }, screen: 'gameover' });
+    // 도전 종료: 회수하지 않은 누적 점수와 오염도가 전부 사라진다.
+    this.setState({
+      sim,
+      over: { cause, room: sim.room, pos: [...sim.pos], floor: sim.floor, t: sim.t,
+              travel: sim.travel, score: sim.score, phase: sim.phase,
+              contam: Math.round(sim.contam || 0), total: this.state.totalScore,
+              log: sim.log.slice(-4) },
+      screen: 'gameover',
+      deadStreak: this.state.streak, streak: 0, totalScore: 0, contam: 0,
+    });
   }
 
   renderVals() {
@@ -1106,6 +1136,8 @@ class Component extends DCLogic {
           { k: '정책 스텝 수', v: `${rl.steps}`, c: '#57c4b8' },
           { k: '충돌(범프)', v: `${rl.bumps}회`, c: rl.bumps ? '#f59e0b' : '#4d9e6a' },
         ] : []),
+        { k: '시작 오염도', v: st.contam > 0 ? `${Math.round(st.contam)}% (이월)` : '0%',
+          c: st.contam > 60 ? '#ef4444' : (st.contam > 0 ? '#f59e0b' : '#4d9e6a') },
         { k: '제한 시간', v: d.timeTxt, c: '#e8dde0' },
         { k: '난이도', v: `${d.title} ×${d.mult}`, c: '#f87171' },
         { k: '예상 점수', v: `약 ${estScore.toLocaleString()}+`, c: '#57c4b8' },
@@ -1213,7 +1245,7 @@ class Component extends DCLogic {
       vals.ovMarks = marks;
       const sameFloorG = sim.ghosts.filter(g => g.floor === sim.floor);
       const minD = sameFloorG.length ? Math.min(...sameFloorG.map(g => Math.hypot(g.x - sim.pos[0], g.y - sim.pos[1]))) : 99;
-      const contam = sim.grabbed ? Math.max(0, Math.min(100, Math.round(110 - minD * 16))) : 6;
+      const contam = Math.round(sim.contam || 0);   // 이제 누적 상태값이다
       const fx = (S.horror / 100) * (S.access ? 0.3 : 1);
       vals.dangerGlow = scr === 'chase' ? `inset 0 0 ${Math.round(contam * 1.6 * fx)}px ${Math.round(contam * 0.5 * fx)}px #7f1d1d${contam > 60 ? '99' : '55'}` : 'none';
       vals.mapNoise = scr === 'chase' && S.glitch ? Math.min(0.9, contam / 110) * fx : 0;
@@ -1228,12 +1260,14 @@ class Component extends DCLogic {
         { k: '충돌 횟수', v: `${sim.collisions} / ${S.cAllow}`, c: sim.collisions ? '#f59e0b' : '#a8969a' },
         { k: '경로 재계획', v: `${sim.replans}회`, c: '#a8969a' },
         { k: '가장 가까운 개체', v: minD > 90 ? '다른 층' : `${minD.toFixed(1)} m`, c: minD < 4 ? '#ef4444' : '#a8969a', anim: minD < 4 ? 'blinkDot 1s infinite' : 'none' },
-        { k: '신호 오염도', v: `${contam}%`, c: contam > 60 ? '#ef4444' : (contam > 30 ? '#f59e0b' : '#4d9e6a') },
+        { k: '신호 오염도', v: `${contam}% / 100%`, c: contam > 60 ? '#ef4444' : (contam > 30 ? '#f59e0b' : '#4d9e6a') },
+        { k: '시작 시 이월', v: `${Math.round(st.contam)}%`, c: st.contam > 0 ? '#f59e0b' : '#8a7478' },
         { k: '예상 점수', v: `${sim.score.toLocaleString()}`, c: '#57c4b8' },
       ];
       if (scr === 'chase') rows.push({ k: '점수 배율', v: `×${d.mult} + 추격`, c: '#f87171' }, { k: '추격 보너스', v: '+250', c: '#f87171' });
       vals.opsRows = rows.map(r => ({ ...r, anim: r.anim || 'none' }));
       vals.contamPct = contam;
+      vals.threatVisible = true;
       vals.threatTxt = contam < 20 ? '안전' : contam < 40 ? '비정상 신호 감지' : contam < 60 ? '개체 접근 중' : contam < 80 ? '추적당하는 중' : '치명적 위험';
       vals.threatColor = contam < 40 ? '#f59e0b' : '#ef4444';
       vals.threatDot = contam < 40 ? '#f59e0b' : '#ef4444';
@@ -1271,6 +1305,7 @@ class Component extends DCLogic {
       vals.bankTxt = `${st.totalScore.toLocaleString()}점`;
       vals.nextMult = this.tier(st.streak).mult;
       vals.nextGhosts = this.tier(st.streak).ghosts;
+      vals.carryContam = Math.round(st.contam);
       vals.streakTxt = `연속 작전 성공 ${st.streak}회 - 누적 ${st.totalScore.toLocaleString()}점 (아직 미등록)`;
     }
     if (scr === 'gameover' && st.over) {
@@ -1287,6 +1322,7 @@ class Component extends DCLogic {
         { k: '마지막 위치', v: `[${fmt(o.pos[0])}, ${fmt(o.pos[1])}]`, c: '#57c4b8' },
         { k: '마지막 확인 방', v: this.label(o.room), c: '#e8dde0' },
         { k: '진행 단계', v: o.phase === 'toObj' ? '2/6 물체 탐색 이동' : '5/6 운반 중', c: '#a8969a' },
+        { k: '최종 오염도', v: `${o.contam != null ? o.contam : 100}%`, c: '#ef4444' },
         { k: '운반 중이던 물체', v: o.phase === 'toGoal' ? M.objName : '없음', c: '#f59e0b' },
         { k: '이동 거리', v: `${o.travel.toFixed(1)} m`, c: '#a8969a' },
         { k: '획득 점수', v: `${o.score.toLocaleString()}`, c: '#57c4b8' },
