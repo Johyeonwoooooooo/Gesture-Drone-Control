@@ -1,9 +1,14 @@
 # rooms_graph.json + npy 점군 -> 웹 UI용 경량 에셋 내보내기
-#   web_assets/floor_{f}.png   층별 톱다운 실색상 평면도 (천장 제거, 픽셀당 최저 z 점)
-#   web_assets/web_meta.json   층별 px<->world 매핑 + 방 bbox/center/passages + edges
-#   web_assets/points_xyz.f32  다운샘플 전역 점군 (float32 xyz interleaved)
-#   web_assets/points_rgb.u8   위 점군의 색 (uint8 RGB interleaved)
-#   web_assets/points_room.u8  위 점군의 방 인덱스 (meta['room_order'] 기준)
+#   <out>/floor_{f}.png   층별 톱다운 실색상 평면도 (천장 제거, 픽셀당 최저 z 점)
+#   <out>/web_meta.json   층별 px<->world 매핑 + 방 bbox/center/passages + edges
+#   <out>/points_xyz.f32  다운샘플 전역 점군 (float32 xyz interleaved)
+#   <out>/points_rgb.u8   위 점군의 색 (uint8 RGB interleaved)
+#   <out>/points_room.u8  위 점군의 방 인덱스 (meta['room_order'] 기준)
+#
+# 기본 출력은 이 폴더의 web_assets/ (파이프라인 산출물).
+# 실사용 웹 앱이 서빙하는 사본으로 바로 내보내려면:
+#   python export_web_assets.py --out ../../web/uploads
+import argparse
 import json
 from pathlib import Path
 
@@ -13,8 +18,12 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 ROOT = Path(__file__).parent
-OUT = ROOT / 'web_assets'
-OUT.mkdir(exist_ok=True)
+_ap = argparse.ArgumentParser(description='웹 UI용 경량 에셋 내보내기')
+_ap.add_argument('--out', default=str(ROOT / 'web_assets'),
+                 help='출력 폴더 (기본: 이 스크립트 옆의 web_assets/)')
+OUT = Path(_ap.parse_args().out).resolve()
+OUT.mkdir(parents=True, exist_ok=True)
+print(f'[export] 출력 폴더: {OUT}')
 
 RES = 0.02        # 평면도 해상도 (m/px)
 CEIL_CUT = 0.80   # 방 z범위의 위쪽 20% (천장) 제거
