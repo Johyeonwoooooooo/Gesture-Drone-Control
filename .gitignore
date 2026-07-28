@@ -141,3 +141,8 @@ simulator/tello_simulator/UpgradeLog*.htm
 .vs/
 .idea/
 .DS_Store
+
+# glb 는 위에서 무시하므로 짝인 .meta 도 무시한다. 안 그러면 에셋 없는
+# 고아 meta 만 커밋돼서 다른 사람 Unity 에서 경고가 뜬다.
+# (이미 추적 중인 TEEsavR23oF.glb.meta 는 영향 없음)
+*.glb.meta
