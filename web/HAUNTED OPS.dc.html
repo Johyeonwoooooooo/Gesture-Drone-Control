@@ -1239,7 +1239,7 @@ class Component extends DCLogic {
         { k: '충돌 횟수', v: `${sim.collisions} / ${S.cAllow}`, c: sim.collisions ? '#f59e0b' : '#a8969a' },
         { k: '경로 재계획', v: `${sim.replans}회`, c: '#a8969a' },
         { k: '가장 가까운 개체', v: minD > 90 ? '다른 층' : `${minD.toFixed(1)} m`, c: minD < 4 ? '#ef4444' : '#a8969a', anim: minD < 4 ? 'blinkDot 1s infinite' : 'none' },
-        { k: `근접 개체 (${this.CONTAM.prox}m 내)`, v: `${sim.nearCount || 0}마리`,
+        { k: `근접 개체 (${this.SANITY.prox}m 내)`, v: `${sim.nearCount || 0}마리`,
           c: (sim.nearCount || 0) >= 4 ? '#ef4444' : ((sim.nearCount || 0) ? '#f59e0b' : '#4d9e6a'),
           anim: (sim.nearCount || 0) >= 4 ? 'blinkDot 1s infinite' : 'none' },
         { k: '정신력', v: `${san}% / 100%`, c: san < 40 ? '#ef4444' : (san < 70 ? '#f59e0b' : '#4ade80') },
