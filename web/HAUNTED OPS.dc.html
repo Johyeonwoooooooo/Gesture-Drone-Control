@@ -28,6 +28,12 @@ input[type=range]{accent-color:#ef4444}
 @keyframes ghostFloat{0%,100%{transform:translate(-50%,-50%) translateY(0)}50%{transform:translate(-50%,-50%) translateY(-4px)}}
 @keyframes scanMove{0%{background-position:0 0}100%{background-position:0 4px}}
 @keyframes redSweep{0%{opacity:0}10%{opacity:.85}100%{opacity:0}}
+@keyframes tvStatic{0%{opacity:0}14%{opacity:0}14.1%{opacity:.9}14.45%{opacity:.25}14.8%{opacity:.85}15.15%{opacity:.15}15.5%{opacity:.55}15.8%{opacity:0}47%{opacity:0}47.1%{opacity:.9}47.45%{opacity:.25}47.8%{opacity:.85}48.15%{opacity:.15}48.5%{opacity:.55}48.8%{opacity:0}86%{opacity:0}86.1%{opacity:.9}86.45%{opacity:.25}86.8%{opacity:.85}87.15%{opacity:.15}87.5%{opacity:.55}87.8%{opacity:0}100%{opacity:0}}
+@keyframes tvRoll{0%{background-position:0 0}100%{background-position:0 -1400px}}
+@keyframes tvTear{0%{opacity:0;transform:translateY(0) scaleY(1)}14%{opacity:0;transform:translateY(0) scaleY(1)}14.15%{opacity:1;transform:translateY(-22vh) scaleY(2.2)}14.7%{opacity:1;transform:translateY(30vh) scaleY(1.4)}15.25%{opacity:1;transform:translateY(-6vh) scaleY(3)}15.7%{opacity:0;transform:translateY(0) scaleY(1)}47%{opacity:0;transform:translateY(0) scaleY(1)}47.15%{opacity:1;transform:translateY(-22vh) scaleY(2.2)}47.7%{opacity:1;transform:translateY(30vh) scaleY(1.4)}48.25%{opacity:1;transform:translateY(-6vh) scaleY(3)}48.7%{opacity:0;transform:translateY(0) scaleY(1)}86%{opacity:0;transform:translateY(0) scaleY(1)}86.15%{opacity:1;transform:translateY(-22vh) scaleY(2.2)}86.7%{opacity:1;transform:translateY(30vh) scaleY(1.4)}87.25%{opacity:1;transform:translateY(-6vh) scaleY(3)}87.7%{opacity:0;transform:translateY(0) scaleY(1)}100%{opacity:0;transform:translateY(0) scaleY(1)}}
+@keyframes tvKill{0%{opacity:0}14%{opacity:0}14.35%{opacity:1}14.55%{opacity:0}15.3%{opacity:.85}15.45%{opacity:0}47%{opacity:0}47.35%{opacity:1}47.55%{opacity:0}48.3%{opacity:.85}48.45%{opacity:0}86%{opacity:0}86.35%{opacity:1}86.55%{opacity:0}87.3%{opacity:.85}87.45%{opacity:0}100%{opacity:0}}
+@keyframes tvJolt{0%{transform:translate(0,0) scale(1);filter:none}14%{transform:translate(0,0) scale(1);filter:none}14.15%{transform:translate(-4px,3px) scale(1.006);filter:saturate(.15) contrast(1.35)}14.55%{transform:translate(5px,-2px) scale(.997);filter:hue-rotate(14deg) saturate(.5)}14.95%{transform:translate(-3px,-3px) scale(1);filter:contrast(1.2)}15.4%{transform:translate(2px,1px) scale(1);filter:saturate(.3)}15.75%{transform:translate(0,0) scale(1);filter:none}47%{transform:translate(0,0) scale(1);filter:none}47.15%{transform:translate(-4px,3px) scale(1.006);filter:saturate(.15) contrast(1.35)}47.55%{transform:translate(5px,-2px) scale(.997);filter:hue-rotate(14deg) saturate(.5)}47.95%{transform:translate(-3px,-3px) scale(1);filter:contrast(1.2)}48.4%{transform:translate(2px,1px) scale(1);filter:saturate(.3)}48.75%{transform:translate(0,0) scale(1);filter:none}86%{transform:translate(0,0) scale(1);filter:none}86.15%{transform:translate(-4px,3px) scale(1.006);filter:saturate(.15) contrast(1.35)}86.55%{transform:translate(5px,-2px) scale(.997);filter:hue-rotate(14deg) saturate(.5)}86.95%{transform:translate(-3px,-3px) scale(1);filter:contrast(1.2)}87.4%{transform:translate(2px,1px) scale(1);filter:saturate(.3)}87.75%{transform:translate(0,0) scale(1);filter:none}100%{transform:translate(0,0) scale(1);filter:none}}
+@keyframes tvResync{0%{opacity:0}14.3%{opacity:0}14.45%{opacity:.9}15.25%{opacity:.6}15.6%{opacity:0}47.3%{opacity:0}47.45%{opacity:.9}48.25%{opacity:.6}48.6%{opacity:0}86.3%{opacity:0}86.45%{opacity:.9}87.25%{opacity:.6}87.6%{opacity:0}100%{opacity:0}}
 @keyframes introTitle{0%{opacity:0;transform:translateY(10px) scale(.97);letter-spacing:.3em;filter:blur(6px)}60%{filter:blur(0)}100%{opacity:1;transform:none;letter-spacing:.02em;filter:blur(0)}}
 @keyframes introLine{0%,25%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:none}}
 @keyframes introSub{0%,45%{opacity:0}100%{opacity:1}}
@@ -35,8 +41,12 @@ input[type=range]{accent-color:#ef4444}
 @keyframes introOut{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.05);filter:blur(4px)}}
 </style>
 </helmet>
-<div style="width:100vw;height:100vh;background:#0a0405;color:#d8cfd2;font-family:'IBM Plex Sans KR',sans-serif;font-size:13px;overflow:hidden;position:relative">
+<div style="width:100vw;height:100vh;background:#0a0405;color:#d8cfd2;font-family:'IBM Plex Sans KR',sans-serif;font-size:13px;overflow:hidden;position:relative;animation:tvJolt 29s linear infinite">
   <div style="position:fixed;inset:0;z-index:95;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 2px,#00000030 2px 4px);opacity:{{scanOpacity}};animation:scanMove .4s linear infinite"></div>
+  <div style="position:fixed;inset:0;z-index:97;pointer-events:none;mix-blend-mode:screen;background-image:url(&quot;data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E&quot;);animation:tvStatic 29s linear infinite,tvRoll .35s linear infinite"></div>
+  <div style="position:fixed;left:0;right:0;top:40%;height:9vh;z-index:98;pointer-events:none;background:linear-gradient(180deg,transparent,#ffffff22 18%,#ef444433 45%,#ffffff1a 72%,transparent);animation:tvTear 29s linear infinite"></div>
+  <div style="position:fixed;inset:0;z-index:99;pointer-events:none;background:#000;animation:tvKill 29s linear infinite"></div>
+  <div style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99;pointer-events:none;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.4em;color:#f87171;text-shadow:0 0 12px #dc2626;animation:tvResync 29s linear infinite">SIGNAL RE-SYNC</div>
   <div style="position:fixed;inset:0;z-index:94;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,#12000090 100%)"></div>
   <sc-if value="{{introVisible}}" hint-placeholder-val="{{true}}">
     <div style="position:absolute;inset:0;z-index:90;display:grid;place-items:center;background:radial-gradient(ellipse at center,#12070a 0%,#0a0405 72%);animation:{{introAnim}}">
@@ -87,10 +97,7 @@ input[type=range]{accent-color:#ef4444}
       </div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:30px;z-index:2">
         <button onClick="{{onStartMission}}" style="width:340px;height:52px;border:1px solid #ef4444;border-radius:9px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:700;font-size:16px;letter-spacing:.06em;cursor:pointer;box-shadow:0 0 22px #dc262655" style-hover="background:#7f1d1d;box-shadow:0 0 30px #dc262699">새로운 회수 작전 시작</button>
-        <div style="display:flex;gap:10px">
-          <button onClick="{{goRecords}}" style="width:165px;height:38px;border:1px solid #3a161c;border-radius:8px;background:#170a0dcc;color:#cfc2c5;font-family:'IBM Plex Sans KR',sans-serif;font-size:13px;cursor:pointer" style-hover="border-color:#ef4444">미션 기록</button>
-          <button onClick="{{goSettings}}" style="width:165px;height:38px;border:1px solid #3a161c;border-radius:8px;background:#170a0dcc;color:#cfc2c5;font-family:'IBM Plex Sans KR',sans-serif;font-size:13px;cursor:pointer" style-hover="border-color:#ef4444">설정</button>
-        </div>
+        <button onClick="{{goRecords}}" style="width:340px;height:38px;border:1px solid #3a161c;border-radius:8px;background:#170a0dcc;color:#cfc2c5;font-family:'IBM Plex Sans KR',sans-serif;font-size:13px;cursor:pointer" style-hover="border-color:#ef4444">미션 기록</button>
       </div>
       <div style="position:absolute;bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5f4a4e;z-index:2">SCENE 00809_Qpor2mEya8F · 3 FLOORS · 22 ROOMS · 점군 596,356</div>
     </div>
@@ -507,37 +514,6 @@ input[type=range]{accent-color:#ef4444}
     </div>
   </sc-if>
 
-  <sc-if value="{{isSettings}}" hint-placeholder-val="{{false}}">
-    <div style="position:absolute;inset:0;display:flex;flex-direction:column">
-      <div style="flex:none;height:52px;display:flex;align-items:center;gap:14px;padding:0 18px;background:#10070a;border-bottom:1px solid #2a1015">
-        <button onClick="{{goLobby}}" style="height:30px;padding:0 12px;border:1px solid #3a161c;border-radius:7px;background:#170a0d;color:#a8969a;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">← 로비</button>
-        <div style="font-family:'East Sea Dokdo',cursive;font-size:24px;color:#ef4444">설정</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.2em">SYSTEM CONFIG</div>
-      </div>
-      <div style="flex:1;overflow-y:auto;padding:18px;display:flex;justify-content:center;gap:16px">
-        <sc-for list="{{setGroups}}" as="g" hint-placeholder-count="3">
-          <div style="width:330px;flex:none;display:flex;flex-direction:column;gap:6px;align-self:flex-start">
-            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.18em;padding:4px 2px">{{g.label}}</div>
-            <sc-for list="{{g.rows}}" as="r" hint-placeholder-count="4">
-              <div style="display:flex;align-items:center;gap:10px;padding:10px 13px;background:#10070a;border:1px solid #2a1015;border-radius:9px">
-                <span style="flex:1;font-size:12px;color:#cfc2c5">{{r.k}}</span>
-                <sc-if value="{{r.isToggle}}" hint-placeholder-val="{{false}}">
-                  <button onClick="{{r.onToggle}}" style="width:42px;height:22px;border:1px solid {{r.tBorder}};border-radius:12px;background:{{r.tBg}};cursor:pointer;position:relative">
-                    <span style="position:absolute;top:2px;left:{{r.knobL}};width:16px;height:16px;border-radius:50%;background:{{r.knobC}};transition:left .15s"></span>
-                  </button>
-                </sc-if>
-                <sc-if value="{{r.isSlider}}" hint-placeholder-val="{{false}}">
-                  <input type="range" min="{{r.min}}" max="{{r.max}}" value="{{r.val}}" onChange="{{r.onSlide}}" style="width:120px">
-                  <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#57c4b8;width:38px;text-align:right">{{r.valTxt}}</span>
-                </sc-if>
-              </div>
-            </sc-for>
-          </div>
-        </sc-for>
-      </div>
-    </div>
-  </sc-if>
-
   </sc-if>
   <div style="position:fixed;left:50%;bottom:30px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:96;align-items:center">
     <sc-for list="{{toasts}}" as="t" hint-placeholder-count="0">
@@ -621,8 +597,11 @@ class Component extends DCLogic {
     intro: true, introFade: false,
     meta: null, screen: 'lobby', cmd: '', diff: 'normal', prep: -1,
     sim: null, over: null, tally: 0, selRecord: null, toasts: [], opsBox: { w: 1100, h: 640 }, streak: 0, deadStreak: 0, totalScore: 0,
-    settings: { horror: 70, scan: true, glitch: true, shake: true, ghostShow: true, nGhosts: 2, gSpeed: 10, tLimit: 300, cAllow: 3, debug: false, slam: true, route: true, waypts: true, vol: 60, ui: 100, access: false },
   };
+  // 연출/규칙 상수. 설정 화면은 없앴고(조작할 게 없었다) 값만 여기 고정한다.
+  SETTINGS = { horror: 70, scan: true, glitch: true, shake: true, ghostShow: true,
+               nGhosts: 2, gSpeed: 10, tLimit: 300, cAllow: 3,
+               route: true, waypts: true, access: false };
   opsRef = React.createRef();
   toastSeq = 0;
 
@@ -764,7 +743,7 @@ class Component extends DCLogic {
   startOpsReplay() {
     const wps = this.liveWps();
     if (!wps || wps.length < 2) { this.toast('재생할 경로가 없습니다 — 관제 화면에서 두 점을 먼저 지정하세요'); return; }
-    const S = this.state.settings;
+    const S = this.SETTINGS;
     const total = wps.reduce((t, w, i) => i ? t + Math.hypot(w.x - wps[i - 1].x, w.y - wps[i - 1].y) : 0, 0);
     const sim = {
       wps, seg: 0, pos: [wps[0].x, wps[0].y], floor: wps[0].floor, viewFloor: wps[0].floor,
@@ -825,7 +804,7 @@ class Component extends DCLogic {
     ns.trail = [...ns.trail.slice(-240), { x: pos[0], y: pos[1], floor }];
     if (!ns.events.obstacle && ns.travel > ns.total * 0.35) { ns.events.obstacle = true; ns.collisions = 1; this.pushLog(ns, '장애물 감지 — 경미한 충돌 (-50)', '#f59e0b'); }
     if (!ns.events.replan && ns.travel > ns.total * 0.55) { ns.events.replan = true; ns.replans = 1; this.pushLog(ns, '경로 재계획 완료 (-20)', '#f59e0b'); }
-    const gs = ns.grabbed ? 0.9 * (st.settings.gSpeed / 10) : 0.5;
+    const gs = ns.grabbed ? 0.9 * (this.SETTINGS.gSpeed / 10) : 0.5;
     ns.ghosts = ns.ghosts.map(g => {
       let { x, y, floor: gf, tx, ty } = g;
       if (ns.grabbed) {
@@ -902,7 +881,7 @@ class Component extends DCLogic {
 
   renderVals() {
     const st = this.state, meta = st.meta;
-    const S = st.settings;
+    const S = this.SETTINGS;
     const base = {
       // 인트로는 로비 위에 겹쳐 뜬다(z-index 90). 그래서 로비는 인트로가
       // 걷히기 전에 이미 렌더·이미지 로드를 끝내 놓는다.
@@ -916,7 +895,7 @@ class Component extends DCLogic {
       scanOpacity: S.scan && !S.access ? 0.5 : 0,
       goLobby: () => { cancelAnimationFrame(this.raf); this.setState({ screen: 'lobby', sim: null }); },
       goCreate: () => this.setState({ screen: 'create', sim: null }),
-      goRecords: () => this.go('records'), goSettings: () => this.go('settings'),
+      goRecords: () => this.go('records'),
       // 작전 시작 = 시뮬레이터 화면 공유 요청 + 관제 화면 진입.
       // 권한창은 클릭 안에서만 뜨므로 여기서 바로 호출하고, 화면은 기다리지
       // 않고 넘어간다(거절해도 지도는 그대로 쓸 수 있다).
@@ -968,7 +947,7 @@ class Component extends DCLogic {
       ...base,
       isLobby: scr === 'lobby', isCreate: scr === 'create', isBriefing: scr === 'briefing',
       isOps: scr === 'ops' || scr === 'chase', isGrab: scr === 'grab', isSuccess: scr === 'success',
-      isOver: scr === 'gameover', isRecords: scr === 'records', isSettings: scr === 'settings',
+      isOver: scr === 'gameover', isRecords: scr === 'records',
       isChaseMode: scr === 'chase', isUnity: scr === 'unity',
     };
 
@@ -1222,34 +1201,6 @@ class Component extends DCLogic {
         border: st.selRecord === i ? '#4a1d24' : '#2a1015', bg: st.selRecord === i ? '#170a0d' : '#10070a',
         route: r.route, log1: r.logs[0], log2: r.logs[1], log3: r.logs[2],
       }));
-    }
-    if (scr === 'settings') {
-      const tgl = k => ({ isToggle: true, isSlider: false, onToggle: () => this.setState({ settings: { ...S, [k]: !S[k] } }), tBg: S[k] ? '#450a0a' : '#170a0d', tBorder: S[k] ? '#ef4444' : '#3a161c', knobL: S[k] ? '22px' : '2px', knobC: S[k] ? '#ef4444' : '#5f4a4e' });
-      const sld = (k, min, max, unit) => ({ isToggle: false, isSlider: true, min, max, val: S[k], valTxt: `${S[k]}${unit || ''}`, onSlide: e => this.setState({ settings: { ...S, [k]: +e.target.value } }) });
-      vals.setGroups = [
-        { label: '공포 연출', rows: [
-          { k: '공포 효과 강도', ...sld('horror', 0, 100, '%') },
-          { k: 'CRT 스캔라인', ...tgl('scan') },
-          { k: '글리치 효과', ...tgl('glitch') },
-          { k: '화면 흔들림', ...tgl('shake') },
-          { k: '접근성 모드 (연출 완화)', ...tgl('access') },
-        ]},
-        { label: '게임 규칙', rows: [
-          { k: '유령 표시', ...tgl('ghostShow') },
-          { k: '유령 수', ...sld('nGhosts', 1, 5, '') },
-          { k: '유령 이동속도', ...sld('gSpeed', 5, 20, '') },
-          { k: '제한 시간(초)', ...sld('tLimit', 120, 600, 's') },
-          { k: '충돌 허용 횟수', ...sld('cAllow', 1, 9, '') },
-        ]},
-        { label: '표시 · 사운드', rows: [
-          { k: '디버그 정보', ...tgl('debug') },
-          { k: 'SLAM 오버레이', ...tgl('slam') },
-          { k: '이동 경로 표시', ...tgl('route') },
-          { k: '중간 목표 표시', ...tgl('waypts') },
-          { k: '음량', ...sld('vol', 0, 100, '%') },
-          { k: 'UI 크기', ...sld('ui', 80, 130, '%') },
-        ]},
-      ];
     }
     return vals;
   }
