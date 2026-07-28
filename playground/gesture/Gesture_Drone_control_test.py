@@ -40,51 +40,7 @@ gesture_lock = threading.Lock()
 stop_event = threading.Event()
 
 
-def fingers_up(hand_landmarks, handedness):
-    """
-    손바닥이 카메라를 향한 기준으로 각 손가락 펴짐 판단
-    반환: [thumb, index, middle, ring, pinky]
-    """
-    fingers = []
-    lm = hand_landmarks.landmark
-
-    # 엄지: 손바닥 기준, flip 후 Right → 엄지가 왼쪽(x 작음)
-    if handedness == 'Right':
-        fingers.append(lm[4].x < lm[3].x)
-    else:
-        fingers.append(lm[4].x > lm[3].x)
-
-    # 검지~새끼: tip y < pip y 이면 펴진 것
-    for tip, pip in zip([8, 12, 16, 20], [6, 10, 14, 18]):
-        fingers.append(lm[tip].y < lm[pip].y)
-
-    return fingers  # [thumb, index, middle, ring, pinky]
-
-
-def get_gesture(fingers):
-    """
-    손가락 조합으로 제스처 반환
-    """
-    thumb, index, middle, ring, pinky = fingers
-
-    if index and not thumb and not middle and not ring and not pinky:
-        return "상승 ↑"
-    elif index and middle and not thumb and not ring and not pinky:
-        return "하강 ↓"
-    elif thumb and not index and not middle and not ring and not pinky:
-        return "왼쪽 ←"
-    elif pinky and not thumb and not index and not middle and not ring:
-        return "오른쪽 →"
-    elif thumb and pinky and not index and not middle and not ring:
-        return "회전 ↻"
-    elif thumb and index and not middle and not ring and not pinky:
-        return "앞으로 ▲"
-    elif thumb and index and middle and ring and pinky:
-        return "뒤로 ▽"
-    elif not any(fingers):
-        return "정지 ✋"
-    else:
-        return None
+from gesture_rules import fingers_up, get_gesture  # 인식 규칙은 공용 모듈로 분리
 
 
 def drone_control_loop():

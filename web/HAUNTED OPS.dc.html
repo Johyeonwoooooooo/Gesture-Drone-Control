@@ -386,13 +386,25 @@ input[type=range]{accent-color:#ef4444}
         <div style="font-family:'East Sea Dokdo',cursive;font-size:74px;line-height:1.1;color:#4ade80;text-shadow:0 0 26px #4ade8066">회수 작전 성공</div>
         <div style="margin-top:10px;font-size:12px;color:#a8969a;line-height:1.7">"{{briefCmd}}"</div>
         <div style="margin-top:8px;font-size:12px;color:#4ade80">{{streakTxt}}</div>
+        <div style="margin-top:14px;display:flex;gap:10px;justify-content:center">
+          <div style="width:190px;padding:9px 12px;border:1px solid #1e3a2a;background:#0e1a14;border-radius:9px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#4d9e6a;letter-spacing:.16em">여기서 회수하면</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:21px;font-weight:600;color:#4ade80;margin-top:3px">{{bankTxt}}</div>
+            <div style="font-size:10px;color:#8a7478;margin-top:2px">기록에 등록 · 안전</div>
+          </div>
+          <div style="width:190px;padding:9px 12px;border:1px solid #57431a;background:#1c150a;border-radius:9px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#f59e0b;letter-spacing:.16em">한 번 더 가면</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:21px;font-weight:600;color:#f59e0b;margin-top:3px">×{{nextMult}}</div>
+            <div style="font-size:10px;color:#8a7478;margin-top:2px">유령 {{nextGhosts}}마리 · 잡히면 0점</div>
+          </div>
+        </div>
         <div style="margin-top:22px;display:inline-block;width:130px;height:130px;border:3px solid #4ade80;border-radius:50%;display:inline-grid;place-items:center;box-shadow:0 0 30px #4ade8044">
           <span style="font-family:'East Sea Dokdo',cursive;font-size:80px;color:#4ade80;line-height:1">{{grade}}</span>
         </div>
         <div style="margin-top:8px;font-size:11px;color:#8a7478">미션 등급</div>
         <div style="display:flex;gap:8px;margin-top:24px;justify-content:center;flex-wrap:wrap">
-          <button onClick="{{onRetry}}" style="height:38px;padding:0 16px;border:1px solid #3a161c;border-radius:8px;background:#170a0d;color:#cfc2c5;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">같은 미션 재도전</button>
-          <button onClick="{{goCreate}}" style="height:38px;padding:0 16px;border:1px solid #ef4444;border-radius:8px;background:#450a0a;color:#fecaca;font-weight:700;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#7f1d1d">다음 작전 계속</button>
+          <button onClick="{{onCashOut}}" style="height:42px;padding:0 22px;border:1px solid #4ade80;border-radius:8px;background:#0e1a14;color:#6ee7b7;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#14261b">회수하고 등록</button>
+          <button onClick="{{goCreate}}" style="height:42px;padding:0 22px;border:1px solid #ef4444;border-radius:8px;background:#450a0a;color:#fecaca;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#7f1d1d">한 번 더 (×{{nextMult}})</button>
           <button onClick="{{onReplay}}" style="height:38px;padding:0 16px;border:1px solid #3a161c;border-radius:8px;background:#170a0d;color:#cfc2c5;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">경로 리플레이</button>
           <button onClick="{{goLobby}}" style="height:38px;padding:0 16px;border:1px solid #3a161c;border-radius:8px;background:#170a0d;color:#a8969a;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">로비로</button>
         </div>
@@ -440,7 +452,7 @@ input[type=range]{accent-color:#ef4444}
             <div style="font-size:11px;color:#f87171;margin-top:2px">{{overStreakTxt}}</div>
           </div>
         </div>
-        <div style="margin-top:16px;font-size:12px;color:#a8969a">개체에게 포획되어 이번 도전이 끝났습니다. 새 도전은 처음부터 시작됩니다.</div>
+        <div style="margin-top:16px;font-size:12px;color:#a8969a">개체에게 포획되어 <span style="color:#f87171;font-weight:700">누적 {{lostTxt}}점이 전부 소멸</span>했습니다. 회수하지 않은 점수는 기록에 남지 않습니다.</div>
         <div style="display:flex;gap:8px;margin-top:18px;justify-content:center;flex-wrap:wrap">
           <button onClick="{{goCreate}}" style="height:40px;padding:0 20px;border:1px solid #ef4444;border-radius:8px;background:#450a0a;color:#fecaca;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#7f1d1d">새로운 도전 시작</button>
           <button onClick="{{goLobby}}" style="height:40px;padding:0 20px;border:1px solid #3a161c;border-radius:8px;background:#170a0d;color:#a8969a;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">로비로</button>
@@ -514,6 +526,18 @@ input[type=range]{accent-color:#ef4444}
     </div>
   </sc-if>
 
+  </sc-if>
+  <sc-if value="{{camVisible}}" hint-placeholder-val="{{false}}">
+    <div style="position:fixed;right:14px;bottom:14px;z-index:93;width:232px;border:1px solid #4a1d24;border-radius:10px;overflow:hidden;background:#0a0405f2;box-shadow:0 10px 28px #000000b0">
+      <div style="display:flex;align-items:center;gap:7px;padding:6px 9px;background:#170a0d;border-bottom:1px solid #2a1015;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#a8969a">
+        <span style="width:6px;height:6px;border-radius:50%;background:{{camDot}};animation:blinkDot 1.4s infinite"></span>GESTURE CAM
+        <span style="margin-left:auto;color:#5f4a4e">{{camFps}}</span>
+      </div>
+      <div style="position:relative;background:#000;min-height:60px">
+        {{camImg}}
+        <div style="position:absolute;left:0;right:0;bottom:0;padding:5px 9px;background:linear-gradient(transparent,#0a0405ee);font-size:14px;font-weight:700;color:{{camGestureColor}};text-shadow:0 2px 6px #000">{{camGesture}}</div>
+      </div>
+    </div>
   </sc-if>
   <div style="position:fixed;left:50%;bottom:30px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:96;align-items:center">
     <sc-for list="{{toasts}}" as="t" hint-placeholder-count="0">
@@ -597,7 +621,17 @@ class Component extends DCLogic {
     intro: true, introFade: false,
     meta: null, screen: 'lobby', cmd: '', diff: 'normal', prep: -1,
     sim: null, over: null, tally: 0, selRecord: null, toasts: [], opsBox: { w: 1100, h: 640 }, streak: 0, deadStreak: 0, totalScore: 0,
+    cam: null, banked: [],      // banked = 「회수」로 등록된 기록들
   };
+  // 연속 성공 회차 -> (점수 배수, 다음 라운드 유령 수).
+  // 죽지 않고 이어갈수록 배수가 오르지만 유령도 늘어난다. 실패하면 누적 0,
+  // 「회수」하면 그 시점 누적이 기록에 등록되고 배수는 처음으로 돌아간다.
+  RUN_TIERS = [
+    { mult: 1.0, ghosts: 1 }, { mult: 1.3, ghosts: 2 }, { mult: 1.7, ghosts: 3 },
+    { mult: 2.2, ghosts: 4 }, { mult: 3.0, ghosts: 5 },
+  ];
+  tier(streak) { return this.RUN_TIERS[Math.min(streak, this.RUN_TIERS.length - 1)]; }
+
   // 연출/규칙 상수. 설정 화면은 없앴고(조작할 게 없었다) 값만 여기 고정한다.
   SETTINGS = { horror: 70, scan: true, glitch: true, shake: true, ghostShow: true,
                nGhosts: 2, gSpeed: 10, tLimit: 300, cAllow: 3,
@@ -632,6 +666,8 @@ class Component extends DCLogic {
     window.addEventListener('resize', this.onResize);
     this._shareSub = () => this.setState(st => ({ shareTick: (st.shareTick || 0) + 1 }));
     window.__simShare.subs.add(this._shareSub);
+    this.pollCam();
+    this.camIv = setInterval(this.pollCam, 400);
     this.introT1 = setTimeout(() => this.setState({ introFade: true }), 2600);
     this.introT2 = setTimeout(() => this.setState({ intro: false }), 3200);
   }
@@ -641,6 +677,30 @@ class Component extends DCLogic {
     clearInterval(this.prepIv); clearInterval(this.tallyIv);
     clearTimeout(this.introT1); clearTimeout(this.introT2);
     window.__simShare.subs.delete(this._shareSub);
+    clearInterval(this.camIv);
+  }
+
+  // 제스처 인식 상태 폴링. 카메라 화면 자체는 <img> 가 MJPEG 로 계속 받으므로
+  // 여기서는 라벨(인식된 제스처)과 켜짐 여부만 가져온다.
+  pollCam = () => {
+    fetch('api/gesture').then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => {
+        const c = this.state.cam;
+        if (c && c.active === d.active && c.gesture === d.gesture) return;
+        this.setState({ cam: d });
+      })
+      .catch(() => { if (this.state.cam) this.setState({ cam: null }); });
+  };
+  // MJPEG <img> 는 한 번 만들고 재사용한다. 매 렌더마다 새 src 를 물리면
+  // 스트림이 끊겼다 다시 붙는다.
+  camElement() {
+    if (!this._camImg) {
+      this._camImg = React.createElement('img', {
+        src: 'api/camera',
+        style: { display: 'block', width: '100%', height: 'auto', opacity: 0.95 },
+      });
+    }
+    return this._camImg;
   }
   componentDidUpdate(pp, ps) {
     if (ps && ps.screen !== this.state.screen && (this.state.screen === 'ops' || this.state.screen === 'chase')) requestAnimationFrame(() => this.measureOps());
@@ -860,13 +920,14 @@ class Component extends DCLogic {
       { k: `시간 보너스 (${this.mmss(sim.limit - sim.t)} 남음)`, v: `+${timeBonus}`, n: timeBonus, c: '#4ade80' },
       { k: `충돌 ${sim.collisions}회`, v: `-${sim.collisions * 50}`, n: -sim.collisions * 50, c: '#ef4444' },
       { k: `경로 재계획 ${sim.replans}회`, v: `-${sim.replans * 20}`, n: -sim.replans * 20, c: '#ef4444' },
-      { k: `난이도 배율 (${d.title})`, v: `×${d.mult}`, n: 0, c: '#57c4b8' },
+      { k: `연속 ${this.state.streak + 1}회차 배수`, v: `×${this.tier(this.state.streak).mult}`, n: 0, c: '#f59e0b' },
     ];
     const sub = items.reduce((a, i) => a + i.n, 0);
     this.finalItems = items;
-    this.finalScoreN = Math.round(sub * parseFloat(d.mult));
+    this.finalScoreN = Math.round(sub * this.tier(this.state.streak).mult);
     this.finalSim = sim;
-    this.setState({ sim, screen: 'success', tally: 0, streak: this.state.streak + 1 });
+    this.setState({ sim, screen: 'success', tally: 0, streak: this.state.streak + 1,
+                    totalScore: this.state.totalScore + this.finalScoreN });
     clearInterval(this.tallyIv);
     this.tallyIv = setInterval(() => {
       const t = this.state.tally + 1;
@@ -874,6 +935,22 @@ class Component extends DCLogic {
       this.setState({ tally: t });
     }, 280);
   }
+  // 「회수하고 등록」 — 누적 점수를 기록에 남기고 도전을 끝낸다.
+  // 실패(포획/시간초과)로 끝나면 누적은 0 이 되므로, 언제 회수할지가 유일한
+  // 플레이어 판단이 된다.
+  cashOut() {
+    const total = this.state.totalScore;
+    if (total <= 0) { this.toast('등록할 점수가 없습니다'); return; }
+    const rec = {
+      score: total, rounds: this.state.streak,
+      grade: total >= 8000 ? 'S' : total >= 5000 ? 'A' : total >= 3000 ? 'B' : total >= 1500 ? 'C' : 'D',
+      cmd: this.state.cmd.trim() || this.MISSION.cmd,
+    };
+    this.setState({ banked: [rec, ...this.state.banked], totalScore: 0, streak: 0,
+                    screen: 'lobby', sim: null });
+    this.toast(`🏆 ${total.toLocaleString()}점 등록 (${rec.rounds}연속, 등급 ${rec.grade}) - 누적 초기화`);
+  }
+
   gameOver(sim, cause) {
     cancelAnimationFrame(this.raf);
     this.setState({ sim, over: { cause, room: sim.room, pos: [...sim.pos], floor: sim.floor, t: sim.t, travel: sim.travel, score: sim.score, phase: sim.phase, log: sim.log.slice(-4) }, screen: 'gameover' });
@@ -903,6 +980,14 @@ class Component extends DCLogic {
         if (!window.__simShare.stream) window.__simShare.start();
         this.setState({ screen: 'create', sim: null });
       },
+      // 우하단 제스처 카메라 (로비/인트로에서는 감춘다)
+      camVisible: !!(st.cam && st.cam.active) && !st.intro &&
+                  ['create', 'briefing', 'unity', 'ops', 'chase', 'grab'].includes(st.screen),
+      camImg: this.camElement(),
+      camGesture: (st.cam && st.cam.gesture) || '손을 카메라에 보여주세요',
+      camGestureColor: (st.cam && st.cam.gesture) ? '#6ee7b7' : '#8a7478',
+      camDot: (st.cam && st.cam.gesture) ? '#4ade80' : '#57431a',
+      camFps: st.cam ? `${st.cam.fps} fps` : '',
       simShareOn: !!window.__simShare.stream,
       simShareOff: !window.__simShare.stream,
       simVideoEl: simVideo(),
@@ -1155,9 +1240,12 @@ class Component extends DCLogic {
       vals.grade = this.finalScoreN >= 2600 ? 'S' : this.finalScoreN >= 1900 ? 'A' : this.finalScoreN >= 1200 ? 'B' : 'C';
       vals.sumDist = this.finalSim ? `${this.finalSim.travel.toFixed(1)}m` : '';
       vals.sumTime = this.finalSim ? this.mmss(this.finalSim.t) : '';
-      vals.onRetry = () => this.go('briefing');
-      vals.onReplay = () => this.toast('경로 리플레이 — Unity 연동 예정 (목업)');
-      vals.streakTxt = `연속 작전 성공 ${st.streak}회 — 포획되기 전까지 도전은 계속됩니다`;
+      vals.onReplay = () => this.startOpsReplay();
+      vals.onCashOut = () => this.cashOut();
+      vals.bankTxt = `${st.totalScore.toLocaleString()}점`;
+      vals.nextMult = this.tier(st.streak).mult;
+      vals.nextGhosts = this.tier(st.streak).ghosts;
+      vals.streakTxt = `연속 작전 성공 ${st.streak}회 - 누적 ${st.totalScore.toLocaleString()}점 (아직 미등록)`;
     }
     if (scr === 'gameover' && st.over) {
       const o = st.over;
@@ -1167,6 +1255,7 @@ class Component extends DCLogic {
       vals.overRankC = tot >= 5000 ? '#f59e0b' : tot >= 1500 ? '#f87171' : '#8a7478';
       vals.overTotalTxt = tot.toLocaleString();
       vals.overStreakTxt = `연속 성공 ${st.deadStreak}회`;
+      vals.lostTxt = (o.total || 0).toLocaleString();
       vals.overRows = [
         { k: '실패 원인', v: o.cause, c: '#f87171' },
         { k: '마지막 위치', v: `[${fmt(o.pos[0])}, ${fmt(o.pos[1])}]`, c: '#57c4b8' },
@@ -1184,7 +1273,6 @@ class Component extends DCLogic {
       vals.om = { ...om, xl: Math.round(c), xt: Math.round(r) };
       vals.omImg = imgEl(om.img, true);
       vals.overLog = o.log.map((l, i) => ({ ...l, key: i }));
-      vals.onRetry = () => this.go('briefing');
     }
     if (scr === 'records') {
       const R = this.RECORDS;
@@ -1193,7 +1281,13 @@ class Component extends DCLogic {
         { k: '생존율', v: '70%', c: '#f59e0b' }, { k: '평균 점수', v: '1,480', c: '#57c4b8' },
         { k: '포획된 횟수', v: '5', c: '#ef4444' }, { k: '가장 위험한 방', v: '2층 복도', c: '#f87171' },
       ];
-      vals.recRows = R.map((r, i) => ({
+      const banked = st.banked.map(b => ({
+        grade: b.grade, cmd: `${b.rounds}연속 도전 회수 - "${b.cmd}"`, diff: '이번 세션',
+        ok: true, score: b.score, dist: '-', time: '-', date: '방금',
+        route: `연속 ${b.rounds}회 성공 후 회수하여 등록`,
+        logs: ['도전을 회수하여 점수를 확정했습니다', '', ''],
+      }));
+      vals.recRows = banked.concat(R).map((r, i) => ({
         grade: r.grade, gradeC: r.grade === 'S' ? '#4ade80' : r.grade === 'A' ? '#57c4b8' : r.grade === 'B' ? '#f59e0b' : '#ef4444',
         cmd: r.cmd, diff: r.diff, result: r.ok ? '성공' : '실패', resultC: r.ok ? '#4ade80' : '#ef4444',
         score: r.score.toLocaleString(), dist: r.dist, time: r.time, date: r.date,
