@@ -14,3 +14,6 @@ scipy
 gymnasium
 stable-baselines3>=2.0
 torch
+
+# 웹 관제 UI 백엔드 (web_server.py)
+flask>=3.0
