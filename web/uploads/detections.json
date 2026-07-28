@@ -1,0 +1,4435 @@
+[
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "sofa",
+    "label_idx": 5,
+    "center": [
+      2.0148,
+      -0.9858,
+      -2.5674
+    ],
+    "n_points": 27969,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      7.3368,
+      -1.8873,
+      -2.5824
+    ],
+    "n_points": 20741,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "sofa",
+    "label_idx": 5,
+    "center": [
+      5.104,
+      1.7044,
+      -2.7341
+    ],
+    "n_points": 15484,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      4.5464,
+      -3.7391,
+      -2.4493
+    ],
+    "n_points": 11896,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      2.3238,
+      -0.1115,
+      -2.5015
+    ],
+    "n_points": 11827,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      2.7597,
+      -2.3343,
+      -2.645
+    ],
+    "n_points": 10330,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      6.8,
+      -4.5568,
+      -1.4047
+    ],
+    "n_points": 10178,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      7.3533,
+      -1.8604,
+      -2.4718
+    ],
+    "n_points": 10002,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      1.2144,
+      -1.8421,
+      -0.4011
+    ],
+    "n_points": 8325,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "sofa",
+    "label_idx": 5,
+    "center": [
+      0.355,
+      1.5333,
+      -2.7276
+    ],
+    "n_points": 7696,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      2.5618,
+      -3.9305,
+      -2.4718
+    ],
+    "n_points": 7359,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      0.5568,
+      -3.4932,
+      -2.5853
+    ],
+    "n_points": 7217,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      8.9873,
+      0.5471,
+      -2.027
+    ],
+    "n_points": 6122,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      2.2955,
+      2.3764,
+      -1.9871
+    ],
+    "n_points": 5871,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      4.8398,
+      -3.3126,
+      -2.5847
+    ],
+    "n_points": 5412,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      0.0858,
+      -4.1605,
+      -1.856
+    ],
+    "n_points": 4410,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      1.3344,
+      -4.1606,
+      -1.838
+    ],
+    "n_points": 3930,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      5.1445,
+      -3.4768,
+      -2.219
+    ],
+    "n_points": 3550,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      6.0571,
+      -4.1337,
+      -1.5385
+    ],
+    "n_points": 3051,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      0.7878,
+      2.2548,
+      -1.4038
+    ],
+    "n_points": 2350,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      -0.1393,
+      -0.7502,
+      -1.6431
+    ],
+    "n_points": 2107,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      -0.1397,
+      -2.3282,
+      -1.3954
+    ],
+    "n_points": 2081,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      4.2025,
+      -0.7653,
+      -2.5001
+    ],
+    "n_points": 1893,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      8.8862,
+      -1.1072,
+      -1.511
+    ],
+    "n_points": 1739,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      -0.1415,
+      1.3411,
+      -1.4621
+    ],
+    "n_points": 1689,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      8.8896,
+      -2.6732,
+      -1.5397
+    ],
+    "n_points": 1475,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "bookshelf",
+    "label_idx": 9,
+    "center": [
+      8.2435,
+      -3.9126,
+      -1.2752
+    ],
+    "n_points": 1469,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "desk",
+    "label_idx": 12,
+    "center": [
+      1.3189,
+      0.6958,
+      -0.3986
+    ],
+    "n_points": 1298,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      4.7575,
+      -3.2602,
+      -1.8577
+    ],
+    "n_points": 1161,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      5.5569,
+      -4.2168,
+      -1.4444
+    ],
+    "n_points": 1108,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      7.8318,
+      -3.2609,
+      -0.3948
+    ],
+    "n_points": 1085,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "bookshelf",
+    "label_idx": 9,
+    "center": [
+      8.1845,
+      -3.8254,
+      -2.013
+    ],
+    "n_points": 825,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      3.1677,
+      2.0446,
+      -2.0342
+    ],
+    "n_points": 762,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      5.1036,
+      0.0483,
+      -0.7907
+    ],
+    "n_points": 514,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      1.7959,
+      -0.1519,
+      -1.8127
+    ],
+    "n_points": 405,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_002",
+    "room_type": "living",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      7.3027,
+      -2.0072,
+      -0.3969
+    ],
+    "n_points": 280,
+    "room_name": "000_002"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_000_003",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      0.347,
+      -4.6208,
+      -0.0995
+    ],
+    "n_points": 2422,
+    "room_name": "000_003"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      6.9814,
+      -2.6618,
+      0.5214
+    ],
+    "n_points": 29943,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      0.1356,
+      2.9259,
+      0.4495
+    ],
+    "n_points": 24578,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      6.3038,
+      3.5546,
+      1.6353
+    ],
+    "n_points": 21743,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      0.443,
+      5.4203,
+      1.9052
+    ],
+    "n_points": 21194,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      6.8795,
+      -4.7147,
+      1.3114
+    ],
+    "n_points": 20845,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      0.0912,
+      2.9694,
+      0.5902
+    ],
+    "n_points": 18201,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      6.7703,
+      -2.6703,
+      0.648
+    ],
+    "n_points": 16755,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      7.042,
+      -4.2078,
+      0.7301
+    ],
+    "n_points": 12834,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "sofa",
+    "label_idx": 5,
+    "center": [
+      0.3238,
+      -1.8265,
+      0.5147
+    ],
+    "n_points": 12639,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      10.5193,
+      1.1116,
+      0.5665
+    ],
+    "n_points": 12177,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      3.6644,
+      4.6828,
+      1.9354
+    ],
+    "n_points": 11848,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      3.2523,
+      -2.0361,
+      2.7338
+    ],
+    "n_points": 10637,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      3.6288,
+      -3.9076,
+      0.4545
+    ],
+    "n_points": 9398,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      2.8875,
+      -0.2616,
+      0.4407
+    ],
+    "n_points": 8632,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      -1.7148,
+      3.7051,
+      0.5014
+    ],
+    "n_points": 8569,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "refrigerator",
+    "label_idx": 14,
+    "center": [
+      6.059,
+      3.5212,
+      0.9401
+    ],
+    "n_points": 7736,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      4.4115,
+      -1.8577,
+      0.5195
+    ],
+    "n_points": 7408,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      -1.6077,
+      2.3736,
+      0.5216
+    ],
+    "n_points": 7196,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      1.4819,
+      -0.2376,
+      0.4458
+    ],
+    "n_points": 7106,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      5.5162,
+      -4.4309,
+      1.1261
+    ],
+    "n_points": 6623,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      1.4368,
+      -1.963,
+      0.4191
+    ],
+    "n_points": 6507,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      -0.3433,
+      0.4135,
+      1.2479
+    ],
+    "n_points": 6213,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      4.0245,
+      2.263,
+      2.7299
+    ],
+    "n_points": 6130,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      1.4234,
+      2.1112,
+      2.7315
+    ],
+    "n_points": 6008,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "bathtub",
+    "label_idx": 18,
+    "center": [
+      -0.7581,
+      2.4845,
+      2.7337
+    ],
+    "n_points": 5736,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      -0.637,
+      -0.5925,
+      1.6858
+    ],
+    "n_points": 5671,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      4.5233,
+      0.6771,
+      2.7299
+    ],
+    "n_points": 5360,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      0.1552,
+      -3.4965,
+      0.5616
+    ],
+    "n_points": 4797,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      -2.2202,
+      2.2038,
+      1.3886
+    ],
+    "n_points": 4364,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      6.1737,
+      2.2047,
+      0.5413
+    ],
+    "n_points": 4350,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      -0.3446,
+      -4.088,
+      1.4134
+    ],
+    "n_points": 4274,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      2.9276,
+      1.4646,
+      0.4966
+    ],
+    "n_points": 4209,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      0.4624,
+      4.9868,
+      0.4124
+    ],
+    "n_points": 4114,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      -0.6142,
+      -2.8541,
+      1.6958
+    ],
+    "n_points": 4061,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      3.6898,
+      1.464,
+      0.5262
+    ],
+    "n_points": 4004,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      4.442,
+      1.4684,
+      0.5095
+    ],
+    "n_points": 3975,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      -2.3202,
+      3.8681,
+      1.6468
+    ],
+    "n_points": 3599,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      12.7137,
+      0.4176,
+      0.7893
+    ],
+    "n_points": 3562,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      0.2457,
+      -0.3342,
+      0.5694
+    ],
+    "n_points": 3498,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      -1.7949,
+      4.3313,
+      1.7735
+    ],
+    "n_points": 3273,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      -0.3607,
+      -2.2526,
+      1.7014
+    ],
+    "n_points": 3188,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      2.7593,
+      4.4251,
+      0.4113
+    ],
+    "n_points": 3160,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      4.5983,
+      4.4453,
+      0.4451
+    ],
+    "n_points": 3148,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      -1.9461,
+      1.3436,
+      0.9286
+    ],
+    "n_points": 2928,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      0.5436,
+      0.6308,
+      2.7337
+    ],
+    "n_points": 2919,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      -0.0568,
+      0.2506,
+      0.75
+    ],
+    "n_points": 2788,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      -2.0185,
+      3.0559,
+      0.6183
+    ],
+    "n_points": 2776,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      -0.3638,
+      -1.3504,
+      1.7019
+    ],
+    "n_points": 2721,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      12.7861,
+      0.4152,
+      1.4328
+    ],
+    "n_points": 2488,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      3.2283,
+      2.0723,
+      0.8951
+    ],
+    "n_points": 2332,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      4.044,
+      -4.5167,
+      1.7276
+    ],
+    "n_points": 2289,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      2.1458,
+      -0.2761,
+      0.2501
+    ],
+    "n_points": 2253,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      4.1049,
+      -2.8843,
+      2.7338
+    ],
+    "n_points": 2116,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "counter",
+    "label_idx": 11,
+    "center": [
+      0.4541,
+      5.1314,
+      0.9076
+    ],
+    "n_points": 1952,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      4.3771,
+      -2.6465,
+      0.6794
+    ],
+    "n_points": 1847,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      10.5646,
+      -2.6336,
+      1.2796
+    ],
+    "n_points": 1837,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      2.8683,
+      -0.5343,
+      2.7327
+    ],
+    "n_points": 1833,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      0.1745,
+      -0.3584,
+      1.199
+    ],
+    "n_points": 1809,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      0.8778,
+      -4.1258,
+      0.2937
+    ],
+    "n_points": 1751,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      8.4583,
+      -4.4164,
+      2.0052
+    ],
+    "n_points": 1749,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      2.0294,
+      -4.4943,
+      1.8239
+    ],
+    "n_points": 1744,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      9.2314,
+      -0.5448,
+      1.7041
+    ],
+    "n_points": 1654,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      0.318,
+      -4.6594,
+      1.7771
+    ],
+    "n_points": 1635,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      9.3492,
+      1.3584,
+      1.375
+    ],
+    "n_points": 1519,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      0.4038,
+      5.0362,
+      2.738
+    ],
+    "n_points": 1496,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      0.0675,
+      -3.4802,
+      1.209
+    ],
+    "n_points": 1474,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      2.1101,
+      -4.5884,
+      0.3453
+    ],
+    "n_points": 1452,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      2.8322,
+      0.505,
+      2.7317
+    ],
+    "n_points": 1221,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "bathtub",
+    "label_idx": 18,
+    "center": [
+      6.4895,
+      3.6819,
+      0.1265
+    ],
+    "n_points": 1183,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "counter",
+    "label_idx": 11,
+    "center": [
+      6.3134,
+      2.4635,
+      0.8999
+    ],
+    "n_points": 1155,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      -0.6067,
+      -3.9429,
+      1.7258
+    ],
+    "n_points": 1140,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      -2.3733,
+      3.2321,
+      0.6216
+    ],
+    "n_points": 1109,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      3.6943,
+      -3.8364,
+      2.7351
+    ],
+    "n_points": 947,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      0.3603,
+      4.5091,
+      2.7365
+    ],
+    "n_points": 912,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      0.1527,
+      1.4537,
+      2.7333
+    ],
+    "n_points": 814,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      4.414,
+      -1.6533,
+      1.122
+    ],
+    "n_points": 814,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "bathtub",
+    "label_idx": 18,
+    "center": [
+      0.9107,
+      2.9497,
+      2.732
+    ],
+    "n_points": 707,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      1.6303,
+      5.0205,
+      0.7865
+    ],
+    "n_points": 700,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "toilet",
+    "label_idx": 16,
+    "center": [
+      2.8752,
+      2.576,
+      2.7301
+    ],
+    "n_points": 629,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      6.0897,
+      -3.9963,
+      2.7455
+    ],
+    "n_points": 606,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      5.742,
+      3.0428,
+      2.7289
+    ],
+    "n_points": 535,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      2.8163,
+      -4.2499,
+      0.2299
+    ],
+    "n_points": 503,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      2.3096,
+      4.9862,
+      1.7592
+    ],
+    "n_points": 460,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      6.4941,
+      3.5211,
+      2.7302
+    ],
+    "n_points": 414,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      3.5351,
+      -0.1389,
+      2.7317
+    ],
+    "n_points": 385,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      5.26,
+      -1.0412,
+      0.2438
+    ],
+    "n_points": 369,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      3.2889,
+      -4.1542,
+      2.7357
+    ],
+    "n_points": 366,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      3.8229,
+      2.9998,
+      2.7309
+    ],
+    "n_points": 355,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      2.8971,
+      -4.3643,
+      1.1721
+    ],
+    "n_points": 338,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      6.5591,
+      2.7814,
+      0.9705
+    ],
+    "n_points": 307,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      4.1393,
+      -4.1455,
+      2.7349
+    ],
+    "n_points": 291,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      -1.5861,
+      1.0925,
+      0.2505
+    ],
+    "n_points": 278,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      -2.1124,
+      3.9124,
+      1.9071
+    ],
+    "n_points": 253,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      2.5973,
+      -3.8344,
+      2.736
+    ],
+    "n_points": 252,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      9.9811,
+      0.9864,
+      1.0812
+    ],
+    "n_points": 247,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      1.2274,
+      5.3841,
+      1.1173
+    ],
+    "n_points": 218,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      0.0332,
+      3.1714,
+      2.7342
+    ],
+    "n_points": 213,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      4.582,
+      2.3896,
+      1.8829
+    ],
+    "n_points": 213,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      -2.4198,
+      2.8733,
+      2.0573
+    ],
+    "n_points": 201,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      2.127,
+      0.3428,
+      2.7325
+    ],
+    "n_points": 200,
+    "room_name": "001_004"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "bathtub",
+    "label_idx": 18,
+    "center": [
+      12.789,
+      -2.8544,
+      2.7447
+    ],
+    "n_points": 19409,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      12.8894,
+      -3.025,
+      0.6237
+    ],
+    "n_points": 13769,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      14.4826,
+      -1.8325,
+      1.2525
+    ],
+    "n_points": 13685,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      12.4561,
+      -1.3796,
+      0.436
+    ],
+    "n_points": 6898,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      13.1966,
+      -3.288,
+      0.5006
+    ],
+    "n_points": 6679,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      11.0962,
+      -3.0717,
+      0.5943
+    ],
+    "n_points": 6340,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      14.6312,
+      -3.5229,
+      1.3516
+    ],
+    "n_points": 5675,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      14.7791,
+      -1.8943,
+      1.2866
+    ],
+    "n_points": 3154,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      10.9159,
+      -2.8725,
+      1.5336
+    ],
+    "n_points": 2419,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      14.4659,
+      -4.0615,
+      1.6084
+    ],
+    "n_points": 2370,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      14.4859,
+      -3.0986,
+      1.7677
+    ],
+    "n_points": 2319,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      11.3014,
+      -3.9661,
+      1.2478
+    ],
+    "n_points": 1457,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      13.4925,
+      -4.6951,
+      1.803
+    ],
+    "n_points": 1420,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      11.9778,
+      -4.6936,
+      1.8204
+    ],
+    "n_points": 967,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      11.0781,
+      -3.2465,
+      0.3525
+    ],
+    "n_points": 262,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      13.1351,
+      -2.4493,
+      1.126
+    ],
+    "n_points": 218,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_005",
+    "room_type": "bathroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      11.3885,
+      -4.0845,
+      1.0075
+    ],
+    "n_points": 206,
+    "room_name": "001_005"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_006",
+    "room_type": "dining",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      1.6513,
+      5.4408,
+      1.0505
+    ],
+    "n_points": 8654,
+    "room_name": "001_006"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_006",
+    "room_type": "dining",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      1.2265,
+      6.474,
+      2.7318
+    ],
+    "n_points": 1337,
+    "room_name": "001_006"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_006",
+    "room_type": "dining",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      2.0872,
+      6.5254,
+      2.7433
+    ],
+    "n_points": 974,
+    "room_name": "001_006"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_006",
+    "room_type": "dining",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      1.8386,
+      6.0776,
+      2.7434
+    ],
+    "n_points": 301,
+    "room_name": "001_006"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_006",
+    "room_type": "dining",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      0.7265,
+      6.6249,
+      2.744
+    ],
+    "n_points": 259,
+    "room_name": "001_006"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_007",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      7.8026,
+      5.7402,
+      1.0377
+    ],
+    "n_points": 14674,
+    "room_name": "001_007"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_007",
+    "room_type": "living",
+    "label": "sofa",
+    "label_idx": 5,
+    "center": [
+      6.1816,
+      7.0306,
+      0.5185
+    ],
+    "n_points": 8977,
+    "room_name": "001_007"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_007",
+    "room_type": "living",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      6.205,
+      7.133,
+      2.083
+    ],
+    "n_points": 8538,
+    "room_name": "001_007"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_007",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      4.8741,
+      6.0669,
+      1.4977
+    ],
+    "n_points": 2033,
+    "room_name": "001_007"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_008",
+    "room_type": "living",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      3.4279,
+      5.4139,
+      0.4938
+    ],
+    "n_points": 4404,
+    "room_name": "001_008"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_008",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      4.2173,
+      6.6542,
+      1.5046
+    ],
+    "n_points": 2204,
+    "room_name": "001_008"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_008",
+    "room_type": "living",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      4.1368,
+      6.4575,
+      2.7429
+    ],
+    "n_points": 1182,
+    "room_name": "001_008"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_008",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      3.8708,
+      6.1983,
+      2.7269
+    ],
+    "n_points": 1151,
+    "room_name": "001_008"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_009",
+    "room_type": "bathroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      10.6159,
+      -3.1065,
+      1.0891
+    ],
+    "n_points": 7176,
+    "room_name": "001_009"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_009",
+    "room_type": "bathroom",
+    "label": "toilet",
+    "label_idx": 16,
+    "center": [
+      9.4734,
+      -4.1144,
+      0.3687
+    ],
+    "n_points": 3307,
+    "room_name": "001_009"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_009",
+    "room_type": "bathroom",
+    "label": "sink",
+    "label_idx": 17,
+    "center": [
+      9.4053,
+      -3.1172,
+      0.6125
+    ],
+    "n_points": 2866,
+    "room_name": "001_009"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_009",
+    "room_type": "bathroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      10.741,
+      -3.6277,
+      1.705
+    ],
+    "n_points": 2596,
+    "room_name": "001_009"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_009",
+    "room_type": "bathroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      9.1791,
+      -4.093,
+      1.4666
+    ],
+    "n_points": 2095,
+    "room_name": "001_009"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_009",
+    "room_type": "bathroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      9.9589,
+      -3.5534,
+      2.7475
+    ],
+    "n_points": 1088,
+    "room_name": "001_009"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_010",
+    "room_type": "unknown",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      7.0196,
+      4.964,
+      1.1304
+    ],
+    "n_points": 1657,
+    "room_name": "001_010"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_010",
+    "room_type": "unknown",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      7.8005,
+      4.9573,
+      1.1588
+    ],
+    "n_points": 1580,
+    "room_name": "001_010"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "sofa",
+    "label_idx": 5,
+    "center": [
+      6.7746,
+      6.7945,
+      3.6539
+    ],
+    "n_points": 13392,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      8.0968,
+      0.6687,
+      4.1483
+    ],
+    "n_points": 4378,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      8.7393,
+      5.7295,
+      3.6368
+    ],
+    "n_points": 2974,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      5.7166,
+      6.8952,
+      3.6471
+    ],
+    "n_points": 2478,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      8.2901,
+      7.5351,
+      4.9055
+    ],
+    "n_points": 2445,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      6.9768,
+      7.5336,
+      4.9284
+    ],
+    "n_points": 2319,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      8.9133,
+      6.0874,
+      4.2658
+    ],
+    "n_points": 2197,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      5.6147,
+      7.4733,
+      4.9265
+    ],
+    "n_points": 2166,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      8.3117,
+      -1.5996,
+      4.6723
+    ],
+    "n_points": 1847,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      7.8589,
+      6.7428,
+      3.5972
+    ],
+    "n_points": 1820,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      9.1473,
+      2.1595,
+      4.6817
+    ],
+    "n_points": 1531,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      6.3017,
+      4.7926,
+      4.7101
+    ],
+    "n_points": 1396,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      8.0499,
+      4.4098,
+      3.7375
+    ],
+    "n_points": 1078,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      9.8392,
+      -1.099,
+      3.5642
+    ],
+    "n_points": 559,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      9.8361,
+      -1.0976,
+      4.4617
+    ],
+    "n_points": 344,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "sofa",
+    "label_idx": 5,
+    "center": [
+      8.5725,
+      6.8931,
+      3.6299
+    ],
+    "n_points": 297,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_011",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      8.1916,
+      -1.4879,
+      3.3262
+    ],
+    "n_points": 237,
+    "room_name": "002_011"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      0.79,
+      4.7775,
+      3.8695
+    ],
+    "n_points": 30748,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      2.4955,
+      7.1399,
+      4.0072
+    ],
+    "n_points": 13878,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      4.2378,
+      4.2326,
+      3.7941
+    ],
+    "n_points": 9398,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      4.5544,
+      6.8328,
+      4.1673
+    ],
+    "n_points": 6422,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      -0.2927,
+      2.5675,
+      4.2985
+    ],
+    "n_points": 5663,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      4.6781,
+      4.2325,
+      4.523
+    ],
+    "n_points": 5146,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      3.8443,
+      2.885,
+      3.4392
+    ],
+    "n_points": 4983,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      0.1193,
+      4.4817,
+      5.5366
+    ],
+    "n_points": 4166,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      2.9671,
+      7.1527,
+      3.7669
+    ],
+    "n_points": 3918,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      0.1321,
+      6.435,
+      3.5715
+    ],
+    "n_points": 3048,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      0.1057,
+      3.2735,
+      3.6162
+    ],
+    "n_points": 2710,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      3.757,
+      2.2048,
+      4.7191
+    ],
+    "n_points": 1661,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      2.3753,
+      4.2878,
+      3.4752
+    ],
+    "n_points": 1463,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      1.0173,
+      2.2249,
+      4.7252
+    ],
+    "n_points": 1122,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      0.0519,
+      3.2906,
+      4.4636
+    ],
+    "n_points": 803,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      1.6255,
+      4.8097,
+      4.3899
+    ],
+    "n_points": 580,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      2.4717,
+      7.5279,
+      5.0502
+    ],
+    "n_points": 512,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      1.8444,
+      7.0061,
+      4.6547
+    ],
+    "n_points": 436,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      4.3834,
+      4.8851,
+      4.7892
+    ],
+    "n_points": 387,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      0.0065,
+      7.4793,
+      4.885
+    ],
+    "n_points": 361,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      1.7787,
+      7.4228,
+      4.9386
+    ],
+    "n_points": 352,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      1.7471,
+      3.7805,
+      5.5399
+    ],
+    "n_points": 340,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      -0.0498,
+      6.2444,
+      3.9321
+    ],
+    "n_points": 280,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_012",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      3.6823,
+      7.5767,
+      5.0913
+    ],
+    "n_points": 240,
+    "room_name": "002_012"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      6.6905,
+      -3.1038,
+      3.7186
+    ],
+    "n_points": 21516,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      6.6138,
+      -3.315,
+      5.5364
+    ],
+    "n_points": 7676,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      6.5942,
+      -0.4047,
+      3.5171
+    ],
+    "n_points": 5973,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      8.6737,
+      -2.5326,
+      4.2506
+    ],
+    "n_points": 5773,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "sofa",
+    "label_idx": 5,
+    "center": [
+      5.1301,
+      -0.5036,
+      3.5597
+    ],
+    "n_points": 5363,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      3.6608,
+      -1.2122,
+      3.3923
+    ],
+    "n_points": 4912,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "sofa",
+    "label_idx": 5,
+    "center": [
+      3.6463,
+      -3.0808,
+      3.4143
+    ],
+    "n_points": 4687,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      8.0744,
+      -3.1498,
+      5.5366
+    ],
+    "n_points": 3451,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      5.579,
+      -4.3627,
+      4.7258
+    ],
+    "n_points": 3342,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      7.704,
+      -4.3304,
+      4.731
+    ],
+    "n_points": 3279,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      5.6039,
+      -1.1735,
+      3.401
+    ],
+    "n_points": 2635,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      6.7094,
+      -0.4896,
+      5.5361
+    ],
+    "n_points": 2578,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      7.7922,
+      -4.0155,
+      3.644
+    ],
+    "n_points": 1601,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      6.7112,
+      -4.6752,
+      4.8401
+    ],
+    "n_points": 1196,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      7.7204,
+      -0.2318,
+      3.2851
+    ],
+    "n_points": 1039,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      7.9326,
+      -0.6286,
+      4.6097
+    ],
+    "n_points": 1020,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      8.2708,
+      -4.4801,
+      4.6472
+    ],
+    "n_points": 886,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      5.1349,
+      -4.4788,
+      4.6165
+    ],
+    "n_points": 857,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      8.775,
+      -3.1863,
+      4.5984
+    ],
+    "n_points": 831,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      8.0525,
+      -1.5013,
+      3.7424
+    ],
+    "n_points": 600,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      7.5149,
+      0.0297,
+      4.5946
+    ],
+    "n_points": 598,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      8.783,
+      -3.802,
+      4.3002
+    ],
+    "n_points": 581,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      5.5418,
+      -3.965,
+      3.5864
+    ],
+    "n_points": 521,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      3.4642,
+      -0.9758,
+      4.3456
+    ],
+    "n_points": 355,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      3.7166,
+      -1.0884,
+      3.808
+    ],
+    "n_points": 349,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      3.6292,
+      -2.5222,
+      5.5438
+    ],
+    "n_points": 332,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_013",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      3.0437,
+      -3.0662,
+      5.1751
+    ],
+    "n_points": 314,
+    "room_name": "002_013"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      11.4049,
+      6.3464,
+      3.748
+    ],
+    "n_points": 26295,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      13.1786,
+      5.2718,
+      4.4899
+    ],
+    "n_points": 12677,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      13.2153,
+      6.7413,
+      4.3945
+    ],
+    "n_points": 6687,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      13.4413,
+      6.3025,
+      4.3944
+    ],
+    "n_points": 6639,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "bathtub",
+    "label_idx": 18,
+    "center": [
+      11.3235,
+      4.5341,
+      5.5405
+    ],
+    "n_points": 5555,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      13.4647,
+      4.4518,
+      4.3463
+    ],
+    "n_points": 5259,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      9.7296,
+      2.9477,
+      4.2152
+    ],
+    "n_points": 5000,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      12.7781,
+      4.1034,
+      3.5047
+    ],
+    "n_points": 4987,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      11.0916,
+      5.5338,
+      5.5402
+    ],
+    "n_points": 4099,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      13.2257,
+      3.9747,
+      4.61
+    ],
+    "n_points": 3487,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      10.0465,
+      6.2705,
+      5.5411
+    ],
+    "n_points": 3407,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      11.3191,
+      6.1639,
+      5.5408
+    ],
+    "n_points": 1768,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      12.5125,
+      7.0204,
+      3.7795
+    ],
+    "n_points": 1143,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      9.878,
+      4.693,
+      5.5401
+    ],
+    "n_points": 1001,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      9.3982,
+      5.2589,
+      4.1089
+    ],
+    "n_points": 887,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      11.1996,
+      3.4553,
+      4.6788
+    ],
+    "n_points": 847,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      9.3066,
+      6.7389,
+      4.6735
+    ],
+    "n_points": 842,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      9.5631,
+      7.0521,
+      3.6273
+    ],
+    "n_points": 718,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      13.2996,
+      5.4067,
+      4.6637
+    ],
+    "n_points": 614,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      12.3874,
+      7.1455,
+      3.9479
+    ],
+    "n_points": 522,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      9.792,
+      5.4182,
+      3.4534
+    ],
+    "n_points": 381,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      12.0014,
+      6.3041,
+      5.5409
+    ],
+    "n_points": 257,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_014",
+    "room_type": "bedroom",
+    "label": "bathtub",
+    "label_idx": 18,
+    "center": [
+      11.7341,
+      6.6452,
+      5.5412
+    ],
+    "n_points": 202,
+    "room_name": "002_014"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_015",
+    "room_type": "bathroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      12.8119,
+      -3.3596,
+      3.7474
+    ],
+    "n_points": 29477,
+    "room_name": "002_015"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_015",
+    "room_type": "bathroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      14.4779,
+      -2.4849,
+      4.332
+    ],
+    "n_points": 28828,
+    "room_name": "002_015"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_015",
+    "room_type": "bathroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      12.7503,
+      -1.3091,
+      3.7967
+    ],
+    "n_points": 8470,
+    "room_name": "002_015"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_015",
+    "room_type": "bathroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      10.3148,
+      -1.1419,
+      4.2885
+    ],
+    "n_points": 7956,
+    "room_name": "002_015"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_015",
+    "room_type": "bathroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      13.9594,
+      -4.093,
+      3.5891
+    ],
+    "n_points": 5824,
+    "room_name": "002_015"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_015",
+    "room_type": "bathroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      14.7041,
+      -3.6156,
+      4.3023
+    ],
+    "n_points": 5301,
+    "room_name": "002_015"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_015",
+    "room_type": "bathroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      11.3461,
+      -4.2778,
+      3.7997
+    ],
+    "n_points": 5088,
+    "room_name": "002_015"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_015",
+    "room_type": "bathroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      11.2558,
+      -3.7905,
+      3.4972
+    ],
+    "n_points": 3554,
+    "room_name": "002_015"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_015",
+    "room_type": "bathroom",
+    "label": "bathtub",
+    "label_idx": 18,
+    "center": [
+      11.8051,
+      -2.7094,
+      5.5379
+    ],
+    "n_points": 2835,
+    "room_name": "002_015"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_015",
+    "room_type": "bathroom",
+    "label": "bathtub",
+    "label_idx": 18,
+    "center": [
+      13.2173,
+      -2.8888,
+      5.5379
+    ],
+    "n_points": 1858,
+    "room_name": "002_015"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_015",
+    "room_type": "bathroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      12.7268,
+      -4.4932,
+      4.8927
+    ],
+    "n_points": 1523,
+    "room_name": "002_015"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_015",
+    "room_type": "bathroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      11.3621,
+      -0.904,
+      4.6829
+    ],
+    "n_points": 1201,
+    "room_name": "002_015"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_015",
+    "room_type": "bathroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      14.5856,
+      -1.8124,
+      4.8125
+    ],
+    "n_points": 1180,
+    "room_name": "002_015"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_015",
+    "room_type": "bathroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      10.6057,
+      -3.7995,
+      4.6808
+    ],
+    "n_points": 1138,
+    "room_name": "002_015"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_015",
+    "room_type": "bathroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      14.7111,
+      -1.8689,
+      3.9366
+    ],
+    "n_points": 1012,
+    "room_name": "002_015"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_015",
+    "room_type": "bathroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      13.8515,
+      -1.1484,
+      3.7832
+    ],
+    "n_points": 595,
+    "room_name": "002_015"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      2.4442,
+      -2.394,
+      3.717
+    ],
+    "n_points": 11316,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      2.5758,
+      -4.2888,
+      4.2379
+    ],
+    "n_points": 10170,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      -0.5343,
+      -3.5258,
+      4.6463
+    ],
+    "n_points": 9264,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      0.5436,
+      -4.6519,
+      4.677
+    ],
+    "n_points": 8519,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      2.6074,
+      -0.3697,
+      4.2219
+    ],
+    "n_points": 8120,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "bathtub",
+    "label_idx": 18,
+    "center": [
+      0.3784,
+      -3.7346,
+      3.4176
+    ],
+    "n_points": 7742,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "toilet",
+    "label_idx": 16,
+    "center": [
+      4.1378,
+      -4.0752,
+      3.4572
+    ],
+    "n_points": 3280,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      0.6015,
+      -1.7052,
+      5.5417
+    ],
+    "n_points": 2332,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      4.4291,
+      -4.0623,
+      4.5429
+    ],
+    "n_points": 1026,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      2.1438,
+      -1.7221,
+      5.541
+    ],
+    "n_points": 903,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "shower curtain",
+    "label_idx": 15,
+    "center": [
+      -0.2842,
+      -3.28,
+      5.3099
+    ],
+    "n_points": 634,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "sink",
+    "label_idx": 17,
+    "center": [
+      2.5534,
+      -3.0951,
+      3.9183
+    ],
+    "n_points": 610,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      1.2334,
+      -0.5029,
+      4.3032
+    ],
+    "n_points": 595,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "sink",
+    "label_idx": 17,
+    "center": [
+      2.5432,
+      -1.7189,
+      3.9184
+    ],
+    "n_points": 594,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "bed",
+    "label_idx": 3,
+    "center": [
+      1.6161,
+      -0.7611,
+      5.5407
+    ],
+    "n_points": 345,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      2.3344,
+      -0.8239,
+      5.5404
+    ],
+    "n_points": 327,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_016",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      1.9899,
+      -0.0603,
+      3.3449
+    ],
+    "n_points": 268,
+    "room_name": "002_016"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      10.9147,
+      1.188,
+      4.1887
+    ],
+    "n_points": 10758,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      13.4937,
+      0.4064,
+      4.4058
+    ],
+    "n_points": 7244,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "bathtub",
+    "label_idx": 18,
+    "center": [
+      11.4435,
+      -0.3447,
+      3.3422
+    ],
+    "n_points": 6764,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "shower curtain",
+    "label_idx": 15,
+    "center": [
+      10.937,
+      0.0195,
+      4.1885
+    ],
+    "n_points": 5629,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      9.9191,
+      2.3011,
+      3.6991
+    ],
+    "n_points": 4720,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "cabinet",
+    "label_idx": 2,
+    "center": [
+      9.9286,
+      -0.3353,
+      3.669
+    ],
+    "n_points": 4364,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "toilet",
+    "label_idx": 16,
+    "center": [
+      12.7805,
+      -0.4283,
+      3.5259
+    ],
+    "n_points": 3781,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "curtain",
+    "label_idx": 13,
+    "center": [
+      13.2193,
+      0.4598,
+      5.3046
+    ],
+    "n_points": 3430,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      10.5147,
+      -0.1197,
+      4.6584
+    ],
+    "n_points": 1135,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      12.7412,
+      -0.7436,
+      4.5971
+    ],
+    "n_points": 1047,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      9.2415,
+      1.4175,
+      4.5792
+    ],
+    "n_points": 972,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      12.5434,
+      0.8757,
+      5.5357
+    ],
+    "n_points": 648,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      11.1871,
+      -0.1238,
+      5.5381
+    ],
+    "n_points": 630,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "table",
+    "label_idx": 6,
+    "center": [
+      12.7774,
+      -0.1509,
+      5.5375
+    ],
+    "n_points": 614,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "sink",
+    "label_idx": 17,
+    "center": [
+      9.9122,
+      2.4332,
+      3.8296
+    ],
+    "n_points": 478,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "sink",
+    "label_idx": 17,
+    "center": [
+      9.9079,
+      -0.4639,
+      3.8176
+    ],
+    "n_points": 472,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_017",
+    "room_type": "bathroom",
+    "label": "chair",
+    "label_idx": 4,
+    "center": [
+      11.8495,
+      0.9049,
+      5.5359
+    ],
+    "n_points": 303,
+    "room_name": "002_017"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_018",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      3.3181,
+      0.1656,
+      4.1509
+    ],
+    "n_points": 7890,
+    "room_name": "002_018"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_018",
+    "room_type": "bedroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      6.4765,
+      0.418,
+      3.4173
+    ],
+    "n_points": 1888,
+    "room_name": "002_018"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_018",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      4.514,
+      1.0015,
+      5.5286
+    ],
+    "n_points": 1106,
+    "room_name": "002_018"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_018",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      4.8615,
+      2.1103,
+      4.4381
+    ],
+    "n_points": 980,
+    "room_name": "002_018"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_018",
+    "room_type": "bedroom",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      6.5794,
+      0.4082,
+      4.9623
+    ],
+    "n_points": 449,
+    "room_name": "002_018"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_018",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      3.3981,
+      0.1661,
+      5.5429
+    ],
+    "n_points": 262,
+    "room_name": "002_018"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_018",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      5.5715,
+      2.1313,
+      4.7835
+    ],
+    "n_points": 167,
+    "room_name": "002_018"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_019",
+    "room_type": "living",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      6.1525,
+      2.9851,
+      3.726
+    ],
+    "n_points": 19115,
+    "room_name": "002_019"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_019",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      4.8688,
+      4.2773,
+      4.2236
+    ],
+    "n_points": 6711,
+    "room_name": "002_019"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_019",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      4.8966,
+      2.5954,
+      4.2146
+    ],
+    "n_points": 4663,
+    "room_name": "002_019"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_019",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      4.771,
+      3.3279,
+      4.6502
+    ],
+    "n_points": 1735,
+    "room_name": "002_019"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_019",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      5.6446,
+      4.6939,
+      4.5384
+    ],
+    "n_points": 887,
+    "room_name": "002_019"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_020",
+    "room_type": "unknown",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      -0.1107,
+      -0.4597,
+      3.3812
+    ],
+    "n_points": 2316,
+    "room_name": "002_020"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_020",
+    "room_type": "unknown",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      1.6315,
+      0.2925,
+      4.1703
+    ],
+    "n_points": 2262,
+    "room_name": "002_020"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_021",
+    "room_type": "unknown",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      10.2106,
+      -2.53,
+      4.194
+    ],
+    "n_points": 11264,
+    "room_name": "002_021"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_021",
+    "room_type": "unknown",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      9.6984,
+      -3.383,
+      5.5211
+    ],
+    "n_points": 1164,
+    "room_name": "002_021"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_021",
+    "room_type": "unknown",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      9.2505,
+      -4.328,
+      3.3444
+    ],
+    "n_points": 949,
+    "room_name": "002_021"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_022",
+    "room_type": "unknown",
+    "label": "window",
+    "label_idx": 8,
+    "center": [
+      12.8714,
+      2.4762,
+      4.7375
+    ],
+    "n_points": 5037,
+    "room_name": "002_022"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_022",
+    "room_type": "unknown",
+    "label": "otherfurniture",
+    "label_idx": 19,
+    "center": [
+      10.9795,
+      1.8242,
+      3.3155
+    ],
+    "n_points": 1389,
+    "room_name": "002_022"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_022",
+    "room_type": "unknown",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      11.6433,
+      2.4723,
+      5.5272
+    ],
+    "n_points": 1138,
+    "room_name": "002_022"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_023",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      1.8172,
+      0.2909,
+      4.2978
+    ],
+    "n_points": 1886,
+    "room_name": "002_023"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_023",
+    "room_type": "living",
+    "label": "picture",
+    "label_idx": 10,
+    "center": [
+      1.8643,
+      1.6119,
+      4.7247
+    ],
+    "n_points": 1488,
+    "room_name": "002_023"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_023",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      2.4971,
+      2.0975,
+      4.8437
+    ],
+    "n_points": 1236,
+    "room_name": "002_023"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_002_023",
+    "room_type": "living",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      1.7808,
+      1.013,
+      4.3048
+    ],
+    "n_points": 377,
+    "room_name": "002_023"
+  },
+  {
+    "room": "00809_Qpor2mEya8F_001_004",
+    "room_type": "bedroom",
+    "label": "door",
+    "label_idx": 7,
+    "center": [
+      5.53,
+      -0.65,
+      1.44
+    ],
+    "n_points": 2244,
+    "room_name": "001_004"
+  }
+]
