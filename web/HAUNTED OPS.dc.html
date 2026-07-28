@@ -28,16 +28,26 @@ input[type=range]{accent-color:#ef4444}
 @keyframes ghostFloat{0%,100%{transform:translate(-50%,-50%) translateY(0)}50%{transform:translate(-50%,-50%) translateY(-4px)}}
 @keyframes scanMove{0%{background-position:0 0}100%{background-position:0 4px}}
 @keyframes redSweep{0%{opacity:0}10%{opacity:.85}100%{opacity:0}}
+@keyframes introTitle{0%{opacity:0;transform:translateY(10px) scale(.97);letter-spacing:.3em;filter:blur(6px)}60%{filter:blur(0)}100%{opacity:1;transform:none;letter-spacing:.02em;filter:blur(0)}}
+@keyframes introLine{0%,25%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:none}}
+@keyframes introSub{0%,45%{opacity:0}100%{opacity:1}}
+@keyframes introBar{0%{width:0}100%{width:100%}}
+@keyframes introOut{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.05);filter:blur(4px)}}
 </style>
 </helmet>
 <div style="width:100vw;height:100vh;background:#0a0405;color:#d8cfd2;font-family:'IBM Plex Sans KR',sans-serif;font-size:13px;overflow:hidden;position:relative">
   <div style="position:fixed;inset:0;z-index:95;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 2px,#00000030 2px 4px);opacity:{{scanOpacity}};animation:scanMove .4s linear infinite"></div>
   <div style="position:fixed;inset:0;z-index:94;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,#12000090 100%)"></div>
-  <sc-if value="{{notLoaded}}" hint-placeholder-val="{{true}}">
-    <div style="position:absolute;inset:0;display:grid;place-items:center">
+  <sc-if value="{{introVisible}}" hint-placeholder-val="{{true}}">
+    <div style="position:absolute;inset:0;z-index:90;display:grid;place-items:center;background:radial-gradient(ellipse at center,#12070a 0%,#0a0405 72%);animation:{{introAnim}}">
       <div style="text-align:center">
-        <div style="font-family:'East Sea Dokdo',cursive;font-size:54px;color:#ef4444;text-shadow:0 0 18px #dc262699;animation:flicker 4s infinite">흉가 드론 관제</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a7478;letter-spacing:.3em;margin-top:6px">HAUNTED OPS — 저택의 기록을 불러오는 중…</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#8a7478;letter-spacing:.55em;margin-bottom:10px;animation:introLine 1.4s ease-out both">HAUNTED OPS</div>
+        <div style="font-family:'East Sea Dokdo',cursive;font-size:76px;line-height:1;color:#ef4444;text-shadow:0 0 26px #dc262688,0 4px 10px #000;animation:introTitle 1.8s ease-out both,flicker 5s 1.8s infinite">흉가 드론 관제</div>
+        <div style="font-size:13px;color:#a8969a;margin-top:12px;letter-spacing:.14em;animation:introSub 2.2s ease-out both">자연어 기반 자율 드론 회수 작전</div>
+        <div style="width:260px;height:2px;margin:26px auto 0;background:#2a1015;border-radius:2px;overflow:hidden">
+          <div style="height:100%;background:linear-gradient(90deg,#7f1d1d,#ef4444);animation:introBar {{introBarDur}} linear both"></div>
+        </div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5f4a4e;letter-spacing:.2em;margin-top:10px;animation:introSub 2.6s ease-out both">{{introStatus}}</div>
       </div>
     </div>
   </sc-if>
@@ -549,6 +559,9 @@ class Component extends DCLogic {
     { grade: 'D', cmd: '해킹 작전실 노트북을 1층으로', diff: '보통', ok: false, score: 210, dist: '9.3m', time: '5:00', date: '07.15', route: '경로: 해킹 작전실 → 복도 (시간 초과)', logs: ['[04:02] 경로 재계획 3회', '[04:58] 제한 시간 임박', '[05:00] 제한 시간 초과'] },
   ];
   state = {
+    // 인트로: 로비 위에 덮여 있다가 약 3초 뒤 천천히 걷힌다.
+    // (2.6초 동안 타이틀·게이지가 차오르고, 이후 0.6초 페이드아웃)
+    intro: true, introFade: false,
     meta: null, screen: 'lobby', cmd: '', diff: 'normal', prep: -1,
     sim: null, over: null, tally: 0, selRecord: null, toasts: [], opsBox: { w: 1100, h: 640 }, streak: 0, deadStreak: 0, totalScore: 0,
     settings: { horror: 70, scan: true, glitch: true, shake: true, ghostShow: true, nGhosts: 2, gSpeed: 10, tLimit: 300, cAllow: 3, debug: false, slam: true, route: true, waypts: true, vol: 60, ui: 100, access: false },
@@ -581,8 +594,15 @@ class Component extends DCLogic {
       this.setState({ meta, screen: 'lobby' });
     });
     window.addEventListener('resize', this.onResize);
+    this.introT1 = setTimeout(() => this.setState({ introFade: true }), 2600);
+    this.introT2 = setTimeout(() => this.setState({ intro: false }), 3200);
   }
-  componentWillUnmount() { window.removeEventListener('resize', this.onResize); cancelAnimationFrame(this.raf); clearInterval(this.prepIv); clearInterval(this.tallyIv); }
+  componentWillUnmount() {
+    window.removeEventListener('resize', this.onResize);
+    cancelAnimationFrame(this.raf);
+    clearInterval(this.prepIv); clearInterval(this.tallyIv);
+    clearTimeout(this.introT1); clearTimeout(this.introT2);
+  }
   componentDidUpdate(pp, ps) {
     if (ps && ps.screen !== this.state.screen && (this.state.screen === 'ops' || this.state.screen === 'chase')) requestAnimationFrame(() => this.measureOps());
   }
@@ -824,7 +844,15 @@ class Component extends DCLogic {
     const st = this.state, meta = st.meta;
     const S = st.settings;
     const base = {
-      loaded: !!meta, notLoaded: !meta, toasts: st.toasts,
+      // 인트로는 로비 위에 겹쳐 뜬다(z-index 90). 그래서 로비는 인트로가
+      // 걷히기 전에 이미 렌더·이미지 로드를 끝내 놓는다.
+      loaded: !!meta, toasts: st.toasts,
+      introVisible: st.intro || !meta,
+      introAnim: st.introFade ? 'introOut .6s ease-in both' : 'none',
+      introBarDur: '2.6s',
+      introStatus: meta
+        ? `SCENE ${meta.scene} · 3 FLOORS · ${Object.keys(meta.rooms).length} ROOMS`
+        : '저택의 기록을 불러오는 중…',
       scanOpacity: S.scan && !S.access ? 0.5 : 0,
       goLobby: () => { cancelAnimationFrame(this.raf); this.setState({ screen: 'lobby', sim: null }); },
       goCreate: () => this.setState({ screen: 'create', sim: null }),
