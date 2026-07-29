@@ -36,8 +36,9 @@ Two layers under one repo:
 4. **RL autonomous flight + web console** (`playground/reinforce_learning/`,
    `web/`, `web_server.py`, `reinforce_inference.py`) — hyeonwoo branch: a SAC
    policy trained to fly the **same building** (`00809_Qpor2mEya8F`) end to end,
-   plus a web ops console where clicking two points on the floor plan plans the
-   route **with the policy** (no BFS/RRT*). See "Top-level apps" below.
+   plus a web ops console where the user picks **patrol areas** (rooms/floors on
+   the floor plan) and the route for every leg is planned **with the policy**
+   (no BFS/RRT*). See "Top-level apps" below.
 
 The 3D localization layer has **two complementary object-finding backends**:
 
@@ -83,9 +84,16 @@ graduated to real use sits at the top level.
   serves the UI only.
 - **`web/`** — the ops console, ported from a design mockup and running on the
   `dc-runtime` (`support.js`, React from unpkg, `<x-dc>` templates in
-  `*.dc.html`). `드론 관제.dc.html` is the floor-plan screen (**click twice to
-  set start/goal**); `HAUNTED OPS.dc.html` is the shell that embeds it via
-  `dc-import`. Assets in `web/uploads/` — regenerate with
+  `*.dc.html`). `드론 관제.dc.html` is the floor-plan screen — **click rooms to
+  toggle them into the patrol list** (or the floor-wide button), then it chains one
+  `POST /plan` per leg (drone → target₁ → … → home) and stitches the trajectories.
+  Natural-language area selection is deliberately NOT here — Qwen
+  (`3D-segmentation/webapp_llm/llm_parser.py`) owns it; feed its room list to
+  `setTargets(ids)`. `HAUNTED OPS.dc.html`
+  is the shell that embeds it via `dc-import`; its flow is
+  lobby → 관제 → 브리핑 → Unity 작전 → 순찰 완료/중단 → 기록. Flight itself is shown
+  by the Unity sim, so there is no 2D replay, and there are no ghosts/sanity/score
+  systems. Assets in `web/uploads/` — regenerate with
   `playground/demo_house/export_web_assets.py --out web/uploads`.
   Details: `web/README.md`.
 - **`playground/reinforce_learning/`** — the training side (geo_env / train_geo /

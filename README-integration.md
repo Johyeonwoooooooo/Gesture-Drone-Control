@@ -99,6 +99,27 @@ data/final_npy/
    New-NetFirewallRule -DisplayName "Unity Tello Sim" -Direction Inbound -Protocol UDP -LocalPort 9000 -Action Allow
    ```
 
+### 웹 화면 공유용 — 타이틀바 없이 띄우기
+
+웹 관제(`web/`)는 이 창을 화면 공유로 받아 그린다. **창 캡처는 타이틀바까지
+같이 찍히므로**, 창 모드로 띄우면 웹 전체 화면에서 영상 위에
+`tello_simulator [ㅡ][ㅁ][X]` 바가 남는다.
+
+- **빌드(exe)**: `WindowMode.cs` 가 시작 시 테두리 없는 전체 화면으로 강제한다
+  (씬에 붙일 필요 없음 — 스스로 올라온다). 데스크톱을 봐야 하면 **B 키**로 창 모드 전환.
+- **리빌드 없이 지금 당장**: exe 를 아래 인자로 실행하면 테두리 없는 창이 된다.
+  ```powershell
+  .\tello_simulator.exe -popupwindow          # 테두리 없는 창
+  .\tello_simulator.exe -screen-fullscreen 1  # 테두리 없는 전체 화면
+  ```
+- **Editor ▶ Play**: `Screen.fullScreenMode` 는 에디터에서 효과가 없다. 웹에 깨끗한
+  화면을 넘기려면 빌드해서 실행할 것.
+
+> Unity 는 마지막에 쓴 창 모드를 레지스트리
+> (`HKCU\Software\<회사>\<제품>\Screenmanager Is Fullscreen mode`)에 기억했다가
+> ProjectSettings 값보다 우선한다. `fullscreenMode: 1` 로 설정돼 있는데도 창 모드로
+> 뜨는 건 이 때문이고, `WindowMode.cs` 가 런타임에 덮어써 무시한다.
+
 ## 3. macOS Unity — 설치·씬은 (최초 1회), Play는 (매번)
 
 1. Unity Hub 설치 (Apple Silicon이면 Silicon 에디터), `6000.3.12f1` 설치.
@@ -242,6 +263,7 @@ simulator/
 │   ├── HorrorAtmosphere.cs # 호러 조명·포그·포스트FX·손전등 (L/F/[/] 키)
 │   ├── CamcorderHUD.cs     # 캠코더 UI: REC·배터리·시계·글리치 (N/H 키)
 │   ├── SettingsPanel.cs    # 설정 패널: 경로 표시·사운드 (Tab, PlayerPrefs 저장)
+│   ├── WindowMode.cs       # 타이틀바 없는 전체 화면 강제 (B키 토글, 씬 부착 불필요)
 │   ├── HorrorAudio.cs      # 앰비언트/스팅어/심박 (클립 없으면 무음)
 │   └── Resources/Audio/    # 사운드 클립 놓는 곳 (README.md 참고)
 ├── bridge/
