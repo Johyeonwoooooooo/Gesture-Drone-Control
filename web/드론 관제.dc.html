@@ -37,13 +37,7 @@ a{color:#f87171}a:hover{color:#fca5a5}
         <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.08em">HAUNTED OPS · 00809_Qpor2mEya8F</div>
       </div>
     </div>
-    <div style="flex:1;display:flex;justify-content:center">
-      <div style="display:flex;align-items:center;gap:8px;width:min(520px,100%);height:36px;background:#170a0d;border:1px solid #3a161c;border-radius:8px;padding:0 6px 0 12px" style-focus="border-color:#ef4444">
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#ef4444;flex:none">CMD</span>
-        <input value="{{nlValue}}" onChange="{{onNlChange}}" onKeyDown="{{onNlKey}}" placeholder="예: 규철이 무기고 침대 앞으로 가줘" style="flex:1;background:transparent;border:none;outline:none;color:#e8dde0;font-family:'IBM Plex Sans KR',sans-serif;font-size:13px">
-        <button onClick="{{onNlSend}}" title="음성 입력 (목업)" style="width:26px;height:26px;border:none;border-radius:6px;background:#241014;color:#f87171;cursor:pointer;font-size:12px;display:grid;place-items:center" style-hover="background:#35161d">🎙</button>
-      </div>
-    </div>
+    <div style="flex:1"></div>
     <div style="display:flex;align-items:center;gap:8px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px">
       <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:#101d16;border:1px solid #1e3a2a;border-radius:6px;color:#4ade80">
         <span style="width:6px;height:6px;border-radius:50%;background:#4ade80;animation:blinkDot 1.6s infinite"></span>생존 신호 확인
@@ -71,9 +65,13 @@ a{color:#f87171}a:hover{color:#fca5a5}
               {{t.label}}
               <span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:400;color:#8a7478">{{t.count}} rooms</span>
               <sc-if value="{{t.droneHere}}" hint-placeholder-val="{{false}}"><span style="position:absolute;top:5px;right:6px;width:6px;height:6px;border-radius:50%;background:#34d399"></span></sc-if>
-              <sc-if value="{{t.destHere}}" hint-placeholder-val="{{false}}"><span style="position:absolute;top:5px;right:15px;width:6px;height:6px;border-radius:50%;background:#f87171"></span></sc-if>
+              <sc-if value="{{t.selHere}}" hint-placeholder-val="{{false}}"><span style="position:absolute;top:3px;left:5px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#f87171">{{t.selTxt}}</span></sc-if>
             </button>
           </sc-for>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button onClick="{{onFloorAll}}" style="flex:1;height:28px;border:1px solid #7f1d1d;border-radius:7px;background:#450a0a55;color:#fca5a5;font-family:'IBM Plex Sans KR',sans-serif;font-size:11px;font-weight:600;cursor:pointer" style-hover="background:#7f1d1d">이 층 전체 순찰</button>
+          <button onClick="{{onFloorNone}}" style="flex:none;width:76px;height:28px;border:1px solid #3a161c;border-radius:7px;background:#170a0d;color:#a8969a;font-family:'IBM Plex Sans KR',sans-serif;font-size:11px;cursor:pointer" style-hover="border-color:#ef4444">해제</button>
         </div>
       </div>
       <div style="flex:1;overflow-y:auto;min-height:0;padding:8px 12px 16px">
@@ -83,7 +81,7 @@ a{color:#f87171}a:hover{color:#fca5a5}
             <div style="display:flex;flex-direction:column;gap:4px">
               <sc-for list="{{g.rooms}}" as="r" hint-placeholder-count="4">
                 <button onClick="{{r.onClick}}" style="display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid {{r.border}};border-radius:7px;background:{{r.bg}};cursor:pointer;text-align:left" style-hover="border-color:#ef4444;background:#1d0c10">
-                  <span style="width:7px;height:7px;flex:none;border-radius:50%;background:{{r.dot}}"></span>
+                  <span style="width:16px;height:16px;flex:none;border-radius:50%;background:{{r.dotBg}};border:1px solid {{r.dot}};display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:{{r.orderColor}}">{{r.orderTxt}}</span>
                   <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
                     <span style="font-size:12px;font-weight:600;color:#e8dde0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{r.name}}</span>
                     <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{r.id}} · {{r.furnTxt}}</span>
@@ -138,22 +136,16 @@ a{color:#f87171}a:hover{color:#fca5a5}
             </sc-for>
             <sc-for list="{{routeRuns}}" as="rr" hint-placeholder-count="0">
               <svg width="{{planeW}}" height="{{planeH}}" style="position:absolute;left:0;top:0;pointer-events:none;overflow:visible">
-                <polyline points="{{rr.pts}}" fill="none" stroke="#ef4444" stroke-width="3" stroke-dasharray="9 7" stroke-linecap="round" opacity="0.8"></polyline>
+                <polyline points="{{rr.pts}}" fill="none" stroke="{{rr.color}}" stroke-width="3" stroke-dasharray="{{rr.dash}}" stroke-linecap="round" opacity="0.8"></polyline>
               </svg>
             </sc-for>
-            <sc-for list="{{furnDots}}" as="f" hint-placeholder-count="0">
-              <div onClick="{{f.onClick}}" title="{{f.name}}" style="position:absolute;left:{{f.left}}px;top:{{f.top}}px;transform:translate(-50%,-50%);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px">
-                <span style="width:9px;height:9px;border-radius:50%;background:#0a0405;border:2px solid {{f.color}};box-shadow:0 0 6px {{f.color}}"></span>
-                <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:{{f.color}};background:#0a0405cc;padding:0 4px;border-radius:3px;white-space:nowrap">{{f.name}}</span>
+            <sc-for list="{{targetMarks}}" as="m" hint-placeholder-count="0">
+              <div style="position:absolute;left:{{m.left}}px;top:{{m.top}}px;pointer-events:none">
+                <span style="position:absolute;left:0;top:0;width:26px;height:26px;border:2px solid #f87171;border-radius:50%;transform:translate(-50%,-50%);animation:destRing 1.8s ease-out infinite"></span>
+                <span style="position:absolute;left:0;top:0;width:20px;height:20px;background:#ef4444;border:2px solid #fecaca;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 10px #ef4444aa;display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;color:#fff5f5">{{m.order}}</span>
+                <span style="position:absolute;left:0;top:0;transform:translate(-50%,-210%);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:#fecaca;background:#450a0acc;border:1px solid #7f1d1d;border-radius:5px;padding:2px 7px;white-space:nowrap">{{m.name}}</span>
               </div>
             </sc-for>
-            <sc-if value="{{destVisible}}" hint-placeholder-val="{{false}}">
-              <div style="position:absolute;left:{{destLeft}}px;top:{{destTop}}px;pointer-events:none">
-                <span style="position:absolute;left:0;top:0;width:26px;height:26px;border:2px solid #f87171;border-radius:50%;transform:translate(-50%,-50%);animation:destRing 1.8s ease-out infinite"></span>
-                <span style="position:absolute;left:0;top:0;width:14px;height:14px;background:#ef4444;border:2px solid #fecaca;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 10px #ef4444aa"></span>
-                <span style="position:absolute;left:0;top:0;transform:translate(-50%,-210%);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:#fecaca;background:#450a0acc;border:1px solid #7f1d1d;border-radius:5px;padding:2px 7px;white-space:nowrap">GOAL · {{destName}}</span>
-              </div>
-            </sc-if>
             <sc-if value="{{droneVisible}}" hint-placeholder-val="{{false}}">
               <div style="position:absolute;left:{{droneLeft}}px;top:{{droneTop}}px;pointer-events:none">
                 <span style="position:absolute;left:0;top:0;width:22px;height:22px;border:2px solid #34d399;border-radius:50%;animation:dronePulse 2s ease-out infinite"></span>
@@ -181,27 +173,7 @@ a{color:#f87171}a:hover{color:#fca5a5}
             <span style="color:#8a7478">통로</span><span style="font-family:'IBM Plex Mono',monospace">{{hoverPass}}</span>
             <span style="color:#8a7478">가구</span><span>{{hoverFurn}}</span>
           </div>
-        </div>
-      </sc-if>
-      <sc-if value="{{panelVisible}}" hint-placeholder-val="{{false}}">
-        <div style="position:absolute;left:12px;top:12px;z-index:6;width:232px;max-height:calc(100% - 60px);display:flex;flex-direction:column;background:#10070af2;border:1px solid #4a1d24;border-radius:10px;box-shadow:0 10px 30px #00000090;overflow:hidden">
-          <div style="flex:none;display:flex;align-items:flex-start;gap:8px;padding:11px 12px;border-bottom:1px solid #2a1015">
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:700;color:#f6eef0;line-height:1.3">{{panelTitle}}</div>
-              <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;margin-top:2px">{{panelSub}}</div>
-            </div>
-            <button onClick="{{onPanelClose}}" style="flex:none;width:22px;height:22px;border:none;border-radius:5px;background:#241014;color:#a8969a;cursor:pointer;font-size:11px" style-hover="background:#35161d">✕</button>
-          </div>
-          <div style="flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:4px">
-            <sc-for list="{{panelItems}}" as="f" hint-placeholder-count="3">
-              <button onClick="{{f.onClick}}" style="display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid {{f.border}};border-radius:7px;background:{{f.bg}};cursor:pointer;text-align:left" style-hover="border-color:#ef4444;background:#1d0c10">
-                <span style="width:7px;height:7px;flex:none;border-radius:50%;border:2px solid {{f.dotColor}};background:transparent"></span>
-                <span style="flex:1;font-size:12px;font-weight:600;color:#e8dde0">{{f.name}}</span>
-                <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478">{{f.coordTxt}}</span>
-              </button>
-            </sc-for>
-          </div>
-          <div style="flex:none;padding:8px 12px;border-top:1px solid #2a1015;font-size:10px;color:#5f4a4e">가구를 클릭하면 그 앞이 도착지가 됩니다</div>
+          <div style="margin-top:7px;font-size:10px;color:{{hoverPickColor}}">{{hoverPickTxt}}</div>
         </div>
       </sc-if>
       <div style="position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:6px;z-index:4">
@@ -216,7 +188,7 @@ a{color:#f87171}a:hover{color:#fca5a5}
             <span style="width:7px;height:7px;border-radius:50%;background:{{simDotColor}};animation:blinkDot 1.2s infinite"></span>
             <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:#e8dde0;letter-spacing:.08em">UNITY SIM · {{simStatusTxt}}</span>
             <button onClick="{{onSimMax}}" title="크게 보기 (평면도와 교체)" style="margin-left:auto;width:20px;height:20px;border:none;border-radius:4px;background:#241014;color:#a8969a;cursor:pointer;font-size:10px" style-hover="background:#35161d">⛶</button>
-            <button onClick="{{onSimClose}}" style="margin-left:auto;width:20px;height:20px;border:none;border-radius:4px;background:#241014;color:#a8969a;cursor:pointer;font-size:10px" style-hover="background:#35161d">✕</button>
+            <button onClick="{{onSimClose}}" style="width:20px;height:20px;border:none;border-radius:4px;background:#241014;color:#a8969a;cursor:pointer;font-size:10px" style-hover="background:#35161d">✕</button>
           </div>
           <div style="position:relative;height:180px;background:repeating-linear-gradient(135deg,#0d0608 0 14px,#120709 14px 28px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
             <sc-if value="{{simShareOn}}" hint-placeholder-val="{{false}}">{{simVideoEl2}}</sc-if>
@@ -237,19 +209,19 @@ a{color:#f87171}a:hover{color:#fca5a5}
         <span style="color:#a8969a">{{curFloorLabel}}</span>
         <span>zoom {{zoomTxt}}</span>
         <span>{{cursorTxt}}</span>
-        <span style="margin-left:auto;color:#5f4a4e">드래그 이동 · 휠 줌 · 방 안 클릭 = 도착지 지정</span>
+        <span style="margin-left:auto;color:#5f4a4e">드래그 이동 · 휠 줌 · 방 클릭 = 순찰 대상 추가/해제</span>
       </div>
     </main>
     <aside style="width:312px;flex:none;background:#10070a;border-left:1px solid #2a1015;display:flex;flex-direction:column;min-height:0">
       <div style="padding:14px 16px;border-bottom:1px solid #2a1015;display:flex;align-items:center;justify-content:space-between">
-        <div style="font-weight:700;font-size:14px;color:#f6eef0">미션</div>
+        <div style="font-weight:700;font-size:14px;color:#f6eef0">순찰 계획</div>
         <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;padding:4px 9px;border-radius:20px;border:1px solid {{chipBorder}};color:{{chipColor}};background:{{chipBg}}">{{chipTxt}}</div>
       </div>
       <div style="flex:1;overflow-y:auto;min-height:0;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
         <div style="border:1px solid #1e3a2a;background:#0e1a14;border-radius:10px;padding:11px 13px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
             <span style="width:9px;height:9px;border-radius:50%;background:#34d399;box-shadow:0 0 8px #34d39988;animation:{{startDotAnim}}"></span>
-            <span style="font-size:11px;color:#6ee7b7;font-weight:600;letter-spacing:.05em">출발 — 드론 현재 위치</span>
+            <span style="font-size:11px;color:#6ee7b7;font-weight:600;letter-spacing:.05em">출발 · 복귀 지점</span>
             <span style="margin-left:auto;font-size:10px;color:{{startSrcColor}};border:1px solid {{startSrcBorder}};border-radius:5px;padding:1px 7px">{{startSrcTxt}}</span>
           </div>
           <div style="display:flex;align-items:baseline;gap:10px">
@@ -258,40 +230,42 @@ a{color:#f87171}a:hover{color:#fca5a5}
           </div>
           <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#86a69a;margin-top:4px">{{startCoordTxt}}</div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:0 4px">
-          <div style="flex:none;width:1px;height:22px;margin-left:16px;background:repeating-linear-gradient(#334155 0 3px,transparent 3px 7px)"></div>
-          <span style="font-size:11px;color:#5f4a4e">↓ 경로 자동 계획</span>
-          <sc-if value="{{crossFloor}}" hint-placeholder-val="{{false}}">
-            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#fbbf24;border:1px solid #57431a;background:#1c150a;border-radius:5px;padding:2px 7px">계단 경유</span>
-          </sc-if>
-        </div>
-        <div style="border:1px solid {{goalBoxBorder}};background:{{goalBoxBg}};border-radius:10px;padding:11px 13px">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
-            <span style="width:9px;height:9px;border-radius:50%;background:{{goalDot}}"></span>
-            <span style="font-size:11px;color:{{goalTitleColor}};font-weight:600;letter-spacing:.05em">도착 — 목적지</span>
-            <sc-if value="{{goalSet}}" hint-placeholder-val="{{false}}">
-              <button onClick="{{onClear}}" style="margin-left:auto;border:1px solid #3f2021;background:transparent;color:#f87171;font-size:10px;border-radius:5px;padding:2px 8px;cursor:pointer" style-hover="background:#2a1215">지우기</button>
+        <div style="border:1px solid {{listBorder}};background:{{listBg}};border-radius:10px;padding:11px 13px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="width:9px;height:9px;border-radius:50%;background:{{listDot}}"></span>
+            <span style="font-size:11px;color:{{listTitleColor}};font-weight:600;letter-spacing:.05em">순찰 구역 · 방문 순서</span>
+            <sc-if value="{{hasTargets}}" hint-placeholder-val="{{false}}">
+              <button onClick="{{onClearAll}}" style="margin-left:auto;border:1px solid #3f2021;background:transparent;color:#f87171;font-size:10px;border-radius:5px;padding:2px 8px;cursor:pointer" style-hover="background:#2a1215">전체 해제</button>
             </sc-if>
           </div>
-          <sc-if value="{{goalSet}}" hint-placeholder-val="{{false}}">
-            <div style="display:flex;align-items:baseline;gap:10px">
-              <span style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;color:#f6eef0">{{goalRoomTxt}}</span>
-              <span style="font-size:11px;color:#8a7478">{{goalFloorTxt}}</span>
+          <sc-if value="{{hasTargets}}" hint-placeholder-val="{{false}}">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <sc-for list="{{targetRows}}" as="t" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid #3f2021;border-radius:7px;background:#170f11">
+                  <span style="width:17px;height:17px;flex:none;border-radius:50%;background:#450a0a;border:1px solid #7f1d1d;display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;color:#fca5a5">{{t.order}}</span>
+                  <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                    <span style="font-size:12px;font-weight:600;color:#e8dde0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{t.name}}</span>
+                    <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478">{{t.sub}}</span>
+                  </span>
+                  <button onClick="{{t.onUp}}" title="앞으로" style="flex:none;width:18px;height:18px;border:none;border-radius:4px;background:#241014;color:#a8969a;cursor:pointer;font-size:9px" style-hover="background:#35161d">▲</button>
+                  <button onClick="{{t.onRemove}}" title="제외" style="flex:none;width:18px;height:18px;border:none;border-radius:4px;background:#241014;color:#f87171;cursor:pointer;font-size:9px" style-hover="background:#35161d">✕</button>
+                </div>
+              </sc-for>
             </div>
-            <sc-if value="{{goalFurn}}" hint-placeholder-val="{{false}}">
-              <div style="display:inline-block;margin-top:6px;font-size:11px;font-weight:600;color:#fca5a5;background:#450a0a66;border:1px solid #7f1d1d;border-radius:5px;padding:2px 8px">🎯 {{goalFurnTxt}}</div>
-            </sc-if>
-            <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#c9928f;margin-top:4px">{{goalCoordTxt}}</div>
           </sc-if>
-          <sc-if value="{{goalUnset}}" hint-placeholder-val="{{true}}">
-            <div style="font-size:12px;color:#8a7478;padding:4px 0">평면도에서 방 안을 클릭해 지정하세요</div>
+          <sc-if value="{{noTargets}}" hint-placeholder-val="{{true}}">
+            <div style="font-size:12px;color:#8a7478;padding:4px 0;line-height:1.7">평면도에서 방을 클릭하거나<br>「이 층 전체 순찰」로 층 단위로 지정하세요</div>
           </sc-if>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #2a1015;background:#150a0d;border-radius:10px;padding:9px 13px">
+          <span style="flex:1;font-size:12px;color:#cfc2c5">순찰 후 복귀</span>
+          <button onClick="{{onToggleHome}}" style="flex:none;height:24px;padding:0 12px;border:1px solid {{homeBorder}};border-radius:6px;background:{{homeBg}};color:{{homeColor}};font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;cursor:pointer">{{homeTxt}}</button>
         </div>
         <sc-if value="{{planBoxVisible}}" hint-placeholder-val="{{false}}">
           <div style="border:1px solid {{planBorder}};background:{{planBg}};border-radius:10px;padding:11px 13px">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
               <span style="width:9px;height:9px;border-radius:50%;background:{{planDot}};animation:{{planDotAnim}}"></span>
-              <span style="font-size:11px;color:{{planTitleColor}};font-weight:600;letter-spacing:.05em">강화학습 경로 (SAC)</span>
+              <span style="font-size:11px;color:{{planTitleColor}};font-weight:600;letter-spacing:.05em">순찰 경로 (SAC)</span>
               <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478">{{planEngineTxt}}</span>
             </div>
             <div style="font-size:12px;color:#e8dde0;margin-bottom:7px">{{planStatusTxt}}</div>
@@ -302,25 +276,22 @@ a{color:#f87171}a:hover{color:#fca5a5}
                 </sc-for>
               </div>
             </sc-if>
+            <sc-if value="{{planLegsVisible}}" hint-placeholder-val="{{false}}">
+              <div style="margin-top:8px;display:flex;flex-direction:column;gap:3px;font-family:'IBM Plex Mono',monospace;font-size:10px">
+                <sc-for list="{{planLegs}}" as="l" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:6px;color:{{l.c}}">
+                    <span style="flex:none;width:14px;text-align:center">{{l.icon}}</span>
+                    <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{l.txt}}</span>
+                    <span style="flex:none;color:#8a7478">{{l.dist}}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
             <sc-if value="{{planRetryVisible}}" hint-placeholder-val="{{false}}">
               <button onClick="{{onReplan}}" style="width:100%;margin-top:8px;height:28px;border:1px solid #4a1d24;border-radius:6px;background:#170a0d;color:#cfc2c5;font-size:11px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">경로 다시 계산</button>
             </sc-if>
           </div>
         </sc-if>
-        <sc-if value="{{flightActive}}" hint-placeholder-val="{{false}}">
-          <div style="border:1px solid #7f1d1d;background:#450a0a33;border-radius:10px;padding:11px 13px">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-              <span style="width:9px;height:9px;border-radius:50%;background:#f87171;animation:blinkDot 1s infinite"></span>
-              <span style="font-size:11px;color:#fca5a5;font-weight:600;letter-spacing:.05em">비행 중</span>
-              <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f87171">{{flightPctTxt}}</span>
-            </div>
-            <div style="font-size:12px;color:#e8dde0;margin-bottom:8px">{{flightRoomTxt}}</div>
-            <div style="height:5px;background:#2a1015;border-radius:3px;overflow:hidden">
-              <div style="height:100%;width:{{flightPct}}%;background:linear-gradient(90deg,#7f1d1d,#ef4444);transition:width .2s linear"></div>
-            </div>
-          </div>
-        </sc-if>
-
       </div>
       <div style="flex:none;padding:14px 16px;border-top:1px solid #2a1015">
         <button onClick="{{onLaunch}}" disabled="{{launchDisabled}}" style="width:100%;height:44px;border:none;border-radius:9px;background:{{launchBg}};color:{{launchColor}};font-family:'IBM Plex Sans KR',sans-serif;font-weight:700;font-size:14px;letter-spacing:.03em;cursor:{{launchCursor}}">{{launchTxt}}</button>
@@ -386,14 +357,27 @@ function simVideo(extra) {
   });
 }
 
+// ══════════════════════════════════════════════════════════════════
+// 순찰 구역 지정 화면
+//   평면도/방 목록 클릭으로 순찰할 방을 골라 담는다(다중 선택). 층 탭 아래
+//   「이 층 전체 순찰」로 층 단위 지정도 된다.
+//   고른 구역들은 방문 순서대로 이어붙인 다구간 경로로 계획된다. 마지막
+//   구간은 「순찰 후 복귀」가 켜져 있으면 출발 지점(드론 현재 위치)이다.
+//
+// 자연어 명령으로 순찰 구역을 고르는 경로는 여기 없다 — 별도로 돌아가는
+// Qwen(3D-segmentation/webapp_llm/llm_parser.py)이 맡는다. 붙일 때는 그쪽이
+// 낸 방 목록을 setTargets() 로 넘기면 나머지(순서·경로·payload)는 그대로 쓴다.
+// ══════════════════════════════════════════════════════════════════
 class Component extends DCLogic {
-  state = { meta: null, floor: 1, view: { tx: 0, ty: 0, s: 1 }, hoverId: null, mouse: null, cursorW: null, dest: null, nl: "", toasts: [], sent: false, dragging: false, selRoom: null, flight: null, droneAt: null, simOpen: false, simMax: false,
-            // ── 도착지 1점 선택 + 강화학습 경로 ─────────────────────
-            // 출발점은 언제나 드론의 현재 위치다. 서버(/api/drone)가 알려주는데,
-            // 시뮬레이터가 붙어 있으면 실시간 위치, 아니면 스폰(홈) 지점이다.
-            drone: null,      // {x,y,z,source,flying,connected} — 1초마다 폴링
-            plan: null,       // /plan 응답 {engine,success,steps,bumps,dist,flown,path:[[x,y,z]..]}
-            planning: false, planErr: null };
+  state = { meta: null, floor: 1, view: { tx: 0, ty: 0, s: 1 }, hoverId: null, mouse: null, cursorW: null,
+            toasts: [], dragging: false, simOpen: false, simMax: false,
+            // ── 순찰 요청 ────────────────────────────────────────────
+            targets: [],        // 방 id 배열. 배열 순서 = 방문 순서
+            returnHome: true,   // 순찰 후 출발 지점으로 복귀할지
+            // ── 드론 / 경로 ─────────────────────────────────────────
+            drone: null,        // {x,y,z,source,flying,connected} — 1초마다 폴링
+            plan: null,         // {legs:[..], path:[[x,y,z]..], dist, ok, engine, ms}
+            planning: false, planProg: '', planErr: null };
   mapRef = React.createRef();
   toastSeq = 0;
   planSeq = 0;               // 응답 경합(늦게 온 옛 요청) 무시용
@@ -416,7 +400,6 @@ class Component extends DCLogic {
           seq[d.label] = (seq[d.label] || 0) + 1;
           return { key: `${id}-${i}`, label: d.label, kr: this.KR[d.label] || d.label, num: seq[d.label], center: d.center, n: d.n_points };
         });
-        for (const f of this.furn[id]) f.dup = seq[f.label] > 1;
       }
       const droneRoom = this.droneRoomId(meta);
       const floor = meta.rooms[droneRoom].floor;
@@ -437,8 +420,8 @@ class Component extends DCLogic {
     window.addEventListener('resize', this.onResize);
   }
 
-  // 드론 현재 위치 = 출발점. 서버가 시뮬레이터에 붙어 있으면 실시간,
-  // 아니면 스폰(홈) 좌표를 준다. 서버가 없으면 그냥 무시하고 기존 표시를 유지.
+  // 드론 현재 위치 = 순찰 출발점이자 복귀 지점. 서버가 시뮬레이터에 붙어
+  // 있으면 실시간, 아니면 스폰(홈) 좌표를 준다. 서버가 없으면 무시한다.
   pollDrone = () => {
     fetch('api/drone').then(r => r.ok ? r.json() : Promise.reject())
       .then(d => {
@@ -457,14 +440,13 @@ class Component extends DCLogic {
     window.removeEventListener('mouseup', this.onWinUp);
     window.removeEventListener('resize', this.onResize);
     clearInterval(this.droneIv);
+    clearTimeout(this.planTimer);
     window.__simShare.subs.delete(this._shareSub);
-    cancelAnimationFrame(this.raf);
   }
   componentDidUpdate(prev) {
     if (prev.droneRoom !== this.props.droneRoom && this.state.meta) {
-      cancelAnimationFrame(this.raf);
       const floor = this.state.meta.rooms[this.droneRoomId(this.state.meta)].floor;
-      this.setState({ floor, flight: null, droneAt: null }, () => this.fitView());
+      this.setState({ floor }, () => this.fitView());
     }
   }
 
@@ -479,7 +461,6 @@ class Component extends DCLogic {
   label(id) { return this.LABELS[id] || `ROOM ${id}`; }
   KR = { sofa: '소파', chair: '의자', table: '테이블', bed: '침대', cabinet: '수납장', desk: '책상', refrigerator: '냉장고', toilet: '변기', bathtub: '욕조', counter: '조리대', bookshelf: '책장', sink: '세면대', television: 'TV', shower: '샤워부스', otherfurniture: '기타 가구', door: '문', window: '창문', curtain: '커튼', picture: '액자' };
   EXCLUDE = new Set(['door', 'window', 'curtain', 'picture', 'otherfurniture']);
-  furnName(f) { return f.dup ? `${f.kr} ${f.num}` : f.kr; }
   furnOf(id) { return (this.furn && this.furn[id]) || []; }
   summary(id, n) {
     const cnt = {};
@@ -487,62 +468,144 @@ class Component extends DCLogic {
     const top = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, n);
     return top.map(([k, c]) => c > 1 ? `${k} ${c}` : k).join(' · ');
   }
-  // 출발점 = 드론 현재 위치. 우선순위:
-  //   비행 애니메이션 중 > 서버가 알려준 위치(시뮬레이터/홈) > 로컬 착륙 지점 > 방 중앙
+  // 출발/복귀 지점 = 드론 현재 위치.
+  //   서버가 알려준 위치(시뮬레이터 실시간 또는 스폰) > 방 중앙(기본값)
   dronePose() {
     const st = this.state, meta = st.meta;
-    if (st.flight && !st.flight.done) return { room: st.flight.room, pos: st.flight.pos, z: st.flight.z, floor: st.flight.floor };
     if (st.drone) {
       const f = this.floorOfZ(st.drone.z);
       return { room: this.roomAt(f, st.drone.x, st.drone.y) || this.droneRoomId(),
                pos: [st.drone.x, st.drone.y], z: st.drone.z, floor: f };
     }
-    if (st.droneAt) return st.droneAt;
     const id = this.droneRoomId(), rm = meta.rooms[id];
     return { room: id, pos: [rm.center[0], rm.center[1]], z: rm.center[2], floor: rm.floor };
   }
-
-  // ── 강화학습 경로 계획 ────────────────────────────────────────
-  // 출발/도착 두 점이 정해지면 백엔드(web_server.py)의 학습된 SAC 정책을
-  // 실제로 굴려서 3D 궤적을 받아온다. 서버가 없으면 방그래프 직선(buildWps)
-  // 으로 자동 폴백해 UI 자체는 계속 동작한다.
-  // 출발점은 보내지 않는다 — 서버가 드론 현재 위치를 직접 읽어 쓰는 게 원칙이라
-  // (폴링과 요청 사이에 드론이 움직여도 항상 최신 위치에서 출발한다).
-  requestPlan(dest) {
-    if (!dest) return;
-    const seq = ++this.planSeq;
-    this.setState({ planning: true, planErr: null, plan: null });
-    const body = { goal: [dest.x, dest.y, dest.z] };
-    fetch('plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      .then(r => r.ok ? r.json() : r.json().then(j => Promise.reject(new Error(j.error || ('HTTP ' + r.status)))))
-      .then(j => {
-        if (seq !== this.planSeq) return;                      // 더 최신 요청이 있음
-        this.setState({ plan: j, planning: false });
-        this.toast(j.success
-          ? `강화학습 경로 생성 — ${j.steps}스텝 · ${j.flown.toFixed(1)}m`
-          : `정책이 목표에 도달하지 못했습니다 (${j.steps}스텝, 남은거리 ${j.dist.toFixed(1)}m)`);
-      })
-      .catch(e => {
-        if (seq !== this.planSeq) return;
-        this.setState({ planning: false, planErr: String(e.message || e) });
-        this.toast(`RL 서버 응답 없음 — 방그래프 직선 경로로 대체 (${e.message || e})`);
-      });
+  droneRoomId(meta) {
+    const m = meta || this.state.meta;
+    const id = this.props.droneRoom ?? "007";
+    return m.rooms[id] ? id : "007";
   }
-  // RL 궤적 [[x,y,z]..] → 내부 웨이포인트 형식. 층은 z 로 판정한다.
+
+  // ── 순찰 구역 선택 ────────────────────────────────────────────
+  // 지도/목록 클릭도, 자연어 명령도 결국 이 targets 배열 하나를 만든다.
+  // 배열 순서가 곧 방문 순서다.
+  toggleTarget(id) {
+    const st = this.state;
+    const has = st.targets.includes(id);
+    const targets = has ? st.targets.filter(t => t !== id) : [...st.targets, id];
+    this.setState({ targets }, () => this.schedulePlan());
+    this.toast(has ? `순찰 대상에서 제외: ${this.label(id)}`
+                   : `순찰 대상 추가 ${targets.length}번째: ${this.label(id)}`);
+  }
+  // 방 목록을 통째로 갈아끼운다. 외부(LLM 파서 등)에서 고른 결과를 넣는 입구.
+  setTargets(ids) {
+    this.setState({ targets: ids }, () => this.schedulePlan());
+  }
+  moveUp(id) {
+    const t = [...this.state.targets], i = t.indexOf(id);
+    if (i <= 0) return;
+    t[i - 1] = t.splice(i, 1, t[i - 1])[0];
+    this.setState({ targets: t }, () => this.schedulePlan());
+  }
+  // 지정된 방들을 드론 위치에서 가까운 순으로 늘어놓는다(방그래프 홉 수 기준).
+  // LLM 이 "방문 순서"를 정하는 자리 — 지금은 최근접 우선 그리디로 대신한다.
+  orderRooms(ids) {
+    if (ids.length < 2) return ids;
+    const remain = new Set(ids), out = [];
+    let cur = this.dronePose().room;
+    while (remain.size) {
+      let best = null, bestN = Infinity;
+      for (const id of remain) {
+        const p = this.findPath(cur, id);
+        const n = p ? p.length : 999;
+        if (n < bestN) { bestN = n; best = id; }
+      }
+      out.push(best); remain.delete(best); cur = best;
+    }
+    return out;
+  }
+
+  // ── 다구간 순찰 경로 ──────────────────────────────────────────
+  // /plan 은 한 구간(start→goal)만 계산한다. 순찰은 구간이 여러 개라
+  // 드론 → 대상1 → 대상2 → … → (복귀) 를 순서대로 호출해 이어붙인다.
+  // 각 구간의 출발점은 앞 구간 응답의 (스냅된) goal 을 그대로 쓴다.
+  schedulePlan() {
+    clearTimeout(this.planTimer);
+    this.planTimer = setTimeout(() => this.planPatrol(), 250);   // 연속 클릭 묶기
+  }
+  planPatrol() {
+    const st = this.state, meta = st.meta;
+    if (!meta || !st.targets.length) {
+      this.planSeq++;
+      this.setState({ plan: null, planning: false, planErr: null, planProg: '' });
+      return;
+    }
+    const seq = ++this.planSeq;
+    const pose = this.dronePose();
+    const home = [pose.pos[0], pose.pos[1], pose.z];
+    const stops = st.targets.map(id => {
+      const c = meta.rooms[id].center;
+      return { room: id, goal: [c[0], c[1], c[2]] };
+    });
+    if (st.returnHome) stops.push({ room: pose.room, goal: home, home: true });
+
+    this.setState({ planning: true, planErr: null, plan: null, planProg: `구간 1 / ${stops.length}` });
+    const legs = [];
+    let cursor = home;
+    const t0 = performance.now();
+
+    const step = (i) => {
+      if (seq !== this.planSeq) return;                 // 더 최신 요청이 있음
+      if (i >= stops.length) { finish(); return; }
+      this.setState({ planProg: `구간 ${i + 1} / ${stops.length}` });
+      const s = stops[i];
+      fetch('plan', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ start: cursor, goal: s.goal }) })
+        .then(r => r.ok ? r.json() : r.json().then(j => Promise.reject(new Error(j.error || ('HTTP ' + r.status)))))
+        .then(j => {
+          if (seq !== this.planSeq) return;
+          legs.push({ room: s.room, home: !!s.home, path: j.path || [], ok: !!j.success,
+                      dist: j.flown, steps: j.steps, bumps: j.bumps, engine: j.engine });
+          cursor = j.goal || s.goal;
+          step(i + 1);
+        })
+        .catch(e => {
+          if (seq !== this.planSeq) return;
+          // 서버가 없거나 한 구간이 실패해도 순찰 자체는 계획할 수 있어야 한다.
+          // 그 구간만 방그래프 직선으로 채우고 계속 간다.
+          const wps = this.buildWps(cursor, s.goal);
+          legs.push({ room: s.room, home: !!s.home, path: wps.map(w => [w.x, w.y, w.z]),
+                      ok: false, fallback: true, dist: this.pathLen(wps), engine: 'fallback' });
+          cursor = s.goal;
+          this.fallbackErr = String(e.message || e);
+          step(i + 1);
+        });
+    };
+    const finish = () => {
+      if (seq !== this.planSeq) return;
+      const path = [];
+      for (const l of legs) for (const p of l.path) path.push(p);
+      const anyFb = legs.some(l => l.fallback);
+      this.setState({
+        planning: false, planProg: '',
+        planErr: anyFb ? (this.fallbackErr || '일부 구간을 정책으로 못 풀었습니다') : null,
+        plan: { legs, path, dist: legs.reduce((a, l) => a + (l.dist || 0), 0),
+                ok: legs.every(l => l.ok), engine: (legs.find(l => !l.fallback) || {}).engine || 'fallback',
+                ms: Math.round(performance.now() - t0) },
+      });
+      this.toast(anyFb
+        ? `순찰 경로 ${legs.length}구간 생성 — 일부 구간은 방그래프 직선으로 대체`
+        : `순찰 경로 생성 — ${legs.length}구간 · ${legs.reduce((a, l) => a + (l.dist || 0), 0).toFixed(1)}m`);
+    };
+    step(0);
+  }
+
   floorOfZ(z) { return z < 0.2 ? 0 : (z < 2.9 ? 1 : 2); }
   pathToWps(path) {
-    const meta = this.state.meta;
     return path.map(p => {
       const f = this.floorOfZ(p[2]);
       return { x: p[0], y: p[1], z: p[2], floor: f, room: this.roomAt(f, p[0], p[1]) || '' };
     });
-  }
-  // 화면에 그릴 경로: RL 결과가 있으면 그것, 없으면 방그래프 폴백
-  routeWpsFor(pose, dest) {
-    const st = this.state;
-    if (st.flight) return st.flight.wps;
-    if (st.plan && st.plan.path && st.plan.path.length > 1) return this.pathToWps(st.plan.path);
-    return dest ? this.buildWps(pose, dest) : null;
   }
   findPath(a, b) {
     if (a === b) return [a];
@@ -558,58 +621,26 @@ class Component extends DCLogic {
     const path = []; for (let c = b; c !== null; c = prev[c]) path.unshift(c);
     return path;
   }
-  buildWps(pose, dest) {
+  // RL 서버가 없을 때의 폴백: 방그래프를 따라 문 중심을 경유하는 직선.
+  buildWps(from, to) {
     const meta = this.state.meta;
-    const wps = [{ x: pose.pos[0], y: pose.pos[1], z: pose.z, floor: pose.floor, room: pose.room }];
-    const path = this.findPath(pose.room, dest.room);
+    const fRoom = this.roomAt(this.floorOfZ(from[2]), from[0], from[1]) || this.droneRoomId();
+    const tRoom = this.roomAt(this.floorOfZ(to[2]), to[0], to[1]) || this.droneRoomId();
+    const wps = [{ x: from[0], y: from[1], z: from[2] }];
+    const path = this.findPath(fRoom, tRoom);
     if (path) for (let i = 0; i < path.length - 1; i++) {
       const a = path[i], b = path[i + 1];
       const e = meta.edges.find(e => (e.a === a && e.b === b) || (e.a === b && e.b === a));
       if (!e) continue;
-      const fa = meta.rooms[a].floor, fb = meta.rooms[b].floor;
-      wps.push({ x: e.door_center[0], y: e.door_center[1], z: e.door_center[2], floor: fa, room: a });
-      if (fb !== fa) wps.push({ x: e.door_center[0], y: e.door_center[1], z: meta.rooms[b].center[2], floor: fb, room: b });
+      wps.push({ x: e.door_center[0], y: e.door_center[1], z: e.door_center[2] });
+      if (meta.rooms[b].floor !== meta.rooms[a].floor)
+        wps.push({ x: e.door_center[0], y: e.door_center[1], z: meta.rooms[b].center[2] });
     }
-    wps.push({ x: dest.x, y: dest.y, z: dest.z, floor: dest.floor, room: dest.room });
+    wps.push({ x: to[0], y: to[1], z: to[2] });
     return wps;
   }
   pathLen(wps) { let t = 0; for (let i = 0; i < wps.length - 1; i++) t += Math.hypot(wps[i + 1].x - wps[i].x, wps[i + 1].y - wps[i].y); return t; }
-  tick = (ts) => {
-    const f = this.state.flight;
-    if (!f || f.done) return;
-    if (this.lastTs == null) this.lastTs = ts;
-    const dt = Math.min((ts - this.lastTs) / 1000, 0.1); this.lastTs = ts;
-    let remain = dt * 1.6, seg = f.seg, pos = [...f.pos], floor = f.floor, room = f.room, z = f.z, travel = f.travel || 0;
-    const wps = f.wps;
-    while (remain > 0 && seg < wps.length - 1) {
-      const tgt = wps[seg + 1];
-      const dx = tgt.x - pos[0], dy = tgt.y - pos[1], d = Math.hypot(dx, dy);
-      if (d <= remain) { pos = [tgt.x, tgt.y]; floor = tgt.floor; room = tgt.room; z = tgt.z; travel += d; remain -= (d || 1e-9); seg++; }
-      else { pos = [pos[0] + dx / d * remain, pos[1] + dy / d * remain]; travel += remain; remain = 0; room = tgt.room; z = tgt.z; }
-    }
-    const done = seg >= wps.length - 1;
-    const patch = { flight: { ...f, seg, pos, floor, room, z, travel, done, prog: Math.min(1, travel / (f.total || 1)) } };
-    const floorChanged = floor !== this.state.floor;
-    if (floorChanged) patch.floor = floor;
-    if (done) patch.droneAt = { room, pos, z, floor };
-    this.setState(patch, () => {
-      if (floorChanged) this.fitView();
-      if (!done) this.raf = requestAnimationFrame(this.tick);
-      else this.toast(`착륙 — ${this.label(room)} 도착`);
-    });
-  };
-  pickFurn(roomId, f) {
-    const meta = this.state.meta, rm = meta.rooms[roomId];
-    const dest = { room: roomId, floor: rm.floor, x: f.center[0], y: f.center[1], z: rm.center[2], furnKey: f.key, furnName: this.furnName(f) };
-    this.setState({ dest, sent: false, floor: rm.floor });
-    this.toast(`도착지: ${this.label(roomId)} — ${this.furnName(f)} 앞`);
-    this.requestPlan(dest);
-  }
-  droneRoomId(meta) {
-    const m = meta || this.state.meta;
-    const id = this.props.droneRoom ?? "007";
-    return m.rooms[id] ? id : "007";
-  }
+
   fmeta(f) { return this.state.meta.floors[String(f)]; }
   w2p(f, x, y) { const m = this.fmeta(f); return [(x - m.xmin) / this.state.meta.res, (m.ymax - y) / this.state.meta.res]; }
   p2w(f, col, row) { const m = this.fmeta(f); return [m.xmin + col * this.state.meta.res, m.ymax - row * this.state.meta.res]; }
@@ -635,7 +666,7 @@ class Component extends DCLogic {
       const s = Math.min(Math.max(this.fitScale(rm.floor) * 2, 0.8), 4);
       this.setState({ view: { tx: r.width / 2 - c0[0] * s, ty: (r.height - 20) / 2 - c0[1] * s, s }, hoverId: id });
     };
-    if (rm.floor !== this.state.floor) this.setState({ floor: rm.floor, selRoom: id }, go); else { this.setState({ selRoom: id }); go(); }
+    if (rm.floor !== this.state.floor) this.setState({ floor: rm.floor }, go); else go();
   }
 
   onWheel = (e) => {
@@ -687,10 +718,6 @@ class Component extends DCLogic {
     const showPass = this.props.showPassages ?? true;
     const FLOOR_LABEL = ["1층", "2층", "3층"];
     const base = {
-      nlValue: st.nl,
-      onNlChange: e => this.setState({ nl: e.target.value }),
-      onNlKey: e => { if (e.key === 'Enter') this.sendNl(); },
-      onNlSend: () => this.sendNl(),
       loaded: !!meta, notLoaded: !meta,
       mapRef: this.mapRef,
       mapCursor: st.dragging ? 'grabbing' : 'crosshair',
@@ -713,62 +740,72 @@ class Component extends DCLogic {
       simVideoEl2: simVideo(),
       simShareErr: window.__simShare.error || '',
       onSimShare: () => window.__simShare.start(),
-      // 클릭 = 도착지 지정. 출발점은 언제나 드론 현재 위치라 고르지 않는다.
+      // 클릭 = 그 방을 순찰 대상에 추가/해제 (다중 선택)
       onMapClick: e => {
         if (!meta || this.lastDragMoved) return;
-        if (this.state.flight && !this.state.flight.done) { this.toast('비행 중에는 도착지를 바꿀 수 없습니다'); return; }
         const w = this.clientToWorld(e);
         const id = this.roomAt(st.floor, w.x, w.y);
         if (!id) { this.toast('방 내부를 클릭해 주세요'); return; }
-        const z = meta.rooms[id].center[2];
-        const dest = { room: id, floor: st.floor, x: w.x, y: w.y, z };
-        this.setState({ dest, sent: false, selRoom: id });
-        this.toast(`도착지 지정: ${this.label(id)} [${fmt(w.x)}, ${fmt(w.y)}, ${fmt(z)}]`);
-        this.requestPlan(dest);
+        this.toggleTarget(id);
       },
     };
-    if (!meta) return { ...base, hasPng: false, floorTabs: [], sidebarGroups: [], toasts: st.toasts, chipTxt: '—', chipColor: '#8a7478', chipBorder: '#3a161c', chipBg: 'transparent', jsonTxt: '// 로딩 중', startRoomTxt: '—', launchDisabled: true, launchBg: '#2a1015', launchColor: '#5f4a4e', launchCursor: 'default', launchTxt: '비행 시작', goalUnset: true, goalSet: false, goalBoxBorder: '#3a161c', goalBoxBg: '#150a0d', goalDot: '#5f4a4e', goalTitleColor: '#a8969a', curFloorLabel: '', zoomTxt: '', cursorTxt: '', hoverVisible: false, destVisible: false, droneVisible: false, roomRects: [], passageDots: [], stairChips: [], crossFloor: false, startFloorTxt: '', startCoordTxt: '', panelVisible: false, panelItems: [], furnDots: [], goalFurn: false, goalFurnTxt: '', hoverFurn: '', routeRuns: [], flightActive: false, flightPct: 0, flightPctTxt: '', flightRoomTxt: '', simVisible: false, simStatusTxt: '', simDotColor: '#4ade80', simCoordTxt: '', simRoomTxt: '', simMax: false, mapL: '0', mapT: '0', mapR: '0', mapB: '0', mapWd: 'auto', mapHt: 'auto', mapBorder: 'none', mapRadius: '0', mapShadow: 'none', mapZ: 1,
+    if (!meta) return { ...base, floorTabs: [], sidebarGroups: [], toasts: st.toasts,
+      chipTxt: '—', chipColor: '#8a7478', chipBorder: '#3a161c', chipBg: 'transparent',
+      startRoomTxt: '—', startFloorTxt: '', startCoordTxt: '',
+      launchDisabled: true, launchBg: '#2a1015', launchColor: '#5f4a4e', launchCursor: 'default', launchTxt: '순찰 시작',
+      curFloorLabel: '', zoomTxt: '', cursorTxt: '', hoverVisible: false, droneVisible: false,
+      roomRects: [], passageDots: [], stairChips: [], routeRuns: [], targetMarks: [],
+      hasTargets: false, noTargets: true, targetRows: [],
+      listBorder: '#3a161c', listBg: '#150a0d', listDot: '#5f4a4e', listTitleColor: '#a8969a',
+      homeTxt: '켜짐', homeBorder: '#1e3a2a', homeBg: '#101d16', homeColor: '#4ade80', onToggleHome: () => {},
+      onFloorAll: () => {}, onFloorNone: () => {}, onClearAll: () => {},
+      simVisible: false, simStatusTxt: '', simDotColor: '#4ade80', simCoordTxt: '', simRoomTxt: '', simMax: false,
+      mapL: '0', mapT: '0', mapR: '0', mapB: '0', mapWd: 'auto', mapHt: 'auto', mapBorder: 'none', mapRadius: '0', mapShadow: 'none', mapZ: 1,
       startDotAnim: 'none', startSrcTxt: '', startSrcColor: '#5f4a4e', startSrcBorder: '#3a161c',
-      planBoxVisible: false, planStatsVisible: false, planRetryVisible: false, planRows: [], planStatusTxt: '', planEngineTxt: '',
+      planBoxVisible: false, planStatsVisible: false, planLegsVisible: false, planRetryVisible: false,
+      planRows: [], planLegs: [], planStatusTxt: '', planEngineTxt: '',
       planBorder: '#2a1015', planBg: '#10070a', planDot: '#5f4a4e', planDotAnim: 'none', planTitleColor: '#a8969a' };
 
     const pose = this.dronePose();
     const droneId = pose.room;
     const droneFloor = pose.floor;
     const dronePos = [pose.pos[0], pose.pos[1], pose.z];
-    const flying = !!st.flight && !st.flight.done;
-    const arrived = !!st.flight && st.flight.done;
-    const dest = st.dest;
+    const targets = st.targets;
     const plan = st.plan;
     const simLive = !!(st.drone && st.drone.source === 'sim');   // 시뮬레이터 실시간 위치인가
     const fm = this.fmeta(st.floor);
     const area = rm => (rm.bbox_max[0] - rm.bbox_min[0]) * (rm.bbox_max[1] - rm.bbox_min[1]);
+    const orderOf = id => targets.indexOf(id) + 1;               // 0 이면 미선택
 
-    const floorTabs = [0, 1, 2].map(f => ({
-      label: FLOOR_LABEL[f],
-      count: meta.floors[String(f)].rooms.length,
-      onClick: () => this.setFloor(f),
-      active: f === st.floor,
-      bg: f === st.floor ? '#16283d' : '#111927',
-      border: f === st.floor ? '#ef4444' : '#3a161c',
-      color: f === st.floor ? '#f87171' : '#a8969a',
-      droneHere: droneFloor === f,
-      destHere: !!dest && dest.floor === f,
-    }));
+    const floorTabs = [0, 1, 2].map(f => {
+      const n = targets.filter(id => meta.rooms[id].floor === f).length;
+      return {
+        label: FLOOR_LABEL[f],
+        count: meta.floors[String(f)].rooms.length,
+        onClick: () => this.setFloor(f),
+        bg: f === st.floor ? '#16283d' : '#111927',
+        border: f === st.floor ? '#ef4444' : '#3a161c',
+        color: f === st.floor ? '#f87171' : '#a8969a',
+        droneHere: droneFloor === f,
+        selHere: n > 0, selTxt: `${n}`,
+      };
+    });
 
     const sidebarGroups = [0, 1, 2].map(f => ({
       label: `${FLOOR_LABEL[f]} — FLOOR ${f}`,
       rooms: meta.floors[String(f)].rooms.map(id => {
         const rm = meta.rooms[id];
-        const isDrone = id === droneId, isDest = dest && dest.room === id;
+        const isDrone = id === droneId, ord = orderOf(id), sel = ord > 0;
         return {
-          id, name: this.label(id), onClick: () => this.focusRoom(id),
-          areaTxt: `${area(rm).toFixed(1)}㎡`,
+          id, name: this.label(id),
+          onClick: () => { this.toggleTarget(id); this.focusRoom(id); },
           furnTxt: this.summary(id, 2) || '감지된 가구 없음',
-          dot: isDrone ? '#34d399' : (isDest ? '#f87171' : '#4a3a3e'),
-          bg: isDest ? '#1c1113' : (isDrone ? '#0e1a14' : 'transparent'),
-          border: isDest ? '#7f1d1d' : (isDrone ? '#1e3a2a' : '#2a1015'),
-          tag: isDrone ? '드론' : (isDest ? '도착' : ''),
+          dot: sel ? '#7f1d1d' : (isDrone ? '#1e3a2a' : '#4a3a3e'),
+          dotBg: sel ? '#450a0a' : 'transparent',
+          orderTxt: sel ? `${ord}` : '', orderColor: '#fca5a5',
+          bg: sel ? '#1c1113' : (isDrone ? '#0e1a14' : 'transparent'),
+          border: sel ? '#7f1d1d' : (isDrone ? '#1e3a2a' : '#2a1015'),
+          tag: isDrone ? '드론' : (sel ? '순찰' : ''),
           tagColor: isDrone ? '#34d399' : '#f87171',
         };
       }),
@@ -778,12 +815,12 @@ class Component extends DCLogic {
       const rm = meta.rooms[id];
       const [c0, r0] = this.w2p(st.floor, rm.bbox_min[0], rm.bbox_max[1]);
       const [c1, r1] = this.w2p(st.floor, rm.bbox_max[0], rm.bbox_min[1]);
-      const hov = st.hoverId === id, isDest = dest && dest.room === id && dest.floor === st.floor, isDrone = id === droneId && droneFloor === st.floor;
+      const hov = st.hoverId === id, sel = orderOf(id) > 0, isDrone = id === droneId && droneFloor === st.floor;
       return {
         id, name: this.label(id), left: Math.round(c0), top: Math.round(r0), w: Math.round(c1 - c0), h: Math.round(r1 - r0),
-        border: isDest ? '#ef4444' : (isDrone ? '#34d399aa' : (hov ? '#ef4444' : '#ef44443d')),
-        bg: isDest ? '#ef444414' : (hov ? '#ef444414' : (isDrone ? '#34d3990d' : 'transparent')),
-        labelColor: isDest ? '#fca5a5' : (isDrone ? '#6ee7b7' : (hov ? '#f87171' : '#f8717199')),
+        border: sel ? '#ef4444' : (isDrone ? '#34d399aa' : (hov ? '#ef4444' : '#ef44443d')),
+        bg: sel ? '#ef444422' : (hov ? '#ef444414' : (isDrone ? '#34d3990d' : 'transparent')),
+        labelColor: sel ? '#fca5a5' : (isDrone ? '#6ee7b7' : (hov ? '#f87171' : '#f8717199')),
         onEnter: () => this.setState({ hoverId: id }),
         onLeave: () => this.setState(s => (s.hoverId === id ? { hoverId: null } : null)),
       };
@@ -804,97 +841,144 @@ class Component extends DCLogic {
     }
 
     const [dc, dr] = this.w2p(droneFloor, dronePos[0], dronePos[1]);
-    let destLeft = 0, destTop = 0;
-    if (dest) { const [c, r] = this.w2p(dest.floor, dest.x, dest.y); destLeft = Math.round(c); destTop = Math.round(r); }
+    const targetMarks = targets.map((id, i) => {
+      const rm = meta.rooms[id];
+      if (rm.floor !== st.floor) return null;
+      const [c, r] = this.w2p(st.floor, rm.center[0], rm.center[1]);
+      return { key: id, order: `${i + 1}`, left: Math.round(c), top: Math.round(r), name: this.label(id) };
+    }).filter(Boolean);
 
     const hovRm = st.hoverId ? meta.rooms[st.hoverId] : null;
     const el = this.mapRef.current;
     let hoverX = 0, hoverY = 0;
     if (st.mouse && el) {
       hoverX = Math.min(st.mouse.x + 18, el.clientWidth - 200);
-      hoverY = Math.min(st.mouse.y + 18, el.clientHeight - 140);
+      hoverY = Math.min(st.mouse.y + 18, el.clientHeight - 160);
     }
 
-    const start = dronePos.map(v => Math.round(v * 100) / 100);
-    const goal = dest ? [dest.x, dest.y, dest.z].map(v => Math.round(v * 100) / 100) : null;
-    const payload = { start, goal: goal ?? '(도착지 미지정)', start_room: droneId, goal_room: dest ? dest.room : null };
-    if (dest && dest.furnName) payload.goal_object = dest.furnName;
-    const jsonTxt = JSON.stringify(payload, null, 2);
-    const selId = st.selRoom;
-    const selRm = selId ? meta.rooms[selId] : null;
-    const panelItems = selId ? this.furnOf(selId).map(f => ({
-      key: f.key, name: this.furnName(f),
-      coordTxt: `[${f.center.map(fmt).join(', ')}]`,
-      active: !!dest && dest.furnKey === f.key,
-      border: dest && dest.furnKey === f.key ? '#7f1d1d' : '#2a1015',
-      bg: dest && dest.furnKey === f.key ? '#1c1113' : 'transparent',
-      dotColor: dest && dest.furnKey === f.key ? '#f87171' : '#ef4444',
-      onClick: () => this.pickFurn(selId, f),
-    })) : [];
-    const furnDots = (selRm && selRm.floor === st.floor) ? this.furnOf(selId).map(f => {
-      const [c, r] = this.w2p(st.floor, f.center[0], f.center[1]);
-      const sel = !!dest && dest.furnKey === f.key;
-      return { key: f.key, left: Math.round(c), top: Math.round(r), name: this.furnName(f),
-        color: sel ? '#ef4444' : '#ef4444',
-        onClick: e => { e.stopPropagation(); this.pickFurn(selId, f); } };
-    }) : [];
-    const crossFloor = !!dest && dest.floor !== droneFloor;
-
-    const chip = flying ? { t: '비행 중', c: '#f87171', b: '#7f1d1d', bg: '#450a0a44' }
-      : arrived ? { t: '도착 완료', c: '#4ade80', b: '#1e3a2a', bg: '#101d16' }
-      : dest ? { t: '목적지 설정됨', c: '#fbbf24', b: '#57431a', bg: '#1c150a' }
-      : { t: '대기 중', c: '#a8969a', b: '#3a161c', bg: 'transparent' };
-    let routeWps = this.routeWpsFor(pose, dest);
+    // 경로 폴리라인: 순찰 구간은 붉은 점선, 복귀 구간은 초록 실선으로 구분
     const routeRuns = [];
-    if (routeWps) {
-      let cur = null;
-      for (let i = 0; i < routeWps.length - 1; i++) {
-        const a = routeWps[i], b = routeWps[i + 1];
-        if (a.floor === st.floor && b.floor === st.floor) {
-          const [c1, r1] = this.w2p(st.floor, a.x, a.y), [c2, r2] = this.w2p(st.floor, b.x, b.y);
-          if (!cur) { cur = { key: routeRuns.length, pts: `${Math.round(c1)},${Math.round(r1)}` }; routeRuns.push(cur); }
-          cur.pts += ` ${Math.round(c2)},${Math.round(r2)}`;
-        } else cur = null;
+    if (plan && plan.legs) {
+      for (const leg of plan.legs) {
+        const wps = this.pathToWps(leg.path);
+        let cur = null;
+        for (let i = 0; i < wps.length - 1; i++) {
+          const a = wps[i], b = wps[i + 1];
+          if (a.floor === st.floor && b.floor === st.floor) {
+            const [c1, r1] = this.w2p(st.floor, a.x, a.y), [c2, r2] = this.w2p(st.floor, b.x, b.y);
+            if (!cur) {
+              cur = { key: routeRuns.length, pts: `${Math.round(c1)},${Math.round(r1)}`,
+                      color: leg.home ? '#34d399' : '#ef4444', dash: leg.home ? '0' : '9 7' };
+              routeRuns.push(cur);
+            }
+            cur.pts += ` ${Math.round(c2)},${Math.round(r2)}`;
+          } else cur = null;
+        }
       }
     }
 
+    const chip = st.planning ? { t: '경로 계산 중', c: '#a5b4fc', b: '#3f3a6b', bg: '#12131c' }
+      : plan ? { t: `${targets.length}개 구역 계획됨`, c: '#4ade80', b: '#1e3a2a', bg: '#101d16' }
+      : targets.length ? { t: '경로 대기', c: '#fbbf24', b: '#57431a', bg: '#1c150a' }
+      : { t: '구역 미지정', c: '#a8969a', b: '#3a161c', bg: 'transparent' };
+
+    const floorChanges = plan ? this.pathToWps(plan.path).reduce((n, w, i, a) => n + (i && w.floor !== a[i - 1].floor ? 1 : 0), 0) : 0;
+
     return {
       ...base,
-      floorTabs, sidebarGroups, roomRects, passageDots, stairChips,
+      floorTabs, sidebarGroups, roomRects, passageDots, stairChips, targetMarks, routeRuns,
       vtx: st.view.tx, vty: st.view.ty, vs: st.view.s,
       planeW: fm.width, planeH: fm.height,
       floorImg: React.createElement('img', { src: 'uploads/' + fm.png, draggable: false, style: { position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', userSelect: 'none', filter: 'brightness(.6) saturate(.45) sepia(.25) hue-rotate(-15deg) contrast(1.08)' } }),
-      droneVisible: droneFloor === st.floor, droneLeft: Math.round(dc), droneTop: Math.round(dr), droneRoomId: droneId, droneName: this.label(droneId),
-      destVisible: !!dest && dest.floor === st.floor, destLeft, destTop, destRoomId: dest ? dest.room : '', destName: dest ? (dest.furnName ? `${this.label(dest.room)} · ${dest.furnName}` : this.label(dest.room)) : '',
+      droneVisible: droneFloor === st.floor, droneLeft: Math.round(dc), droneTop: Math.round(dr), droneName: this.label(droneId),
       hoverVisible: !!hovRm && !!st.mouse && !st.dragging && !st.simMax, hoverX, hoverY,
       hoverId: st.hoverId, hoverName: st.hoverId ? this.label(st.hoverId) : '', hoverFloor: hovRm ? FLOOR_LABEL[hovRm.floor] : '',
       hoverSize: hovRm ? `${(hovRm.bbox_max[0] - hovRm.bbox_min[0]).toFixed(1)} × ${(hovRm.bbox_max[1] - hovRm.bbox_min[1]).toFixed(1)} m` : '',
       hoverArea: hovRm ? `${area(hovRm).toFixed(1)} ㎡` : '',
       hoverPass: hovRm ? `${hovRm.passages.length}개` : '',
       hoverFurn: st.hoverId ? (this.summary(st.hoverId, 3) || '없음') : '',
+      hoverPickTxt: st.hoverId ? (orderOf(st.hoverId) > 0 ? `순찰 ${orderOf(st.hoverId)}번째 — 클릭하면 제외` : '클릭하면 순찰 대상 추가') : '',
+      hoverPickColor: st.hoverId && orderOf(st.hoverId) > 0 ? '#fca5a5' : '#5f4a4e',
       curFloorLabel: `${FLOOR_LABEL[st.floor]} · FLOOR ${st.floor}`,
       zoomTxt: `${Math.round(st.view.s * 100)}%`,
       cursorTxt: st.cursorW ? `x ${fmt(st.cursorW.x)}  y ${fmt(st.cursorW.y)} m` : '',
-      startRoomTxt: this.label(droneId), startFloorTxt: `${droneId} · ${FLOOR_LABEL[droneFloor]}`,
-      startCoordTxt: `[${start.map(fmt).join(', ')}]`,
-      goalSet: !!dest, goalUnset: !dest,
-      goalFurn: !!dest && !!dest.furnName, goalFurnTxt: dest && dest.furnName ? `${dest.furnName} 앞` : '',
-      panelVisible: !!selId, panelItems, furnDots,
-      panelTitle: selId ? this.label(selId) : '', panelSub: selId ? `${selId} · 가구 ${panelItems.length}개 감지` : '',
-      onPanelClose: () => this.setState({ selRoom: null }),
-      goalRoomTxt: dest ? this.label(dest.room) : '', goalFloorTxt: dest ? `${dest.room} · ${FLOOR_LABEL[dest.floor]}` : '',
-      goalCoordTxt: goal ? `[${goal.map(fmt).join(', ')}]` : '',
-      goalBoxBorder: dest ? '#3f2021' : '#3a161c', goalBoxBg: dest ? '#170f11' : '#150a0d',
-      goalDot: dest ? '#f87171' : '#5f4a4e', goalTitleColor: dest ? '#fca5a5' : '#a8969a',
-      onClear: () => {
-        if (flying) { this.toast('비행 중에는 지울 수 없습니다'); return; }
-        this.planSeq++;
-        this.setState({ dest: null, sent: false, flight: null, plan: null, planErr: null, planning: false });
-        this.toast('도착지를 지웠습니다 — 다시 클릭해 지정하세요');
-      },
-      crossFloor, jsonTxt,
       chipTxt: chip.t, chipColor: chip.c, chipBorder: chip.b, chipBg: chip.bg,
-      routeRuns, flightActive: flying,
+
+      // 출발 · 복귀 지점
+      startRoomTxt: this.label(droneId), startFloorTxt: `${droneId} · ${FLOOR_LABEL[droneFloor]}`,
+      startCoordTxt: `[${dronePos.map(fmt).join(', ')}]`,
+      startDotAnim: simLive ? 'blinkDot 1.4s infinite' : 'none',
+      startSrcTxt: simLive ? '시뮬레이터 실시간' : (st.drone ? '스폰(홈) 위치' : '기본값'),
+      startSrcColor: simLive ? '#6ee7b7' : '#8a7478',
+      startSrcBorder: simLive ? '#1e3a2a' : '#3a161c',
+
+      // 층 단위 지정
+      onFloorAll: () => {
+        const ids = meta.floors[String(st.floor)].rooms;
+        const merged = this.orderRooms([...new Set([...targets, ...ids])]);
+        this.setTargets(merged);
+        this.toast(`${FLOOR_LABEL[st.floor]} 전체 ${ids.length}개 방을 순찰 대상에 추가`);
+      },
+      onFloorNone: () => {
+        const ids = new Set(meta.floors[String(st.floor)].rooms);
+        this.setTargets(targets.filter(id => !ids.has(id)));
+        this.toast(`${FLOOR_LABEL[st.floor]} 순찰 대상 해제`);
+      },
+      onClearAll: () => { this.setTargets([]); this.toast('순찰 대상을 모두 해제했습니다'); },
+
+      // 순찰 대상 목록
+      hasTargets: targets.length > 0, noTargets: targets.length === 0,
+      listBorder: targets.length ? '#3f2021' : '#3a161c',
+      listBg: targets.length ? '#170f11' : '#150a0d',
+      listDot: targets.length ? '#f87171' : '#5f4a4e',
+      listTitleColor: targets.length ? '#fca5a5' : '#a8969a',
+      targetRows: targets.map((id, i) => ({
+        key: id, order: `${i + 1}`, name: this.label(id),
+        sub: `${id} · ${FLOOR_LABEL[meta.rooms[id].floor]}`,
+        onUp: () => this.moveUp(id),
+        onRemove: () => this.toggleTarget(id),
+      })),
+
+      // 복귀 토글
+      homeTxt: st.returnHome ? '켜짐' : '꺼짐',
+      homeBorder: st.returnHome ? '#1e3a2a' : '#3a161c',
+      homeBg: st.returnHome ? '#101d16' : '#170a0d',
+      homeColor: st.returnHome ? '#4ade80' : '#8a7478',
+      onToggleHome: () => this.setState({ returnHome: !st.returnHome }, () => this.schedulePlan()),
+
+      // 경로 패널
+      planBoxVisible: targets.length > 0,
+      planBorder: st.planning ? '#3a3f57' : (st.planErr ? '#57431a' : (plan ? (plan.ok ? '#1e3a2a' : '#57431a') : '#2a1015')),
+      planBg: st.planning ? '#12131c' : (st.planErr ? '#1c150a' : (plan ? (plan.ok ? '#0e1a14' : '#1c150a') : '#10070a')),
+      planDot: st.planning ? '#818cf8' : (st.planErr ? '#f59e0b' : (plan ? (plan.ok ? '#4ade80' : '#f59e0b') : '#5f4a4e')),
+      planDotAnim: st.planning ? 'blinkDot .7s infinite' : 'none',
+      planTitleColor: st.planning ? '#a5b4fc' : (plan && plan.ok ? '#6ee7b7' : '#fbbf24'),
+      planEngineTxt: plan ? plan.engine : '',
+      planStatusTxt: st.planning ? `정책 추론 중… ${st.planProg}`
+        : st.planErr ? `일부 구간 대체됨 — ${st.planErr}`
+        : plan ? (plan.ok ? '모든 구간을 정책이 풀었습니다' : '일부 구간은 목표에 도달하지 못했습니다')
+        : '경로 대기 중',
+      planStatsVisible: !!plan,
+      planRows: plan ? [
+        { k: '순찰 구역', v: `${targets.length}개`, c: '#fca5a5' },
+        { k: '경로 구간', v: `${plan.legs.length}구간`, c: '#e8dde0' },
+        { k: '총 비행 거리', v: `${plan.dist.toFixed(1)} m`, c: '#e8dde0' },
+        { k: '층 이동', v: floorChanges ? `${floorChanges}회 (계단 경유)` : '없음', c: floorChanges ? '#fbbf24' : '#a8969a' },
+        { k: '복귀 포함', v: st.returnHome ? '예' : '아니오', c: st.returnHome ? '#4ade80' : '#8a7478' },
+        { k: '계산 시간', v: `${plan.ms} ms`, c: '#8a7478' },
+      ] : [],
+      planLegsVisible: !!plan,
+      planLegs: plan ? plan.legs.map((l, i) => ({
+        key: i,
+        icon: l.home ? '⌂' : `${i + 1}`,
+        txt: l.home ? '출발 지점으로 복귀' : this.label(l.room),
+        dist: `${(l.dist || 0).toFixed(1)}m`,
+        c: l.fallback ? '#f59e0b' : (l.home ? '#6ee7b7' : '#cfc2c5'),
+      })) : [],
+      planRetryVisible: targets.length > 0 && !st.planning,
+      onReplan: () => this.planPatrol(),
+
+      // 시뮬레이터 창
       simVisible: st.simOpen && !st.simMax, onSimClose: () => this.setState({ simOpen: false }), onSimOpen: () => this.setState({ simOpen: true, simMax: false }),
       simMax: st.simMax,
       onSimMax: () => this.setState({ simMax: true, simOpen: false }, () => requestAnimationFrame(() => this.fitView())),
@@ -903,114 +987,55 @@ class Component extends DCLogic {
       mapWd: st.simMax ? '400px' : 'auto', mapHt: st.simMax ? '270px' : 'auto',
       mapBorder: st.simMax ? '1px solid #4a1d24' : 'none', mapRadius: st.simMax ? '10px' : '0',
       mapShadow: st.simMax ? '0 12px 34px #000000b0' : 'none', mapZ: st.simMax ? 7 : 1,
-      simStatusTxt: flying ? 'LIVE · 비행 중' : (arrived ? 'LIVE · 착륙' : 'STANDBY'),
-      simDotColor: flying ? '#f87171' : '#4ade80',
+      simStatusTxt: 'STANDBY',
+      simDotColor: '#4ade80',
       simCoordTxt: `x ${fmt(dronePos[0])}  y ${fmt(dronePos[1])}  z ${fmt(dronePos[2])}`,
       simRoomTxt: this.label(droneId),
-      flightRoomTxt: flying ? `현재 통과 중: ${this.label(st.flight.room)}` : '',
-      flightPct: flying ? Math.round((st.flight.prog || 0) * 100) : 0,
-      flightPctTxt: flying ? `${Math.round((st.flight.prog || 0) * 100)}%` : '',
-      // ── 출발점(드론 현재 위치) 출처 표시 ───────────────────────
-      startDotAnim: simLive ? 'blinkDot 1.4s infinite' : 'none',
-      startSrcTxt: simLive ? '시뮬레이터 실시간' : (st.drone ? '스폰(홈) 위치' : '기본값'),
-      startSrcColor: simLive ? '#6ee7b7' : '#8a7478',
-      startSrcBorder: simLive ? '#1e3a2a' : '#3a161c',
-      // ── 강화학습 경로 패널 ────────────────────────────────────
-      planBoxVisible: !!dest,
-      planBorder: st.planning ? '#3a3f57' : (st.planErr ? '#57431a' : (plan ? (plan.success ? '#1e3a2a' : '#57431a') : '#2a1015')),
-      planBg: st.planning ? '#12131c' : (st.planErr ? '#1c150a' : (plan ? (plan.success ? '#0e1a14' : '#1c150a') : '#10070a')),
-      planDot: st.planning ? '#818cf8' : (st.planErr ? '#f59e0b' : (plan ? (plan.success ? '#4ade80' : '#f59e0b') : '#5f4a4e')),
-      planDotAnim: st.planning ? 'blinkDot .7s infinite' : 'none',
-      planTitleColor: st.planning ? '#a5b4fc' : (plan && plan.success ? '#6ee7b7' : '#fbbf24'),
-      planEngineTxt: plan ? plan.engine : (st.planErr ? 'fallback' : ''),
-      planStatusTxt: st.planning ? '정책 추론 중… (SAC 결정론 롤아웃)'
-        : st.planErr ? `RL 서버 연결 실패 — 방그래프 직선으로 대체 중 (${st.planErr})`
-        : plan ? (plan.success ? '정책이 목표에 도달했습니다' : '정책이 목표에 도달하지 못했습니다 (경로는 시도 궤적)')
-        : '경로 대기 중',
-      planStatsVisible: !!plan,
-      planRows: plan ? [
-        { k: '결과', v: plan.success ? '도착 성공' : '미도달', c: plan.success ? '#4ade80' : '#f59e0b' },
-        { k: '스텝 수', v: `${plan.steps}`, c: '#57c4b8' },
-        { k: '비행 거리', v: `${plan.flown.toFixed(2)} m`, c: '#e8dde0' },
-        { k: '남은 거리', v: `${plan.dist.toFixed(2)} m`, c: '#a8969a' },
-        { k: '충돌(범프)', v: `${plan.bumps}회`, c: plan.bumps ? '#f59e0b' : '#4d9e6a' },
-        { k: '추론 시간', v: `${Math.round(plan.ms)} ms`, c: '#8a7478' },
-      ] : [],
-      planRetryVisible: !!dest && !st.planning,
-      onReplan: () => this.requestPlan(dest),
 
-      launchDisabled: !dest || flying || st.planning,
-      launchBg: flying ? '#450a0a' : (st.planning ? '#2a1015' : (dest ? '#991b1b' : '#2a1015')),
-      launchColor: dest && !st.planning ? '#fef2f2' : '#5f4a4e',
-      launchCursor: dest && !flying && !st.planning ? 'pointer' : 'default',
-      launchTxt: st.planning ? '경로 계산 중…' : (flying ? '비행 중…' : (arrived ? '재비행' : '비행 시작')),
+      launchDisabled: !targets.length || st.planning,
+      launchBg: st.planning ? '#2a1015' : (targets.length ? '#991b1b' : '#2a1015'),
+      launchColor: targets.length && !st.planning ? '#fef2f2' : '#5f4a4e',
+      launchCursor: targets.length && !st.planning ? 'pointer' : 'default',
+      launchTxt: st.planning ? '경로 계산 중…' : (targets.length ? `순찰 시작 · ${targets.length}개 구역` : '순찰 시작'),
       onLaunch: () => {
-        if (!dest || flying || st.planning) return;
-        const wps = routeWps || this.buildWps(pose, dest);
-        if (this.props.onLaunchMission) {
-          this.props.onLaunchMission({
-            start, goal, start_room: droneId, goal_room: dest.room,
-            goal_object: dest.furnName || null,
-            startLabel: this.label(droneId), goalLabel: this.label(dest.room),
-            // 상위 화면(HAUNTED OPS)이 브리핑/작전 지도에 그대로 쓰는 실제 RL 궤적
-            path: plan && plan.path ? plan.path : null,
-            plan: plan || null,
-            wps,
-          });
-          return;
-        }
-        const flight = { wps, seg: 0, done: false, pos: [wps[0].x, wps[0].y], floor: wps[0].floor, room: wps[0].room, z: wps[0].z, travel: 0, prog: 0, total: this.pathLen(wps) };
-        this.lastTs = null;
-        cancelAnimationFrame(this.raf);
-        this.setState({ sent: true, flight, floor: wps[0].floor, simOpen: true }, () => { this.raf = requestAnimationFrame(this.tick); });
-        this.toast(`이륙 — ${this.label(dest.room)}(으)로 비행 시작${crossFloor ? ' · 계단 경유' : ''}`);
+        if (!targets.length || st.planning) return;
+        if (!this.props.onLaunchMission) { this.toast('상위 화면이 없어 순찰을 시작할 수 없습니다'); return; }
+        this.props.onLaunchMission({
+          targets: targets.map((id, i) => ({
+            room: id, order: i + 1, floor: meta.rooms[id].floor, name: this.label(id),
+            pos: meta.rooms[id].center,
+          })),
+          returnHome: st.returnHome,
+          scope: this.describeScope(targets),
+          cmd: this.describeTargets(targets, st.returnHome),
+          start: dronePos, startRoom: droneId, startLabel: this.label(droneId),
+          path: plan ? plan.path : null,
+          legs: plan ? plan.legs : null,
+          dist: plan ? plan.dist : 0,
+          floorChanges,
+          engine: plan ? plan.engine : 'fallback',
+        });
       },
     };
   }
 
-  sendNl() {
-    const t = this.state.nl.trim();
-    if (!t) { this.toast('명령을 입력해 주세요'); return; }
-    const hit = this.parseNl(t);
-    if (hit) {
-      if (hit.furn) this.pickFurn(hit.room, hit.furn);
-      else {
-        const rm = this.state.meta.rooms[hit.room];
-        const dest = { room: hit.room, floor: rm.floor, x: rm.center[0], y: rm.center[1], z: rm.center[2] };
-        this.setState({ dest, sent: false, floor: rm.floor, selRoom: hit.room });
-        this.toast(`도착지: ${this.label(hit.room)} (방 중앙)`);
-        this.requestPlan(dest);
-      }
-      this.focusRoom(hit.room);
-    } else {
-      this.toast(`명령 해석 실패: "${t}" — 방 이름이나 가구를 함께 말해 주세요`);
-    }
-    this.setState({ nl: '' });
+  describeTargets(ids, returnHome) {
+    if (!ids.length) return '';
+    const names = ids.map(id => this.label(id));
+    const head = names.length <= 2 ? names.join(', ') : `${names[0]} 외 ${names.length - 1}곳`;
+    return `${head} 순찰${returnHome ? ' 후 복귀' : ''}`;
   }
-  parseNl(t) {
-    if (!this.state.meta || !this.furn) return null;
-    let furnEn = null;
-    for (const [en, kr] of Object.entries(this.KR)) if (!this.EXCLUDE.has(en) && t.includes(kr)) { furnEn = en; break; }
-    let bestRoom = null, bestScore = 0;
-    for (const [id, name] of Object.entries(this.LABELS)) {
-      let score = 0;
-      for (const tok of name.split(/[^가-힣A-Za-z0-9]+/)) {
-        if (tok.length >= 2 && t.includes(tok)) score += tok.length;
-      }
-      if (score > bestScore) { bestScore = score; bestRoom = id; }
-    }
-    if (bestRoom && furnEn) {
-      const f = this.furnOf(bestRoom).find(f => f.label === furnEn);
-      if (f) return { room: bestRoom, furn: f };
-      return { room: bestRoom, furn: null };
-    }
-    if (bestRoom) return { room: bestRoom, furn: null };
-    if (furnEn) {
-      let best = null, bestN = 0;
-      for (const id of Object.keys(this.furn)) for (const f of this.furnOf(id)) if (f.label === furnEn && f.n > bestN) { bestN = f.n; best = { room: id, furn: f }; }
-      return best;
-    }
-    return null;
+
+  // 순찰 범위 한 줄 요약 (브리핑 화면이 그대로 쓴다).
+  describeScope(ids) {
+    if (!ids.length) return '';
+    const FLOOR_LABEL = ['1층', '2층', '3층'];
+    const meta = this.state.meta;
+    const floors = [...new Set(ids.map(id => meta.rooms[id].floor))].sort();
+    const whole = floors.filter(f => meta.floors[String(f)].rooms.every(r => ids.includes(r)));
+    if (whole.length === 3) return '건물 전체';
+    if (whole.length) return whole.map(f => FLOOR_LABEL[f]).join('·') + ' 전체';
+    return floors.map(f => FLOOR_LABEL[f]).join('·') + ' ' + ids.length + '개 구역';
   }
 }
 </script>
