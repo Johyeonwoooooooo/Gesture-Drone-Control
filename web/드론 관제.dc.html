@@ -24,6 +24,9 @@ a{color:#f87171}a:hover{color:#fca5a5}
 @keyframes dripStretch{0%{height:8px}55%{height:54px}100%{height:8px}}
 @keyframes dripFall{0%{transform:translateY(0);opacity:0}8%{opacity:1}85%{opacity:1}100%{transform:translateY(72vh);opacity:0}}
 @keyframes destRing{0%{transform:translate(-50%,-50%) scale(.5);opacity:1}100%{transform:translate(-50%,-50%) scale(2.6);opacity:0}}
+/* 전체 화면으로 띄운 시뮬 스테이지는 인라인 height 를 무시하고 화면을 채운다 */
+:fullscreen{width:100%!important;height:100%!important;background:#000}
+:-webkit-full-screen{width:100%!important;height:100%!important;background:#000}
 </style>
 </helmet>
 <div style="width:100vw;height:100vh;display:flex;flex-direction:column;background:#0a0405;color:#cfc2c5;font-family:'IBM Plex Sans KR',sans-serif;font-size:13px;overflow:hidden">
@@ -99,7 +102,7 @@ a{color:#f87171}a:hover{color:#fca5a5}
     </aside>
     <main style="flex:1;position:relative;min-width:0;overflow:hidden;background:#0a0405;background-image:linear-gradient(#2a101508 1px,transparent 1px),linear-gradient(90deg,#ffffff05 1px,transparent 1px);background-size:40px 40px">
       <sc-if value="{{simMax}}" hint-placeholder-val="{{false}}">
-        <div style="position:absolute;inset:0;z-index:0;background:repeating-linear-gradient(135deg,#0d0608 0 18px,#120709 18px 36px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
+        <div ref="{{stageRef}}" onDoubleClick="{{onStageDbl}}" style="position:absolute;inset:0;z-index:0;background:repeating-linear-gradient(135deg,#0d0608 0 18px,#120709 18px 36px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
           <sc-if value="{{simShareOn}}" hint-placeholder-val="{{false}}">{{simVideoEl}}</sc-if>
           <sc-if value="{{simShareOff}}" hint-placeholder-val="{{true}}">
             <span style="font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:.14em;color:#8a7478">SIM FEED · 미연결</span>
@@ -107,11 +110,24 @@ a{color:#f87171}a:hover{color:#fca5a5}
             <button onClick="{{onSimShare}}" style="margin-top:4px;height:32px;padding:0 16px;border:1px solid #ef4444;border-radius:8px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:700;font-size:12px;cursor:pointer" style-hover="background:#7f1d1d">시뮬레이터 화면 연결</button>
             <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#f59e0b">{{simShareErr}}</span>
           </sc-if>
-          <span style="position:absolute;left:14px;top:12px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f87171;animation:blinkDot 1.6s infinite">REC ●</span>
-          <span style="position:absolute;left:50%;top:12px;transform:translateX(-50%);font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a7478">CAM 01 · 3RD PERSON · {{simStatusTxt}}</span>
+          <sc-if value="{{simShareOff}}" hint-placeholder-val="{{true}}">
+            <span style="position:absolute;left:14px;top:12px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f87171;animation:blinkDot 1.6s infinite">REC ●</span>
+            <span style="position:absolute;left:50%;top:12px;transform:translateX(-50%);font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a7478">CAM 01 · 3RD PERSON · {{simStatusTxt}}</span>
+          </sc-if>
           <div style="position:absolute;left:14px;bottom:44px;display:flex;flex-direction:column;gap:3px;font-family:'IBM Plex Mono',monospace;font-size:11px">
             <span style="color:#e8dde0">{{simRoomTxt}}</span>
             <span style="color:#8a7478">{{simCoordTxt}}</span>
+          </div>
+          <div style="position:absolute;right:14px;bottom:44px;display:flex;align-items:center;gap:8px">
+            <sc-if value="{{simShareOn}}" hint-placeholder-val="{{false}}">
+              <div style="display:flex;align-items:center;height:26px;border:1px solid #4a1d24;border-radius:6px;background:#10070ae6;overflow:hidden">
+                <button onClick="{{onCropDown}}" title="상단 잘라내기 줄이기" style="width:24px;height:100%;border:none;background:transparent;color:#a8969a;cursor:pointer;font-size:13px" style-hover="background:#35161d">−</button>
+                <span title="시뮬 창 타이틀바를 잘라냅니다" style="padding:0 6px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#cfc2c5;white-space:nowrap">⊟ {{cropTxt}}</span>
+                <button onClick="{{onCropUp}}" title="상단 잘라내기 늘리기" style="width:24px;height:100%;border:none;background:transparent;color:#a8969a;cursor:pointer;font-size:13px" style-hover="background:#35161d">+</button>
+              </div>
+            </sc-if>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5f4a4e">{{fsHint}}</span>
+            <button onClick="{{onFullscreen}}" title="전체 화면 (더블클릭 / Esc 로 해제)" style="height:26px;padding:0 12px;border:1px solid {{fsBorder}};border-radius:6px;background:#10070ae6;color:{{fsColor}};font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer" style-hover="border-color:#ef4444">{{fsTxt}}</button>
           </div>
         </div>
       </sc-if>
@@ -188,16 +204,19 @@ a{color:#f87171}a:hover{color:#fca5a5}
             <span style="width:7px;height:7px;border-radius:50%;background:{{simDotColor}};animation:blinkDot 1.2s infinite"></span>
             <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:#e8dde0;letter-spacing:.08em">UNITY SIM · {{simStatusTxt}}</span>
             <button onClick="{{onSimMax}}" title="크게 보기 (평면도와 교체)" style="margin-left:auto;width:20px;height:20px;border:none;border-radius:4px;background:#241014;color:#a8969a;cursor:pointer;font-size:10px" style-hover="background:#35161d">⛶</button>
+            <button onClick="{{onPanelFullscreen}}" title="전체 화면" style="width:20px;height:20px;border:none;border-radius:4px;background:#241014;color:#a8969a;cursor:pointer;font-size:10px" style-hover="background:#35161d">⤢</button>
             <button onClick="{{onSimClose}}" style="width:20px;height:20px;border:none;border-radius:4px;background:#241014;color:#a8969a;cursor:pointer;font-size:10px" style-hover="background:#35161d">✕</button>
           </div>
-          <div style="position:relative;height:180px;background:repeating-linear-gradient(135deg,#0d0608 0 14px,#120709 14px 28px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+          <div ref="{{panelRef}}" onDoubleClick="{{onPanelDbl}}" style="position:relative;height:180px;background:repeating-linear-gradient(135deg,#0d0608 0 14px,#120709 14px 28px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
             <sc-if value="{{simShareOn}}" hint-placeholder-val="{{false}}">{{simVideoEl2}}</sc-if>
             <sc-if value="{{simShareOff}}" hint-placeholder-val="{{true}}">
               <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a7478">SIM FEED · 미연결</span>
               <button onClick="{{onSimShare}}" style="height:26px;padding:0 12px;border:1px solid #ef4444;border-radius:7px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:600;font-size:11px;cursor:pointer" style-hover="background:#7f1d1d">화면 연결</button>
             </sc-if>
-            <span style="position:absolute;left:10px;top:8px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#f87171">REC ●</span>
-            <span style="position:absolute;right:10px;top:8px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478">CAM 01 · 3RD PERSON</span>
+            <sc-if value="{{simShareOff}}" hint-placeholder-val="{{true}}">
+              <span style="position:absolute;left:10px;top:8px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#f87171">REC ●</span>
+              <span style="position:absolute;right:10px;top:8px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478">CAM 01 · 3RD PERSON</span>
+            </sc-if>
           </div>
           <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-top:1px solid #2a1015;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#a8969a">
             <span style="color:#e8dde0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">{{simRoomTxt}}</span>
@@ -343,15 +362,74 @@ if (!window.__simShare) {
       if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
       this.error = null; this.notify();
     },
+    // ── 창 타이틀바 잘라내기 ───────────────────────────────────
+    // getDisplayMedia 의 '창' 캡처는 타이틀바("tello_simulator [ㅡ][ㅁ][X]")까지
+    // 같이 찍힌다. 프레임에 박혀 오는 거라 웹에서 전체 화면을 해도 안 없어진다.
+    // 근본 해결은 Unity 를 테두리 없이 띄우는 것(-popupwindow / WindowMode.cs)이고,
+    // 여기서는 그게 안 될 때를 위해 영상 위쪽을 잘라낸다.
+    vw: 0, vh: 0,          // 캡처 원본 크기 (loadedmetadata 에서 채움)
+    crop: null,            // 잘라낼 상단 비율(0~1). null 이면 자동 추정
+    CROP_KEY: 'hauntedOps.simCropTop',
+    setCrop(t) {
+      this.crop = Math.max(0, Math.min(0.2, t));
+      try { localStorage.setItem(this.CROP_KEY, String(this.crop)); } catch (e) {}
+      this.notify();
+    },
+    // 캡처된 창 = [타이틀바 + 게임 화면]. 게임 화면이 16:9 라고 보면 원본
+    // 크기에서 16:9 를 뺀 만큼이 타이틀바다. 16:9 가 아니면 엉뚱한 값이 나오니
+    // 그럴 땐 0 으로 두고 사용자가 −/+ 로 맞춘다.
+    autoCrop() {
+      if (!this.vw || !this.vh) return 0;
+      const t = 1 - (this.vw * 9 / 16) / this.vh;
+      return (t > 0.005 && t < 0.12) ? t : 0;
+    },
+    cropTop() {
+      if (this.crop == null) {
+        try { const v = localStorage.getItem(this.CROP_KEY); if (v != null) this.crop = parseFloat(v); } catch (e) {}
+      }
+      return this.crop == null ? this.autoCrop() : this.crop;
+    },
+    // 전체 화면. <video> 자체가 아니라 오버레이(CAM 01, 스캔라인)를 감싼
+    // '스테이지' 요소를 통째로 띄운다 — 그래야 HUD 가 같이 남는다.
+    isFull() { return !!(document.fullscreenElement || document.webkitFullscreenElement); },
+    fullscreen(el) {
+      const d = document;
+      if (this.isFull()) { (d.exitFullscreen || d.webkitExitFullscreen || function () {}).call(d); return; }
+      if (!el) return;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (req) { try { req.call(el); } catch (e) { this.error = '전체 화면 전환 실패: ' + e; this.notify(); } }
+    },
   };
+  // 전체 화면 진입/이탈은 Esc 로도 일어난다. 구독자(셸/지도)가 버튼 라벨을
+  // 다시 그릴 수 있도록 같은 notify 채널로 흘려보낸다.
+  const fsNotify = () => window.__simShare.notify();
+  document.addEventListener('fullscreenchange', fsNotify);
+  document.addEventListener('webkitfullscreenchange', fsNotify);
 }
 // 공유 스트림을 그리는 <video>. srcObject 는 props 로 못 넘겨서 ref 로 꽂는다.
+// 상단 잘라내기는 CSS object-view-box 로 한다 — 원본을 먼저 잘라낸 뒤 object-fit
+// 이 적용되므로 컨테이너 크기를 재지 않아도 되고, 미지원 브라우저(Firefox)에서는
+// 그냥 안 잘릴 뿐 깨지지 않는다.
 function simVideo(extra) {
-  const s = window.__simShare.stream;
+  const S = window.__simShare;
+  const s = S.stream;
   if (!s) return null;
+  const t = S.cropTop();
   return React.createElement('video', {
     autoPlay: true, muted: true, playsInline: true,
-    ref: el => { if (el && el.srcObject !== s) el.srcObject = s; },
+    onLoadedMetadata: e => {
+      const v = e.currentTarget;
+      if (v.videoWidth && (S.vw !== v.videoWidth || S.vh !== v.videoHeight)) {
+        S.vw = v.videoWidth; S.vh = v.videoHeight; S.notify();
+      }
+    },
+    // 인라인 ref 는 렌더마다 다시 불리므로 crop 변경도 여기서 반영된다.
+    ref: el => {
+      if (!el) return;
+      if (el.srcObject !== s) el.srcObject = s;
+      el.style.setProperty('object-view-box',
+        t > 0 ? `inset(${(t * 100).toFixed(2)}% 0% 0% 0%)` : 'none');
+    },
     style: Object.assign({ position: 'absolute', inset: 0, width: '100%', height: '100%',
                            objectFit: 'contain', background: '#000' }, extra || {}),
   });
@@ -379,6 +457,8 @@ class Component extends DCLogic {
             plan: null,         // {legs:[..], path:[[x,y,z]..], dist, ok, engine, ms}
             planning: false, planProg: '', planErr: null };
   mapRef = React.createRef();
+  stageRef = React.createRef();     // 시뮬 최대화 스테이지 (전체 화면 대상)
+  panelRef = React.createRef();     // 우하단 시뮬 미니 패널
   toastSeq = 0;
   planSeq = 0;               // 응답 경합(늦게 온 옛 요청) 무시용
 
@@ -740,6 +820,28 @@ class Component extends DCLogic {
       simVideoEl2: simVideo(),
       simShareErr: window.__simShare.error || '',
       onSimShare: () => window.__simShare.start(),
+      // 전체 화면: 영상만이 아니라 HUD 오버레이까지 감싼 스테이지를 띄운다
+      stageRef: this.stageRef, panelRef: this.panelRef,
+      onFullscreen: () => window.__simShare.fullscreen(this.stageRef.current),
+      onPanelFullscreen: () => window.__simShare.fullscreen(this.panelRef.current),
+      // 스테이지 더블클릭도 전체 화면. 단, 위에 얹힌 버튼에서 시작한 더블클릭은
+      // 버튼의 onClick 이 이미 두 번 처리했으므로 무시한다.
+      onStageDbl: e => {
+        if (e && e.target && e.target.closest && e.target.closest('button')) return;
+        window.__simShare.fullscreen(this.stageRef.current);
+      },
+      onPanelDbl: e => {
+        if (e && e.target && e.target.closest && e.target.closest('button')) return;
+        window.__simShare.fullscreen(this.panelRef.current);
+      },
+      fsTxt: window.__simShare.isFull() ? '⛶ 전체 화면 해제' : '⛶ 전체 화면',
+      fsColor: window.__simShare.isFull() ? '#f87171' : '#cfc2c5',
+      fsBorder: window.__simShare.isFull() ? '#7f1d1d' : '#4a1d24',
+      fsHint: window.__simShare.isFull() ? 'Esc 로 해제' : '더블클릭도 됩니다',
+      // 창 타이틀바 잘라내기 (0.5%p 단위)
+      cropTxt: `${(window.__simShare.cropTop() * 100).toFixed(1)}%`,
+      onCropUp: () => window.__simShare.setCrop(window.__simShare.cropTop() + 0.005),
+      onCropDown: () => window.__simShare.setCrop(window.__simShare.cropTop() - 0.005),
       // 클릭 = 그 방을 순찰 대상에 추가/해제 (다중 선택)
       onMapClick: e => {
         if (!meta || this.lastDragMoved) return;
