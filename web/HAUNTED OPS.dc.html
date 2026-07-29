@@ -210,6 +210,43 @@ input[type=range]{accent-color:#ef4444}
         </div>
       </sc-if>
       <div style="position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 2px,#00000025 2px 4px)"></div>
+      <!-- 사람 탐지 결과. 판단은 전부 LLM 에이전트가 하고 웹은 통보받아 그리기만 한다. -->
+      <sc-for list="{{detectBoxes}}" as="d" hint-placeholder-count="0">
+        <div style="position:absolute;left:{{d.l}}%;top:{{d.t}}%;width:{{d.w}}%;height:{{d.h}}%;z-index:5;pointer-events:none;border:2px solid #ef4444;background:#ef44441a;box-shadow:0 0 18px #ef444555,inset 0 0 26px #ef444422;animation:{{d.anim}}">
+          <span style="position:absolute;left:-2px;top:-25px;display:flex;align-items:center;gap:7px;padding:2px 9px;background:#450a0af2;border:1px solid #ef4444;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:#fecaca;white-space:nowrap">{{d.label}}<span style="color:#f87171">{{d.conf}}</span></span>
+          <span style="position:absolute;left:-1px;top:-1px;width:11px;height:11px;border-left:3px solid #fecaca;border-top:3px solid #fecaca"></span>
+          <span style="position:absolute;right:-1px;top:-1px;width:11px;height:11px;border-right:3px solid #fecaca;border-top:3px solid #fecaca"></span>
+          <span style="position:absolute;left:-1px;bottom:-1px;width:11px;height:11px;border-left:3px solid #fecaca;border-bottom:3px solid #fecaca"></span>
+          <span style="position:absolute;right:-1px;bottom:-1px;width:11px;height:11px;border-right:3px solid #fecaca;border-bottom:3px solid #fecaca"></span>
+        </div>
+      </sc-for>
+      <sc-if value="{{alertVisible}}" hint-placeholder-val="{{false}}">
+        <div style="position:absolute;left:50%;top:70px;transform:translateX(-50%);z-index:7;display:flex;align-items:center;gap:12px;padding:10px 22px;background:#450a0af2;border:1px solid #ef4444;border-radius:10px;box-shadow:0 0 34px #dc262777;animation:toastIn .2s ease-out">
+          <span style="width:10px;height:10px;flex:none;border-radius:50%;background:#ef4444;box-shadow:0 0 10px #ef4444;animation:blinkDot .7s infinite"></span>
+          <span style="font-family:'East Sea Dokdo',cursive;font-size:28px;line-height:1;color:#fecaca;text-shadow:0 0 14px #dc2626aa">{{alertTitle}}</span>
+          <span style="font-size:12px;color:#fca5a5">{{alertSub}}</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{detectListVisible}}" hint-placeholder-val="{{false}}">
+        <div style="position:absolute;right:16px;top:66px;z-index:6;width:252px;background:#10070af2;border:1px solid #7f1d1d;border-radius:10px;box-shadow:0 10px 30px #000000a0;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:7px;padding:8px 11px;border-bottom:1px solid #2a1015">
+            <span style="width:7px;height:7px;border-radius:50%;background:#ef4444;animation:blinkDot 1.2s infinite"></span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;color:#fca5a5">DETECTED · {{detectCount}}</span>
+          </div>
+          <div style="max-height:44vh;overflow-y:auto;display:flex;flex-direction:column">
+            <sc-for list="{{detectRows}}" as="d" hint-placeholder-count="0">
+              <div style="display:flex;align-items:center;gap:8px;padding:7px 11px;border-bottom:1px solid #1c0d10">
+                <span style="width:18px;height:18px;flex:none;border-radius:50%;background:#450a0a;border:1px solid #7f1d1d;display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;color:#fca5a5">{{d.n}}</span>
+                <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                  <span style="font-size:11px;font-weight:600;color:#e8dde0">{{d.label}}</span>
+                  <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{d.room}}</span>
+                </span>
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;flex:none">{{d.time}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
       <!-- 시뮬 영상이 나오는 동안에는 웹 HUD(REC ●, CAM 01)를 숨긴다.
            Unity 캠코더 HUD 에 이미 REC / TELLO CAM-01 이 있어 겹쳐 보였다. -->
       <sc-if value="{{simShareOff}}" hint-placeholder-val="{{true}}">
@@ -235,6 +272,13 @@ input[type=range]{accent-color:#ef4444}
         <button onClick="{{onFullscreen}}" title="브라우저 전체 화면 (더블클릭 / Esc 로 해제)" style="height:26px;padding:0 12px;border:1px solid {{fsBorder}};border-radius:6px;background:#10070ae6;color:{{fsColor}};font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer" style-hover="border-color:#ef4444">{{fsTxt}}</button>
         <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5f4a4e">{{fsHint}}</span>
         <span style="flex:1"></span>
+        <!-- ↓ LLM 에이전트 연동 전 임시 트리거. 연동되면 이 두 버튼만 지우면 된다
+             (탐지 표시 자체는 window.__patrolDetect 로 들어온다). -->
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;color:#57431a;border:1px solid #57431a;border-radius:4px;padding:2px 6px">임시</span>
+        <button onClick="{{onFakeDetect}}" title="LLM 이 사람을 찾았다고 알려온 상황을 흉내냅니다" style="height:36px;padding:0 16px;border:1px solid #7f1d1d;border-radius:8px;background:#450a0ab3;color:#fecaca;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#7f1d1d">생존자 발견</button>
+        <sc-if value="{{detectListVisible}}" hint-placeholder-val="{{false}}">
+          <button onClick="{{onClearDetect}}" style="height:36px;padding:0 12px;border:1px solid #3a161c;border-radius:8px;background:#170a0de6;color:#a8969a;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">탐지 초기화</button>
+        </sc-if>
         <button onClick="{{onFinishPatrol}}" style="height:36px;padding:0 18px;border:1px solid #1e3a2a;border-radius:8px;background:#101d16e6;color:#4ade80;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#14261b">순찰 완료</button>
         <button onClick="{{onAbortPatrol}}" style="height:36px;padding:0 18px;border:1px solid #7f1d1d;border-radius:8px;background:#450a0ab3;color:#f87171;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#450a0a">작전 중단</button>
       </div>
@@ -516,7 +560,16 @@ class Component extends DCLogic {
     intro: true, introFade: false,
     meta: null, screen: 'lobby', cmd: '', prep: -1,
     over: null, selRecord: null, toasts: [],
+    detections: [],     // 통보받은 사람 탐지 결과
+    alert: null,        // 방금 들어온 탐지 (경고 배너용, 몇 초 뒤 사라짐)
   };
+  // 사람이 잡혔다고 알려왔을 때 카메라 위에 그릴 박스 자리(스테이지 대비 %).
+  // 실제 좌표는 탐지 모델이 줘야 하는데 아직 없으니 겹치지 않게 흩어 놓는다.
+  DETECT_BOXES = [
+    { l: 21, t: 33, w: 16, h: 40 }, { l: 57, t: 29, w: 15, h: 44 },
+    { l: 39, t: 45, w: 13, h: 31 }, { l: 73, t: 39, w: 15, h: 35 },
+    { l: 9, t: 43, w: 14, h: 33 },
+  ];
   // 연출 상수. 설정 화면은 없앴고(조작할 게 없었다) 값만 여기 고정한다.
   SETTINGS = { scan: true, route: true };
   toastSeq = 0;
@@ -541,13 +594,16 @@ class Component extends DCLogic {
     });
     this._shareSub = () => this.setState(st => ({ shareTick: (st.shareTick || 0) + 1 }));
     window.__simShare.subs.add(this._shareSub);
+    // LLM 에이전트가 탐지를 통보하는 입구. 임시 버튼도 결국 이걸 부른다.
+    window.__patrolDetect = (d) => this.reportDetection(d);
     this.introT1 = setTimeout(() => this.setState({ introFade: true }), 2600);
     this.introT2 = setTimeout(() => this.setState({ intro: false }), 3200);
   }
   componentWillUnmount() {
     clearInterval(this.prepIv);
-    clearTimeout(this.introT1); clearTimeout(this.introT2);
+    clearTimeout(this.introT1); clearTimeout(this.introT2); clearTimeout(this.alertT);
     window.__simShare.subs.delete(this._shareSub);
+    if (window.__patrolDetect) delete window.__patrolDetect;
   }
 
   label(id) { return this.LABELS[id] || id; }
@@ -630,6 +686,40 @@ class Component extends DCLogic {
   }
   go(screen) { this.setState({ screen }); }
 
+  // ── 사람 탐지 통보 ────────────────────────────────────────────
+  // 순찰·360도 스캔·2D 탐지 판단은 전부 LLM 에이전트가 한다. 웹은 "찾았다"는
+  // 통보를 받아 카메라 위에 박스를 치고 알리기만 한다.
+  //
+  // 연동 입구:  window.__patrolDetect({ label, room, conf, box })
+  //   label 생략 → "생존자 N", room 생략 → 순찰 대상 순서대로,
+  //   box 생략 → DETECT_BOXES 에서 순번대로. 전부 생략해도 된다.
+  // 생존자/피해자 구분은 YOLO 2D 탐지 쪽이 정해지면 label 로 넘겨받는다.
+  reportDetection(d) {
+    d = d || {};
+    const dets = this.state.detections;
+    const n = dets.length + 1;
+    const live = this.live;
+    const room = d.room || (live && live.targets.length
+      ? live.targets[(n - 1) % live.targets.length].name : '위치 미상');
+    const now = new Date();
+    const time = [now.getHours(), now.getMinutes(), now.getSeconds()]
+      .map(v => String(v).padStart(2, '0')).join(':');
+    const det = {
+      n, label: d.label || `생존자 ${n}`, room, time,
+      conf: d.conf != null ? d.conf : 85 + Math.random() * 12,
+      box: d.box || this.DETECT_BOXES[(n - 1) % this.DETECT_BOXES.length],
+    };
+    this.setState({ detections: [...dets, det], alert: det });
+    this.toast(`⚠ ${det.label} 발견 — ${det.room}`);
+    clearTimeout(this.alertT);
+    this.alertT = setTimeout(() => this.setState({ alert: null }), 4200);
+    return det;
+  }
+  clearDetections() {
+    clearTimeout(this.alertT);
+    this.setState({ detections: [], alert: null });
+  }
+
   startPrep() {
     this.setState({ prep: 0 });
     clearInterval(this.prepIv);
@@ -644,6 +734,7 @@ class Component extends DCLogic {
   // 「작전 시작」 클릭 → 준비 연출 3.25초 → 여기라 대개 그 안에 든다. 거부돼도
   // 화면 자체가 전면 레이아웃이라 보이는 결과는 거의 같고, 버튼으로 다시 켤 수 있다.
   startMission() {
+    this.clearDetections();          // 새 순찰이면 지난 탐지는 지운다
     this.setState({ screen: 'unity', over: null }, () => {
       requestAnimationFrame(() => {
         const el = this.stageRef.current;
@@ -835,6 +926,25 @@ class Component extends DCLogic {
       vals.cropTxt = `${(crop * 100).toFixed(1)}%`;
       vals.onCropUp = () => window.__simShare.setCrop(crop + 0.005);
       vals.onCropDown = () => window.__simShare.setCrop(crop - 0.005);
+      // ── 사람 탐지 통보 표시 ────────────────────────────────
+      const dets = st.detections;
+      vals.detectBoxes = dets.map(d => ({
+        key: d.n, l: d.box.l, t: d.box.t, w: d.box.w, h: d.box.h,
+        label: d.label, conf: `${d.conf.toFixed(1)}%`,
+        // 방금 잡힌 박스만 깜빡인다
+        anim: st.alert && st.alert.n === d.n ? 'blinkDot .55s 6' : 'none',
+      }));
+      vals.detectListVisible = dets.length > 0;
+      vals.detectCount = `${dets.length}`;
+      vals.detectRows = dets.slice().reverse().map(d => ({
+        key: d.n, n: `${d.n}`, label: d.label, room: d.room, time: d.time,
+      }));
+      vals.alertVisible = !!st.alert;
+      vals.alertTitle = st.alert ? `${st.alert.label} 발견` : '';
+      vals.alertSub = st.alert ? `${st.alert.room} · ${st.alert.time} · 신뢰도 ${st.alert.conf.toFixed(1)}%` : '';
+      // 임시 트리거 (LLM 연동되면 이 두 개만 지우면 된다)
+      vals.onFakeDetect = () => window.__patrolDetect();
+      vals.onClearDetect = () => this.clearDetections();
     }
     if (scr === 'success') {
       const wpsAll = this.liveWps();
