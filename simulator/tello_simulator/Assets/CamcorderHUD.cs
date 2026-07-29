@@ -176,7 +176,7 @@ public class CamcorderHUD : MonoBehaviour
         {
             GUI.color = new Color(tint.r, tint.g, tint.b, 0.4f);
             GUI.Label(new Rect(0f, h - 20f, w, 18f),
-                      "Tab 설정   C 시점   L 호러   F 손전등   N 나이트샷   [ ] 밝기   H HUD",
+                      "Tab 설정   C 시점   L 호러   F 손전등   N 나이트샷   [ ] 밝기   H HUD   B 창모드",
                       hintStyle);
         }
 
