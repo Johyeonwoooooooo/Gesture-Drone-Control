@@ -1,7 +1,8 @@
 """webapp_llm_v2 — terminal NL → LitePT detection → user confirm → sim flight.
 
-Pipeline per query (typed in the TERMINAL; visual feedback lives in the Unity
-simulator — no viser):
+Two modes, chosen per query by the LLM (webapp_llm_v2.patrol_intent):
+
+FIND (물체 찾기) — the original pipeline:
 
     natural-language command
         -> local LLM intent parse                  (webapp_llm.llm_parser)
@@ -11,6 +12,19 @@ simulator — no viser):
         -> A* / RRT* path from the drone's position    (webapp_llm_v2.planner)
         -> Tello SDK command program written to out/   (webapp_llm_v2.sdk_export)
         -> the drone flies the path in the simulator   (simulator/bridge)
+
+PATROL (구역 순찰) — "현우방만 탐색해줘":
+
+    -> rooms resolved from aliases/type/floor   (patrol_intent + room_index)
+        -> one preview/confirm of the plan          (Unity [이동]/[다음 후보])
+        -> per room: A* leg -> 360° scan, detector ARMED only inside the room
+        -> a person detection (UDP 9004, webapp_llm_v2.detect_events) triggers
+           hover -> light on -> record photo -> notify   (patrol_mission)
+        -> return home, land
+        -> 순찰 보고서 md/html/json written to out/reports (patrol_report)
+
+The 2D person detector and the Unity→Python photo transport run as a SEPARATE
+process owned by another team member; docs/patrol-agent.md is the contract.
 
 Detections come from `data/final_npy` (LitePT ScanNet-20 instance centers,
 see litept_backend). Continuous mission: each query starts from the drone's
@@ -36,7 +50,9 @@ sys.path.insert(0, str(_THIS.parents[1]))  # .../3D-segmentation
 
 from webapp_llm.llm_parser import LocalLLMParser  # noqa: E402
 
-from webapp_llm_v2 import planner, sdk_export  # noqa: E402
+from webapp_llm_v2 import (patrol_intent, patrol_mission, patrol_report,  # noqa: E402
+                           planner, room_index, sdk_export)
+from webapp_llm_v2.detect_events import DetectionListener  # noqa: E402
 from webapp_llm_v2.litept_backend import LitePTBackend  # noqa: E402
 
 
@@ -91,6 +107,34 @@ def main() -> None:
     ap.add_argument("--confirm-timeout", type=float, default=120.0,
                     help="Seconds to wait for the user's [이동]/[다음 후보] "
                          "click per candidate.")
+    # Patrol mode (docs/patrol-agent.md)
+    ap.add_argument("--patrol-port", type=int, default=9004,
+                    help="UDP port the 2D detector pushes detection JSON to.")
+    ap.add_argument("--patrol-labels", nargs="*", default=["person"],
+                    help="Detection labels that trigger the stop/light/photo "
+                         "reaction. Empty = accept every label.")
+    ap.add_argument("--patrol-min-conf", type=float, default=0.0)
+    ap.add_argument("--patrol-cooldown", type=float, default=3.0,
+                    help="Seconds before the same label is recorded again.")
+    ap.add_argument("--room-aliases", default=None,
+                    help="Room nickname JSON. Default: webapp_llm_v2/room_aliases.json")
+    ap.add_argument("--hover-height", type=float, default=1.2,
+                    help="Scan hover height above the room floor (meters).")
+    ap.add_argument("--scan-deg-per-sec", type=float, default=50.0)
+    ap.add_argument("--scan-turns", type=float, default=1.0,
+                    help="Full revolutions per room during the scan.")
+    ap.add_argument("--max-rooms", type=int, default=12,
+                    help="Cap on rooms per patrol (집 전체 순찰 safety).")
+    ap.add_argument("--report-dir", default=str(_THIS.parent / "out" / "reports"))
+    ap.add_argument("--no-light", action="store_true",
+                    help="Do not send the `light on/off` verb on detection.")
+    ap.add_argument("--no-patrol-confirm", action="store_true",
+                    help="Start patrolling immediately, without the Unity "
+                         "[이동] confirmation.")
+    ap.add_argument("--viz-dir", default=None,
+                    help="Write planned_path_3d.json / flight_trajectory_3d.json "
+                         "here. Point at simulator/tello_simulator/Assets/Resources "
+                         "to draw the route + detection markers in Unity.")
     args = ap.parse_args()
 
     data_dir = Path(args.data_dir)
@@ -143,6 +187,10 @@ def main() -> None:
                 pass
 
     # ------------------------------------------------------------ scene setup
+    rooms_index = room_index.build_room_index(backend, args.room_aliases)
+    n_alias = sum(1 for r in rooms_index.values() if r.aliases)
+    print(f"[v2] room index: {len(rooms_index)} rooms ({n_alias} with 별칭)")
+
     print(f"[v2] merging point clouds (stride={args.point_stride}) ...")
     t0 = time.time()
     points_world = backend.load_points(stride=args.point_stride)
@@ -151,10 +199,24 @@ def main() -> None:
     gm = planner.voxelize(points_world, args.resolution, args.margin, args.sample)
     home = (np.asarray(args.home_xyz, dtype=float) if args.home_xyz is not None
             else backend.default_home())
+
+    # Detection ingest starts DISARMED — nothing is recorded until the drone is
+    # inside a patrol room (see patrol_mission.run_patrol).
+    listener = DetectionListener(
+        port=args.patrol_port, cooldown=args.patrol_cooldown,
+        labels=tuple(args.patrol_labels or ()), min_conf=args.patrol_min_conf)
+    try:
+        listener.start()
+        print(f"[patrol] detection ingest on udp/{args.patrol_port} "
+              f"(labels={list(args.patrol_labels) or 'ALL'}) — disarmed")
+    except OSError as e:
+        print(f"[patrol] WARNING: cannot bind udp/{args.patrol_port} ({e}) — "
+              "patrols will run without detection reactions")
+        listener = None
     print(f"[v2] scene ready: grid={gm.shape}, home={np.round(home, 2)} "
           f"({time.time()-t0:.1f}s)")
 
-    state: Dict[str, object] = {"last_goal": None}
+    state: Dict[str, object] = {"last_goal": None, "last_patrol": None}
 
     def drone_world_pos() -> np.ndarray:
         """Mission start: live sim position, else previous goal, else home."""
@@ -214,10 +276,97 @@ def main() -> None:
                 return None
             i = (i + 1) % n
 
+    # ---------------------------------------------------------- patrol stage
+    def confirm_patrol(rooms) -> bool:
+        """Preview the patrol plan in Unity; [이동] starts it, [다음 후보]
+        previews the next room in the planned order, timeout cancels."""
+        if args.no_patrol_confirm or bridge is None or sim_tf is None:
+            return True
+        n = len(rooms)
+        i = 0
+        while True:
+            room = rooms[i]
+            tag = f"순찰 {i + 1}/{n} — {room.display}"
+            status(f"순찰 계획 {i + 1}/{n}: {room.display} — "
+                   f"[이동]=순찰 시작 / [다음 후보]=다음 구역 미리보기")
+            goal = room_index.scan_pose(room, args.hover_height, gm)
+            cu = sim_tf.mosaic_to_unity(goal)
+            bridge.drain_events()
+            bridge.preview(float(cu[0]), float(cu[1]), float(cu[2]), label=tag)
+            ev = bridge.wait_for_event(args.confirm_timeout)
+            if ev == "confirm":
+                bridge.preview_off()
+                return True
+            if ev == "next":
+                i = (i + 1) % n
+                continue
+            bridge.preview_off()
+            status("확인 시간 초과 — 순찰을 취소했습니다")
+            return False
+
+    def run_patrol_query(user_text: str, intent) -> None:
+        rooms, why = patrol_intent.resolve_rooms(
+            intent, rooms_index, user_text, max_rooms=args.max_rooms)
+        if not rooms:
+            status("순찰할 구역을 특정하지 못했습니다")
+            print("[patrol] 구역 미해석 — 사용 가능한 방:")
+            print(room_index.room_directory_text(rooms_index))
+            return
+
+        start = drone_world_pos()
+        rooms = room_index.order_rooms(rooms, start)
+        print(f"[patrol] {why}: " + " -> ".join(r.display for r in rooms))
+        status(f"순찰 계획: {len(rooms)}개 구역 ({why})")
+
+        if bridge is None or sim_tf is None:
+            print("[patrol] --sim 없이는 비행할 수 없습니다 (계획만 출력).")
+            return
+        if not confirm_patrol(rooms):
+            return
+
+        out_dir = patrol_report.report_dir_for(args.report_dir)
+        cfg = patrol_mission.PatrolConfig(
+            hover_height=args.hover_height,
+            scan_deg_per_sec=args.scan_deg_per_sec,
+            scan_turns=args.scan_turns,
+            light_on_detect=not args.no_light,
+            return_home=intent.return_home,
+            speed=float(args.sim_speed), rc_limit=int(args.sim_rc_limit),
+            algo=args.algo, leg_timeout=(args.sim_timeout or None),
+            events_dir=out_dir / "events",
+            viz_dir=Path(args.viz_dir) if args.viz_dir else None,
+        )
+        result = patrol_mission.run_patrol(
+            bridge, sim_tf, points_world, gm, rooms, home, cfg,
+            listener=listener, on_status=status,
+            follow_path_mod=follow_path)
+
+        status(f"순찰 완료 — 탐지 {len(result.events)}건, 보고서 작성 중...")
+        report_path = patrol_report.build_report(
+            result, rooms, user_text, out_dir, llm=llm, intent=intent)
+        state["last_patrol"] = (result, rooms, user_text, out_dir)
+        state["last_goal"] = None if result.returned_home else state["last_goal"]
+        print(f"[patrol] {result.rooms_reached}/{len(rooms)} 구역 도달, "
+              f"탐지 {len(result.events)}건, {result.distance_m:.1f} m, "
+              f"{result.duration_s:.0f}s, 충돌 {result.collisions}회")
+        if result.listener_stats:
+            print(f"[patrol] detections {result.listener_stats}")
+        print(f"[report] {report_path}/report.md  (+ report.html, report.json)")
+        status(f"보고서 생성 완료 — 탐지 {len(result.events)}건")
+
     # ------------------------------------------------------------- per-query run
     def run_query(user_text: str) -> None:
-        # 1. LLM intent parse
+        # 0. patrol or find?
         status(f"의도 분석 중... ({user_text})")
+        p_intent = patrol_intent.parse_patrol(llm, user_text, rooms_index)
+        print(f"[route] mode={p_intent.mode} rooms={p_intent.target_rooms} "
+              f"types={p_intent.room_types} floors={p_intent.floors_kr} "
+              f"scope={p_intent.scope!r}")
+        if p_intent.is_patrol:
+            run_patrol_query(user_text, p_intent)
+            return
+
+        # 1. LLM intent parse (object find)
         t1 = time.time()
         intent = llm.parse(user_text,
                            room_directory=backend.room_directory_text())
@@ -317,7 +466,11 @@ def main() -> None:
     print("  webapp_llm_v2 — type a drone command (Korean/English).")
     print("  Unity: 후보 프리뷰에서 [이동]=비행 시작, [다음 후보]=후보 전환,")
     print("         C 키 = 1인칭/3인칭 카메라 전환.")
+    print("  예시:  거실 소파 찾아줘        (물체 찾기)")
+    print("         현우방만 탐색해줘       (구역 순찰 + 보고서)")
     print("  commands:  home            drone back to the launch point")
+    print("             rooms           list patrol-able rooms")
+    print("             report          rebuild the last patrol report")
     print("             quit / exit     stop")
     print("=" * 68)
 
@@ -338,6 +491,19 @@ def main() -> None:
             teleport_home()
             print(f"[v2] drone reset to home {np.round(home, 2)}")
             continue
+        if low == "rooms":
+            print(room_index.room_directory_text(rooms_index))
+            continue
+        if low == "report":
+            last = state.get("last_patrol")
+            if last is None:
+                print("[v2] 아직 순찰 기록이 없습니다.")
+                continue
+            # Rebuild in place: the detection photos already live in out/events.
+            result, rooms, q, out_dir = last
+            out = patrol_report.build_report(result, rooms, q, out_dir, llm=llm)
+            print(f"[report] {out}/report.md")
+            continue
         try:
             run_query(user_text)
         except Exception as e:  # keep the REPL alive on any per-query failure
@@ -345,6 +511,8 @@ def main() -> None:
             import traceback
             traceback.print_exc()
 
+    if listener is not None:
+        listener.close()
     if bridge is not None:
         bridge.close()
 

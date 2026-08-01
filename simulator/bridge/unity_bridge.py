@@ -113,6 +113,17 @@ class UnityTelloBridge:
     def request_state(self) -> str:
         return self.send_command("state")
 
+    def set_light(self, on: bool) -> str:
+        """Drone light on/off — used when a patrol detects a person in the dark.
+
+        Unity does not implement `light` yet (HorrorAtmosphere's flashlight is
+        keyboard-only); unknown verbs are logged and still acked "ok"
+        (TelloSimulator.cs ProcessCommand), so sending this is harmless today and
+        starts working the moment the Unity side adds its branch. See
+        docs/patrol-agent.md for the patch.
+        """
+        return self.send_command(f"light {'on' if on else 'off'}")
+
     # ------------------------------------------------------ preview / confirm
     def preview(self, x: float, y: float, z: float, label: str = "") -> str:
         """Point the simulator camera at a candidate target (drone stays put).

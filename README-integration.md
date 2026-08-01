@@ -188,8 +188,9 @@ bathtub otherfurniture` (tv/모니터 등 → otherfurniture).
 | REPL 명령 | 동작 |  | Unity 조작 | 동작 |
 |---|---|---|---|---|
 | `home` | 드론 홈으로 텔레포트 + 미션 리셋 |  | **C** 키 | 1인칭 ↔ 3인칭 |
-| `quit`/`exit` | 종료 |  | **[이동]** | 후보 확정·비행 |
-|  |  |  | **[다음 후보]** | 다음 후보 |
+| `rooms` | 순찰 가능한 방 목록 |  | **[이동]** | 후보 확정·비행 (순찰은 시작) |
+| `report` | 마지막 순찰 보고서 재생성 |  | **[다음 후보]** | 다음 후보 / 다음 구역 |
+| `quit`/`exit` | 종료 |  |  |  |
 |  |  |  | **L** 키 | 호러 연출 on/off (§9) |
 |  |  |  | **F** 키 | 손전등 on/off |
 |  |  |  | **[** / **]** | 밝기 −/+ (어두우면 `]`) |
@@ -199,6 +200,36 @@ bathtub otherfurniture` (tv/모니터 등 → otherfurniture).
 
 3인칭 카메라는 드론의 **이동방향 뒤**에서 따라감. `--confirm-timeout`(기본 120초) 내
 버튼 무응답 시 쿼리 취소.
+
+### 순찰 모드 (구역 탐색 + 보고서)
+
+같은 프롬프트에서 **물체 찾기**와 **구역 순찰**이 자동으로 갈린다 (LLM 라우팅,
+`webapp_llm_v2/patrol_intent.py`). 순찰이면:
+
+```
+query> 현우방만 탐색해줘        # 별칭 → 002_012
+query> 2층 전부 순찰해줘        # 층 전체
+query> 집 전체 돌면서 사람 있는지 확인해줘
+query> rooms                    # 순찰 가능한 방 목록
+query> report                   # 마지막 순찰 보고서 재생성
+```
+
+흐름: 방 해석 → (프리뷰 [이동] 확인) → **이륙 1회** → 방마다 A* 이동 + 제자리
+360° 스캔 → 사람 탐지 시 **정지 → 라이트 온 → 사진 기록 → 알림** → 복귀·착륙 →
+`webapp_llm_v2/out/reports/<ts>_patrol/` 에 `report.md` / `report.html` /
+`report.json` + `events/*.jpg` 생성.
+
+2D detection은 **별도 프로세스**가 담당하고, 사람을 찾으면 UDP 9004로 JSON
+한 줄을 보낸다 (`{"label":"person","conf":0.87,"image_path":"/abs/evt.jpg"}`).
+탐지는 **순찰 구역 안에서 스캔 중일 때만** 채택되고 이동 중 도착분은 버려진다.
+전체 계약·Unity 쪽 남은 작업(`light` verb, 촬영 카메라)은 **`docs/patrol-agent.md`**.
+
+주요 인자: `--patrol-port 9004`, `--hover-height 1.2`, `--scan-deg-per-sec 50`,
+`--max-rooms 12`, `--no-patrol-confirm`, `--room-aliases`, `--no-light`,
+`--viz-dir simulator/tello_simulator/Assets/Resources`(경로·탐지 지점을 씬에 렌더).
+
+방 별칭("현우방")은 `webapp_llm_v2/room_aliases.json` 에서 편집한다 — LitePT
+데이터에는 방 코드와 타입만 있어서 이 파일이 없으면 사람 이름 방을 못 찾는다.
 
 ### 홈에서 시작 (Play 즉시)
 

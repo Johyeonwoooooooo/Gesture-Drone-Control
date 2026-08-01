@@ -1,0 +1,20 @@
+{
+  "_comment": [
+    "Human nicknames for rooms of one building, used by the patrol agent.",
+    "The LitePT data only knows codes ('002_012') and types ('bedroom'), so a",
+    "command like '현우방만 탐색해줘' can ONLY resolve through this file.",
+    "Edit freely: keys are room_name (the <floor>_<room> dir suffix), values are",
+    "a list of aliases. They are injected into the LLM room directory and are",
+    "also matched by plain substring as a fallback when the LLM misses.",
+    "floor_offset: floor index 0 is displayed as this 층 number (1 = 0 -> '1층')."
+  ],
+  "building": "00809_Qpor2mEya8F",
+  "floor_offset": 1,
+  "aliases": {
+    "000_002": ["거실", "리빙룸"],
+    "000_003": ["안방"],
+    "001_006": ["주방", "부엌"],
+    "002_012": ["현우방", "현우 방"],
+    "002_014": ["규철방", "규철 방"]
+  }
+}

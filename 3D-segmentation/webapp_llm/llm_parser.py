@@ -98,21 +98,13 @@ class LocalLLMParser:
         self.device = next(self.model.parameters()).device
 
     @torch.no_grad()
-    def parse(self, user_text: str, max_new_tokens: int = 200,
-              room_directory: str = "") -> ParsedIntent:
-        system = SYSTEM_PROMPT
-        if room_directory:
-            system = (
-                f"{SYSTEM_PROMPT}\n"
-                "Use this room directory to pick target_room by floor/type when the "
-                "user names a room by description (e.g. '위층 화장실', '거실'). Choose "
-                "the room_id whose floor and type/aliases best match; copy its code "
-                "into target_room and set scope='room'.\n"
-                f"{room_directory}\n"
-            )
+    def generate(self, system: str, user: str, max_new_tokens: int = 256) -> str:
+        """Raw single-turn completion. Shared by `parse`, the patrol intent
+        parser (webapp_llm_v2/patrol_intent.py) and the patrol report writer
+        (webapp_llm_v2/patrol_report.py) so they all reuse ONE loaded model."""
         messages = [
             {"role": "system", "content": system},
-            {"role": "user", "content": user_text.strip()},
+            {"role": "user", "content": user.strip()},
         ]
         prompt = self.tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
@@ -125,9 +117,24 @@ class LocalLLMParser:
             temperature=1.0,
             pad_token_id=self.tokenizer.eos_token_id,
         )
-        gen = self.tokenizer.decode(
+        return self.tokenizer.decode(
             out[0, inputs.input_ids.shape[1]:], skip_special_tokens=True
         )
+
+    @torch.no_grad()
+    def parse(self, user_text: str, max_new_tokens: int = 200,
+              room_directory: str = "") -> ParsedIntent:
+        system = SYSTEM_PROMPT
+        if room_directory:
+            system = (
+                f"{SYSTEM_PROMPT}\n"
+                "Use this room directory to pick target_room by floor/type when the "
+                "user names a room by description (e.g. '위층 화장실', '거실'). Choose "
+                "the room_id whose floor and type/aliases best match; copy its code "
+                "into target_room and set scope='room'.\n"
+                f"{room_directory}\n"
+            )
+        gen = self.generate(system, user_text, max_new_tokens=max_new_tokens)
         data = _extract_json(gen)
 
         target = str(data.get("target_object", "")).strip().lower() or "object"

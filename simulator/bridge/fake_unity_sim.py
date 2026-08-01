@@ -21,7 +21,8 @@ import socket
 import threading
 import time
 
-MOVE_SPEED = 15.0   # u/s at rc=100, matches TelloSimulator.cs
+MOVE_SPEED = 15.0       # u/s at rc=100, matches TelloSimulator.cs moveSpeed
+ROTATION_SPEED = 100.0  # deg/s at rc=100, matches TelloSimulator.cs rotationSpeed
 MIN_HEIGHT = 0.5
 TAKEOFF_LIFT = 1.0
 STATE_HZ = 20.0
@@ -43,6 +44,7 @@ class FakeUnitySim:
         self.yaw = 0.0
         self.rc = [0, 0, 0, 0]          # lr, fb, ud, yaw
         self.flying = False
+        self.light_on = False
         self.collision_count = 0
         self.last_remote_ip: str | None = None
         self.start_time = time.time()
@@ -121,6 +123,12 @@ class FakeUnitySim:
                 print("[fake-sim] PREVIEW off")
                 self._cancel_preview_timer()
                 self.auto_next_left = self.auto_next_total
+            elif lower.startswith("light"):
+                # Patrol reaction: hover -> LIGHT ON -> photo. Unity itself does
+                # not implement this verb yet (see docs/patrol-agent.md); the
+                # stub prints it so the reaction order is verifiable headless.
+                self.light_on = lower.endswith("on")
+                print(f"[fake-sim] LIGHT {'ON' if self.light_on else 'OFF'}")
             # "command" / "state" need no simulation-side effect.
 
     def _cancel_preview_timer(self) -> None:
@@ -155,7 +163,7 @@ class FakeUnitySim:
                     self.pos[0] += wx * dt
                     self.pos[1] = max(MIN_HEIGHT, self.pos[1] + ly * dt)
                     self.pos[2] += wz * dt
-                    self.yaw += yaw_rc / 100.0 * 90.0 * dt
+                    self.yaw = (self.yaw + yaw_rc / 100.0 * ROTATION_SPEED * dt) % 360.0
             time.sleep(dt)
 
     def _state_loop(self) -> None:
