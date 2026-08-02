@@ -1,16 +1,16 @@
-"""webapp_llm_v2 — terminal NL → LitePT detection → user confirm → sim flight.
+"""patrol — terminal NL → LitePT detection → user confirm → sim flight.
 
-Two modes, chosen per query by the LLM (webapp_llm_v2.patrol_intent):
+Two modes, chosen per query by the LLM (patrol.patrol_intent):
 
-FIND (물체 찾기) — the original pipeline:
+FIND (물체 찾기) — single-object search:
 
     natural-language command
-        -> local LLM intent parse                  (webapp_llm.llm_parser)
-        -> LitePT precomputed detection match      (webapp_llm_v2.litept_backend)
+        -> local LLM intent parse                  (patrol.llm_parser)
+        -> LitePT precomputed detection match      (patrol.litept_backend)
         -> Unity camera previews the candidate; the user clicks [이동] to
            confirm or [다음 후보] to cycle candidates   (simulator/bridge)
-        -> A* / RRT* path from the drone's position    (webapp_llm_v2.planner)
-        -> Tello SDK command program written to out/   (webapp_llm_v2.sdk_export)
+        -> A* / RRT* path from the drone's position    (patrol.planner)
+        -> Tello SDK command program written to out/   (patrol.sdk_export)
         -> the drone flies the path in the simulator   (simulator/bridge)
 
 PATROL (구역 순찰) — "현우방만 탐색해줘":
@@ -18,7 +18,7 @@ PATROL (구역 순찰) — "현우방만 탐색해줘":
     -> rooms resolved from aliases/type/floor   (patrol_intent + room_index)
         -> one preview/confirm of the plan          (Unity [이동]/[다음 후보])
         -> per room: A* leg -> 360° scan, detector ARMED only inside the room
-        -> a person detection (UDP 9004, webapp_llm_v2.detect_events) triggers
+        -> a person detection (UDP 9004, patrol.detect_events) triggers
            hover -> light on -> record photo -> notify   (patrol_mission)
         -> return home, land
         -> 순찰 보고서 md/html/json written to out/reports (patrol_report)
@@ -30,9 +30,8 @@ Detections come from `data/final_npy` (LitePT ScanNet-20 instance centers,
 see litept_backend). Continuous mission: each query starts from the drone's
 current simulator position (fallback: previous goal, then home).
 
-Run (in the `mosaic3d` conda env):
-    python 3D-segmentation/webapp_llm_v2/server.py \
-        --sim --unity-host 127.0.0.1 --llm-device cuda:1
+Run from the repo root (see requirements.txt / README.md §1):
+    python patrol/server.py --sim --unity-host 127.0.0.1 --llm-device cuda:1
 """
 from __future__ import annotations
 
@@ -44,22 +43,22 @@ from typing import Dict, Optional
 
 import numpy as np
 
-# Make sibling packages importable.
+# Make `patrol.*` and `simulator.*` importable when run as a plain script.
 _THIS = Path(__file__).resolve()
-sys.path.insert(0, str(_THIS.parents[1]))  # .../3D-segmentation
+sys.path.insert(0, str(_THIS.parents[1]))  # repo root
 
-from webapp_llm.llm_parser import LocalLLMParser  # noqa: E402
+from patrol.llm_parser import LocalLLMParser  # noqa: E402
 
-from webapp_llm_v2 import (patrol_intent, patrol_mission, patrol_report,  # noqa: E402
+from patrol import (patrol_intent, patrol_mission, patrol_report,  # noqa: E402
                            planner, room_index, sdk_export)
-from webapp_llm_v2.detect_events import DetectionListener  # noqa: E402
-from webapp_llm_v2.litept_backend import LitePTBackend  # noqa: E402
+from patrol.detect_events import DetectionListener  # noqa: E402
+from patrol.litept_backend import LitePTBackend  # noqa: E402
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-dir",
-                    default=str(_THIS.parents[2] / "data" / "final_npy"),
+                    default=str(_THIS.parents[1] / "data" / "final_npy"),
                     help="LitePT output dir: detections.json + per-room npy.")
     ap.add_argument("--building", default="00809_Qpor2mEya8F",
                     help="Building id (transform lookup + program metadata).")
@@ -117,7 +116,7 @@ def main() -> None:
     ap.add_argument("--patrol-cooldown", type=float, default=3.0,
                     help="Seconds before the same label is recorded again.")
     ap.add_argument("--room-aliases", default=None,
-                    help="Room nickname JSON. Default: webapp_llm_v2/room_aliases.json")
+                    help="Room nickname JSON. Default: patrol/room_aliases.json")
     ap.add_argument("--hover-height", type=float, default=1.2,
                     help="Scan hover height above the room floor (meters).")
     ap.add_argument("--scan-deg-per-sec", type=float, default=50.0)
@@ -153,7 +152,6 @@ def main() -> None:
     if args.sim:
         if not args.unity_host:
             raise SystemExit("--sim requires --unity-host <ip-of-unity-machine>")
-        sys.path.insert(0, str(_THIS.parents[2]))  # repo root
         from simulator.bridge import coord_transform, follow_path  # noqa: E402
         from simulator.bridge.unity_bridge import UnityTelloBridge  # noqa: E402
         bridge = UnityTelloBridge(args.unity_host, args.unity_port,
@@ -458,12 +456,12 @@ def main() -> None:
         state["last_goal"] = goal_world
 
     def backend_classes():
-        from webapp_llm_v2.litept_backend import INSTANCE_CLASSES
+        from patrol.litept_backend import INSTANCE_CLASSES
         return INSTANCE_CLASSES
 
     # ----------------------------------------------------------------- REPL
     print("\n" + "=" * 68)
-    print("  webapp_llm_v2 — type a drone command (Korean/English).")
+    print("  patrol — type a drone command (Korean/English).")
     print("  Unity: 후보 프리뷰에서 [이동]=비행 시작, [다음 후보]=후보 전환,")
     print("         C 키 = 1인칭/3인칭 카메라 전환.")
     print("  예시:  거실 소파 찾아줘        (물체 찾기)")

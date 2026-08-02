@@ -1,7 +1,7 @@
 """
-Affine transform between the mosaic3d world frame and the Unity world frame.
+Affine transform between the detection world frame and the Unity world frame.
 
-mosaic3d frame (cache/<building>/feat/<region>/coord.npy): right-handed, Z-up,
+Detection frame (data/final_npy/<region>/coord.npy): right-handed, Z-up,
 meters — the frame every planner waypoint and candidate center lives in.
 
 Unity frame (test.unity): left-handed, Y-up. The house glb is placed as a prefab

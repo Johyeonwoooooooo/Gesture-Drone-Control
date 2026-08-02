@@ -1,20 +1,21 @@
 """
-Calibrate the mosaic3d-world -> Unity-world transform for one building.
+Calibrate the detection-world -> Unity-world transform for one building.
 
 Scores every sign-flip candidate (see coord_transform.candidate_transforms) by
-projecting the building's cached point cloud (cache/<b>/feat/*/coord.npy) into
-the Unity-exported 3D voxel map (ground truth of Unity-world occupancy) and
+projecting the building's point cloud (data/final_npy/<b>_*/coord.npy) into the
+Unity-exported 3D voxel map (ground truth of Unity-world occupancy) and
 measuring hit_rate = fraction of transformed points landing in occupied voxels.
 The export dilates obstacles by the drone radius, so hit_rate (not IoU) is the
 discriminating metric; a wrong mirror scatters surface points into free space.
 
-Run on the GPU server (needs the local cache only, no Unity):
+Run on the GPU server (needs data/final_npy + a voxel map export, no Unity):
   python simulator/bridge/calibrate_transform.py \
-      --building 00800_TEEsavR23oF \
-      --voxel-map simulator/bridge/TEEsavR23oF_voxel_map_3d.json
+      --building 00809_Qpor2mEya8F \
+      --voxel-map simulator/bridge/Qpor2mEya8F_voxel_map_3d.json
 
+The voxel map comes from Unity: Tools > Export Voxel Map 3D (ExportVoxelMap3D.cs).
 For a new scene placed differently in Unity, pass --scale/--translation with
-the values used when placing the glb (see README-integration.md).
+the values used when placing the glb (see README.md §씬 준비).
 """
 
 from __future__ import annotations
@@ -38,28 +39,19 @@ from coord_transform import (  # noqa: E402
 )
 
 _REPO = _THIS.parents[2]
-DEFAULT_CACHE = _REPO / "3D-segmentation" / "cache"
+DEFAULT_COORDS = _REPO / "data" / "final_npy"
 
 
-def load_building_coords(cache_dir: Path, building: str, max_points: int, seed: int,
-                         coords_dir: Path | None = None) -> np.ndarray:
+def load_building_coords(coords_dir: Path, building: str, max_points: int,
+                         seed: int) -> np.ndarray:
+    """Point cloud of one building from the LitePT layout: <building>_*/coord.npy."""
     coords = []
-    if coords_dir is not None:
-        # LitePT data layout (data/final_npy): coord.npy at each room-dir root.
-        for region in sorted(coords_dir.glob(f"{building}_*")):
-            f = region / "coord.npy"
-            if f.exists():
-                coords.append(np.load(f))
-        if not coords:
-            raise FileNotFoundError(f"no {building}_*/coord.npy under {coords_dir}")
-    else:
-        feat_root = cache_dir / building / "feat"
-        for region in sorted(p for p in feat_root.iterdir() if p.is_dir()):
-            f = region / "coord.npy"
-            if f.exists():
-                coords.append(np.load(f))
-        if not coords:
-            raise FileNotFoundError(f"no coord.npy under {feat_root}")
+    for region in sorted(coords_dir.glob(f"{building}_*")):
+        f = region / "coord.npy"
+        if f.exists():
+            coords.append(np.load(f))
+    if not coords:
+        raise FileNotFoundError(f"no {building}_*/coord.npy under {coords_dir}")
     pts = np.concatenate(coords).astype(np.float64)
     if len(pts) > max_points:
         rng = np.random.default_rng(seed)
@@ -127,13 +119,11 @@ def refine_translation(
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--cache-dir", type=Path, default=DEFAULT_CACHE)
-    ap.add_argument("--coords-dir", type=Path, default=None,
-                    help="LitePT data dir (e.g. data/final_npy) with "
-                         "<building>_*/coord.npy — used instead of --cache-dir.")
-    ap.add_argument("--building", default="00800_TEEsavR23oF")
+    ap.add_argument("--coords-dir", type=Path, default=DEFAULT_COORDS,
+                    help="LitePT data dir with <building>_*/coord.npy.")
+    ap.add_argument("--building", default="00809_Qpor2mEya8F")
     ap.add_argument("--voxel-map", type=Path,
-                    default=_THIS.parent / "TEEsavR23oF_voxel_map_3d.json")
+                    default=_THIS.parent / "Qpor2mEya8F_voxel_map_3d.json")
     ap.add_argument("--out", type=Path, default=None,
                     help="default: simulator/bridge/transforms/<building>.json")
     ap.add_argument("--scale", type=float, default=DEFAULT_SCALE)
@@ -145,8 +135,8 @@ def main() -> int:
                     help="required score ratio best/runner-up")
     args = ap.parse_args()
 
-    pts = load_building_coords(args.cache_dir, args.building, args.max_points,
-                               args.seed, coords_dir=args.coords_dir)
+    pts = load_building_coords(args.coords_dir, args.building, args.max_points,
+                               args.seed)
     vm = VoxelMap(args.voxel_map)
     print(f"[calib] {len(pts)} points, voxel map {tuple(vm.size)} @ {vm.voxel_size} u")
 

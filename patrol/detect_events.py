@@ -26,7 +26,7 @@ during transit is counted (`ignored_count`) and dropped, which is the flow's
 
 Test without the detector::
 
-    python -m webapp_llm_v2.detect_events --emit --label person --conf 0.9 \\
+    python -m patrol.detect_events --emit --label person --conf 0.9 \\
         --image /path/to/any.jpg
 """
 from __future__ import annotations

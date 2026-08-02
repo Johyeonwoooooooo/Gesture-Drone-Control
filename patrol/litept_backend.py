@@ -1,6 +1,6 @@
-"""LitePT detection backend — precomputed closed-set detections for webapp_llm_v2.
+"""LitePT detection backend — precomputed closed-set detections for patrol.
 
-Replaces the Mosaic3D CLIP-heatmap path. Detections come from the LitePT
+Detections come from the LitePT
 pipeline (minyeong-3d branch, `litept_indoor/`): per-room semantic segmentation
 (ScanNet-20) + DBSCAN instance centers, aggregated offline into one
 `detections.json`. This module only READS that output — no torch, no CLIP,
@@ -261,7 +261,7 @@ def _main() -> None:
     ap = argparse.ArgumentParser(description="LitePT backend self-test")
     ap.add_argument("query", nargs="?", default="거실 소파")
     ap.add_argument("--data-dir",
-                    default=str(Path(__file__).resolve().parents[2]
+                    default=str(Path(__file__).resolve().parents[1]
                                 / "data" / "final_npy"))
     ap.add_argument("--target-object", default="",
                     help="Simulated LLM target_object (else keyword-only).")

@@ -1,17 +1,14 @@
 """Turn a planned world-meter waypoint path into a DJI Tello SDK command program.
 
-Mirrors the Tello control layer used on the `gyucheol` branch:
-  - `playground/DJITelloPy/djitellopy/tello.py`   (the real SDK wrapper)
-  - `playground/Tello-LLM/{llm_tools,tello_tools}.py`  (LLM -> tool-call dispatch)
+This branch flies in the simulator only (simulator/bridge), so the emitted
+program is an artifact, not an execution path: a record of the mission in the
+real-SDK vocabulary, kept so a real-drone layer can replay it later.
 
-On `gyucheol`, commands are consumed as Ollama-style tool-call dicts
-`{"function": {"name": <tool>, "arguments": {...}}}` name-dispatched onto a
-`DroneTools` instance. There is no path executor, no world->cm conversion, and
-`go_xyz_speed` (which exists in `tello.py`) is never actually called there — so
-this module is the greenfield bridge. We emit that same tool-call dict shape,
-using the real-SDK `go_xyz_speed(x, y, z, speed)` command for 3D path segments so
-a downstream layer can dispatch the file with the same `getattr(drone, name)(**args)`
-pattern gyucheol uses.
+The shape is the Ollama-style tool-call dict used by the real-drone code on the
+`gyucheol` branch (`playground/` there) —
+`{"function": {"name": <tool>, "arguments": {...}}}` — dispatchable with
+`getattr(drone, name)(**args)` onto a djitellopy `Tello`. 3D path segments use
+`go_xyz_speed(x, y, z, speed)`.
 
 Tello SDK constraints honored here:
   - go_xyz_speed: x, y, z in **cm**, each in [-500, 500]; speed in cm/s [10, 100].

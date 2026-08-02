@@ -2,8 +2,9 @@
 Waypoint-following flight over the Unity Tello simulator's UDP `rc` protocol.
 
 PID controller and rc mapping are adapted from the jiyun-simul branch
-(drone_pathfinding/core.py Controller, playground/path/unity_autopilot_3d.py
-world_velocity_to_rc) but kept dependency-free: numpy + unity_bridge only.
+(`drone_pathfinding/core.py` Controller and `playground/path/unity_autopilot_3d.py`
+world_velocity_to_rc, both on THAT branch) but kept dependency-free here:
+numpy + unity_bridge only.
 
 All positions/velocities here are Unity world units ("u"). The house glb is
 placed at scale 5, so 1 u = 0.2 m of real-house scale.

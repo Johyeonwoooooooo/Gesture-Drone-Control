@@ -19,7 +19,7 @@ labels are `floor + floor_offset` (default 1), i.e. floor 0 == "1층". Override
 
 Self-test::
 
-    python -m webapp_llm_v2.room_index --list          # cwd = 3D-segmentation
+    python -m patrol.room_index --list          # cwd = repo root
 """
 from __future__ import annotations
 
@@ -34,9 +34,9 @@ from typing import Dict, List, Optional, Sequence
 import numpy as np
 
 try:
-    from webapp_llm_v2 import planner
-    from webapp_llm_v2.litept_backend import ROOM_TYPE_KR
-except ImportError:  # running as a plain script from webapp_llm_v2/
+    from patrol import planner
+    from patrol.litept_backend import ROOM_TYPE_KR
+except ImportError:  # running as a plain script from patrol/
     import planner  # type: ignore
     from litept_backend import ROOM_TYPE_KR  # type: ignore
 
@@ -320,11 +320,11 @@ def room_directory_text(index: Dict[str, RoomInfo]) -> str:
 def _main() -> None:
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from webapp_llm_v2.litept_backend import LitePTBackend
+    from patrol.litept_backend import LitePTBackend
 
     ap = argparse.ArgumentParser(description="Room index self-test")
     ap.add_argument("--data-dir",
-                    default=str(Path(__file__).resolve().parents[2]
+                    default=str(Path(__file__).resolve().parents[1]
                                 / "data" / "final_npy"))
     ap.add_argument("--aliases", default=None)
     ap.add_argument("--list", action="store_true")

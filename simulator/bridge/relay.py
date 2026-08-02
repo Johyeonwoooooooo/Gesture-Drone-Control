@@ -10,7 +10,7 @@ laptop and run it with any Python 3.9+.
 
 Server (GPU box), instead of --unity-host <laptop-ip>:
     python simulator/bridge/relay.py server            # TCP :9010, UDP :9000
-    python 3D-segmentation/webapp_llm_v2/server.py ... --sim --unity-host 127.0.0.1
+    python patrol/server.py ... --sim --unity-host 127.0.0.1
 
 Laptop (Unity running, Play mode):
     python relay.py client --server-host 166.104.223.32

@@ -100,8 +100,8 @@ class LocalLLMParser:
     @torch.no_grad()
     def generate(self, system: str, user: str, max_new_tokens: int = 256) -> str:
         """Raw single-turn completion. Shared by `parse`, the patrol intent
-        parser (webapp_llm_v2/patrol_intent.py) and the patrol report writer
-        (webapp_llm_v2/patrol_report.py) so they all reuse ONE loaded model."""
+        parser (patrol/patrol_intent.py) and the patrol report writer
+        (patrol/patrol_report.py) so they all reuse ONE loaded model."""
         messages = [
             {"role": "system", "content": system},
             {"role": "user", "content": user.strip()},

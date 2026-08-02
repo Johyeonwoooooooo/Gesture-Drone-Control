@@ -1,6 +1,6 @@
 """Patrol intent parsing — "어디를 순찰할까" (vs. "무엇을 찾을까").
 
-`webapp_llm/llm_parser.py` answers the object-finding question and its
+`patrol/llm_parser.py` answers the object-finding question and its
 SYSTEM_PROMPT is shared with the v1 webapp, so it is left untouched. This module
 adds a SECOND prompt over the SAME loaded model (`LocalLLMParser.generate`) that
 answers the patrol question, and resolves its answer to concrete `RoomInfo`s.
@@ -21,8 +21,8 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence
 
 try:
-    from webapp_llm_v2.litept_backend import ROOM_KW_MAP
-    from webapp_llm_v2.room_index import RoomInfo, room_directory_text
+    from patrol.litept_backend import ROOM_KW_MAP
+    from patrol.room_index import RoomInfo, room_directory_text
 except ImportError:  # plain-script import path
     from litept_backend import ROOM_KW_MAP  # type: ignore
     from room_index import RoomInfo, room_directory_text  # type: ignore
@@ -239,7 +239,7 @@ def _coerce_room_id(v) -> Optional[str]:
 
 def _extract_json(text: str) -> dict:
     """First {...} block of a generation. Same contract as
-    `webapp_llm.llm_parser._extract_json`, duplicated on purpose so this module
+    `patrol.llm_parser._extract_json`, duplicated on purpose so this module
     stays importable without torch (that one lives next to `import torch`).
     A failed parse degrades to {} — the keyword fallbacks then carry the query.
     """

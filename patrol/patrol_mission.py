@@ -32,9 +32,9 @@ from typing import Callable, Dict, List, Optional, Sequence
 import numpy as np
 
 try:
-    from webapp_llm_v2 import planner
-    from webapp_llm_v2.detect_events import DetectionEvent, DetectionListener
-    from webapp_llm_v2.room_index import RoomInfo, scan_pose
+    from patrol import planner
+    from patrol.detect_events import DetectionEvent, DetectionListener
+    from patrol.room_index import RoomInfo, scan_pose
 except ImportError:  # plain-script import path
     import planner  # type: ignore
     from detect_events import DetectionEvent, DetectionListener  # type: ignore
