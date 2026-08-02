@@ -1,1 +1,1 @@
-"""Unity Tello simulator + Python bridge (see README-integration.md)."""
+"""Unity Tello simulator + Python bridge (see README.md)."""

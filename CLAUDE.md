@@ -2,179 +2,119 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## What this repo is
+## What this repo is (patrol-mvp branch)
 
-Two layers under one repo:
+A **patrol drone simulator**: type Korean/English at a terminal → a local LLM
+parses intent → a target object or a set of rooms is resolved from precomputed
+3D detections → the Unity camera previews it and the user confirms with a button
+→ the drone flies the planned path in the simulator. Patrol missions add a 360°
+scan per room, a reaction to person detections, and a generated report.
 
-1. **Gesture / voice drone control** (`playground/`, `readme.md`) — the original
-   goal: MediaPipe hand landmarks + (later) STT/LLM → DJI Tello flight commands.
-   Lives in `playground/DJITelloPy/` (Tello SDK) and `playground/Tello-LLM/`.
-2. **Autonomous 3D navigation** (`3D-segmentation/`, `docs/project-overview.md`) —
-   the current active work: natural language → LLM intent parsing → 3D object
-   localization in a prebuilt scene → (future) path planning → drone execution.
-   This is where almost all recent commits land.
-3. **Unity simulator integration** (`simulator/`, `README-integration.md`) —
-   sim-integration branch only: Unity 6 Tello simulator (`simulator/tello_simulator/`,
-   from the jiyun-simul branch) + Python UDP bridge (`simulator/bridge/`). The
-   `webapp_llm_v2` server (viser-free) uses the **LitePT precomputed detection
-   backend** (`webapp_llm_v2/litept_backend.py` over `data/final_npy/`, from the
-   minyeong-3d branch pipeline — ScanNet-20 closed set, no CLIP/Mosaic3D cache)
-   and a **user-confirm flow**: candidates are previewed by the Unity camera
-   (`preview` command, [이동]/[다음 후보] IMGUI buttons answering as
-   `{"event":"confirm"|"next"}` on the state port) before the drone flies.
-   Camera: 3rd-person chase / 1st-person FPV, C-key toggle (`CameraFollow.cs`).
-   Coordinates are converted mosaic3d-world → Unity-world by an affine transform
-   at `simulator/bridge/transforms/<building>.json` (00800 calibrated;
-   00809 provisional — glb placed at scale 5, −90° about X, position (0,15.5,0)
-   so the lowest floor clears the `minHeight` clamp; confirm with
-   `calibrate_transform.py --coords-dir data/final_npy` after a Unity voxel-map
-   export). Protocol: server → Unity UDP 9000 (`command`/`takeoff`/`land`/`rc`/
-   `setpos`/`msg`/`preview`/`preview_off`), Unity → server UDP 9002 JSON state
-   @20 Hz + button events. `simulator/bridge/fake_unity_sim.py` is a protocol
-   stub (`--auto-next K --auto-confirm-sec N` fakes the button clicks) for
-   testing without Unity. See `README-integration.md` for the full run guide.
+Two directories, one pipeline:
 
-The 3D localization layer has **two complementary object-finding backends**:
+1. **`patrol/`** — the brain (Python). REPL, LLM intent parsing, detection
+   matching, room index, A*/RRT* planning, patrol mission loop, report writer.
+2. **`simulator/`** — the sim. `simulator/bridge/` is the Python↔Unity UDP link
+   (+ coordinate transform, PID path following, NAT relay, test stub);
+   `simulator/tello_simulator/` is the Unity 6 project.
 
-- **Mosaic3D path** (per-point, open-vocab): SpUNet101 + CLIP text head produces a
-  per-point CLIP-aligned feature. A text query → cosine-sim heatmap → DBSCAN
-  spatial clustering → ranked 3D candidates. Open vocabulary (any prompt).
-- **UniDet3D path** (per-bbox, closed-set): a 3D object detector emits bounding
-  boxes + class labels; each box's class is CLIP-embedded and matched to the query.
-  Closed class set per dataset head, but gives clean boxes.
+This branch was cut from `sim-integration` to hold **only** what the patrol
+simulator needs. The gesture/voice control layer, the Mosaic3D/UniDet3D research
+code, the viser web apps, and the DJI Tello real-drone path were removed — they
+live on `main`, `gyucheol*`, `minyeong*`, `jiyun-simul`.
 
-Both consume the same scene point clouds and both output WORLD-frame coordinates
-for a downstream path planner.
+`README.md` is the run guide (설치 → relay 접속 → 실행 → 트러블슈팅).
+`patrol/README.md` documents the Python modules. `docs/patrol-agent.md` is the
+contract with the separately-owned 2D person detector.
 
-## Submodules
+## Environment
 
-`unidet3d/` and `Mosaic3D/` are git submodules (see `.gitmodules`) — upstream
-research repos, not pip packages. After clone: `git submodule update --init`.
-UniDet3D is imported by adding its root to `sys.path` (it self-registers mmdet3d
-modules); never expect `pip install unidet3d` to work.
+One env, no compiled 3D stack. `pip install -r requirements.txt` (numpy<2,
+torch, transformers, accelerate, scipy, pillow). GPU is used only by the LLM.
 
-## Two conda environments (they conflict — keep separate)
+> **numpy must be < 2.** torch 2.1/2.2 wheels are built against numpy 1.x;
+> with numpy 2.x every `torch.from_numpy` raises `RuntimeError: Numpy is not
+> available`. On this box the existing `unidet3d` conda env (numpy 1.24 / torch
+> 2.1.2) works as-is; **`mosaic3d` is currently broken this way**.
 
-| env | for | key pins |
-|---|---|---|
-| `mosaic3d` | Mosaic3D inference + all `webapp*/` viser apps | torch 2.2.2 + cu121, spconv-cu120, open_clip, viser, `transformers<5`, `setuptools<81` |
-| `unidet3d` | UniDet3D detection (`miny-det/`, `unidet3d_only/`, webapp_llm UniDet3D mode) | torch 2.1.2 + cu121, mmdet3d 1.4.0, mmcv 2.1.0, MinkowskiEngine, spconv-cu120 2.3.6 |
-
-`mosaic3d` is built by `3D-segmentation/setup_env/setup_env.sh` (pins in
-`setup_env/requirements-inference.txt`). The `unidet3d` env build is manual —
-exact recipe in `3D-segmentation/webapp_llm/README.md` §1; MinkowskiEngine build
-is the fragile step. Activate with:
-`source /data1/workspaces/jgshin22/miniconda3/etc/profile.d/conda.sh && conda activate <env>`.
-
-> **Running BOTH detection backends in one webapp process.** The webapps' Mosaic3D
-> path at *serve* time only needs open_clip + viser + sklearn-DBSCAN over the
-> precomputed `feat.npy` cache — it never runs spconv/SpUNet101 (that's offline
-> `inference/run_inference.py`). So both the Mosaic3D and UniDet3D backends can run
-> live in ONE process **if the server is launched from the `unidet3d` env** (torch
-> 2.1.2) after `pip install open_clip_torch viser scikit-learn transformers
-> accelerate` there. From the `mosaic3d` env the UniDet3D stack won't import, so the
-> `Backend` dropdown silently degrades to mosaic3d-only. You cannot install both
-> stacks in one env (torch 2.2.2 vs 2.1.2 + mmdet3d/MinkowskiEngine ABI).
-
-> Hardcoded absolute paths appear in two roots: `/data1/workspaces/jgshin22/Gesture-Drone-Control`
-> (READMEs, setup) and `/home/jgshin22/work/Gesture-Drone-Control` (scripts in
-> `miny-det/`, `unidet3d_detector.py` defaults). Both are checked-out working dirs
-> of this repo. When editing scripts, match the path style already in that file.
+Detections are **read**, never computed here: `data/final_npy/` (gitignored,
+~305 MB) holds `detections.json` + per-room `coord/color/normal.npy` +
+`centers.pkl`, produced by the `minyeong-3d` branch's `litept_indoor/` pipeline
+(ScanNet-20 closed set).
 
 ## Common commands
 
-Long-running steps are launched in **tmux** sessions (`mosaic-env`,
-`mosaic-precompute`, `mosaic-web`) — see `3D-segmentation/README.md` §1–6.
-
 ```bash
-# --- Mosaic3D per-point feature cache (input to heatmap + clustering) ---
-# one Matterport house, all regions:
-bash 3D-segmentation/scripts/run_precompute.sh <houseID> cuda:0
-# single region/scene from ckpt:
-python 3D-segmentation/inference/run_inference.py \
-  --ckpt data/spunet101.ckpt --data-dir <dir> --out-dir cache/feat_hm3d \
-  --regions <region> --device cuda:0
+# 전체 실행 (릴레이 3단계는 README.md §4)
+python simulator/bridge/relay.py server                      # 서버, 계속 켜둠
+python simulator/bridge/smoke.py --unity-host 127.0.0.1      # 연결 게이트: 'ok' 필수
+python patrol/server.py --sim --unity-host 127.0.0.1 --llm-device cuda:1
 
-# --- heatmap -> DBSCAN candidate extraction (CLI) ---
-python 3D-segmentation/inference/cluster_candidates.py \
-  --region <region> --query "a tv" --top-percentile 95 --eps 0.25 \
-  --min-points 40 --top-k 5 --device cuda:1     # prints JSON to stdout
+# Unity 없이 프로토콜 스텁으로
+python simulator/bridge/fake_unity_sim.py --auto-next 1 --auto-confirm-sec 3 &
+python patrol/server.py --sim --unity-host 127.0.0.1
 
-# --- viser web apps (mosaic3d env, OR unidet3d env if using the UniDet3D backend) ---
-python 3D-segmentation/webapp/server.py --port 8080 --host 0.0.0.0      # base viewer + cluster mode
-python 3D-segmentation/webapp_llm/server.py --port 8090 \              # + local-LLM intent parsing
-  --llm-model Qwen/Qwen2.5-3B-Instruct --llm-device cuda:1 --clip-device cuda:0
-#   Both apps have a `Backend` dropdown (mosaic3d | unidet3d). To enable the
-#   UniDet3D option add --enable-unidet3d --unidet3d-dataset scannetpp --unidet3d-device cuda:0
-#   and LAUNCH FROM THE unidet3d ENV (see env table note); it runs on the loaded cache scene.
+# 모듈 자가 테스트
+python patrol/litept_backend.py "거실 소파"      # 매칭·랭킹 + home 좌표
+python -m patrol.room_index --list               # 방 목록/별칭 (cwd = repo root)
+python -m patrol.detect_events --emit --label person --conf 0.9 --image /abs/x.jpg
 
-# --- standalone UniDet3D (unidet3d env) ---
-python 3D-segmentation/unidet3d_only/server.py        # detection-only viser app
-python miny-det/convert.py                            # coord/color/normal .npy -> (N,9) .bin
-python miny-det/infer.py                              # .bin -> detections .pkl (edit consts at top)
+# 좌표 재보정 (Unity에서 복셀맵 export 후)
+python simulator/bridge/calibrate_transform.py --building 00809_Qpor2mEya8F \
+    --voxel-map simulator/bridge/Qpor2mEya8F_voxel_map_3d.json \
+    --scale 5 --translation 0 15.5 0
 ```
 
-There is no test suite or linter wired up at the repo root; this is research code.
+테스트 스위트나 린터는 없다 — 연구 코드.
 
 ## Architecture notes that span files
 
-- **`webapp_llm/server.py` reuses `webapp/server.py` by import**, not copy — it
-  pulls `RegionAssets`, `TextEncoder`, `load_region`, `query_single`,
-  `cluster_palette`, etc. from the base webapp. The base `webapp/server.py` is the
-  canonical place for scene loading, CLIP text encoding, heatmap coloring, and
-  bbox rendering; do not duplicate those — import them. Editing `webapp/server.py`
-  signatures can break `webapp_llm`.
+- **좌표계가 두 개다.** 디텍션/플래너 프레임은 Z-up 미터 (`data/final_npy` 의
+  `coord.npy` 원본 월드 좌표). Unity는 Y-up. 변환은 `simulator/bridge/
+  transforms/<building>.json` 의 아핀 변환이고 `coord_transform.py` 가 읽는다.
+  00809는 `unity = (-5x, 5z + 15.5, -5y)` — glb를 scale 5, X축 −90°,
+  position (0, 15.5, 0) 으로 배치한 결과이며 `calibrate_transform.py` 가
+  Unity 복셀맵과 대조해 score 1.0으로 확정한 값이다. y 오프셋 15.5는 가장 낮은
+  바닥을 `minHeight` 클램프 위로 올리기 위한 것 — 건물을 바꾸면 반드시 재보정.
 
-- **Scene/feature cache layout** (`3D-segmentation/cache/`): `feat/<region>/`
-  holds `feat.npy` (N,768 fp16, CLIP-text-aligned) + `coord.npy` (N,3 float32,
-  **raw world coords**). `match/<region>/` holds mesh vertices/colors for
-  rendering. The webapp scans this dir **once at startup** — adding a region means
-  restarting the server.
+- **UDP 프로토콜** (`unity_bridge.py` ↔ `TelloSimulator.cs`):
+  서버 → Unity **9000** `command`/`takeoff`/`land`/`rc`/`setpos`/`msg`/
+  `preview`/`preview_off`/`light`; Unity → 서버 **9002** 상태 JSON 20 Hz +
+  버튼 이벤트 `{"event":"confirm"|"next"}`; 2D 디텍터 → 서버 **9004** 탐지 JSON.
+  모르는 verb는 Unity와 스텁 양쪽에서 `ok` 후 무시되므로 하위 호환이 안전하다.
 
-- **Coordinate frames matter for the planner.** `coord.npy` and
-  `cluster_candidates.py` output are in raw world meters. The webapp subtracts the
-  scene bbox center only for camera display; candidate `center` from the cluster
-  module is already planner-ready. In `webapp_llm`, the panel's `world=(x,y,z)` is
-  the planner value (`asset.center + display_center`). UniDet3D bboxes are in world
-  frame too (coords never modified). Read `docs/clustering-candidates.md` before
-  touching ranking/coords — it documents why score abs-values are meaningless
-  (compare only relative ranks within one query) and the `mean_score·√n_points`
-  ranking choice.
+- **확인 루프가 파이프라인의 중심**이다. 후보를 계산하면 바로 날지 않고
+  `preview` 로 Unity 카메라를 보내 사용자의 [이동]/[다음 후보] 를 기다린다
+  (`--confirm-timeout`, 기본 120초). 순찰은 계획 전체에 대해 한 번 확인한다.
 
-- **Dual detection backend in the webapps.** Both `webapp/server.py` and
-  `webapp_llm/server.py` expose a `Backend` dropdown (mosaic3d | unidet3d) via the
-  shared module `3D-segmentation/webapp/unidet3d_backend.py` (`add_unidet3d_args`,
-  `make_detector`, `detect_scene`, `match_boxes`, `render_boxes`). UniDet3D runs on
-  the **currently-loaded cache scene**: it feeds `asset.coord` + `asset.vertex_colors`
-  (rescaled `/127.5-1` like `miny-det/convert.py`) as the `(N,6)` xyz+rgb input —
-  no `.bin`, no normals reload. Detection is cached per scene; boxes render in the
-  centered display frame, world coords reported as `box_center + asset.center`.
-  `miny-det/` is left untouched as the standalone reference.
+- **`patrol/server.py` 가 상태를 들고 있다.** 드론 현재 위치(연속 미션의 시작점),
+  로드된 백엔드/방 인덱스/복셀 그리드, 마지막 순찰 결과(`report` 재생성용).
+  각 쿼리는 드론의 **현재 시뮬 위치**에서 계획한다 — 상태 수신 실패 시 직전
+  목표 → 홈 순으로 폴백.
 
-- **UniDet3D wrapper** (`3D-segmentation/unidet3d_only/unidet3d_detector.py`) is
-  the reusable, lazy-loaded class; `miny-det/infer.py` is the older standalone
-  script it was refactored from (consts hardcoded at top). Heavy mmdet3d imports
-  are deferred to first `detect()` so the webapp can start without the unidet3d
-  env when the mode is off. Input is `(N,9) = xyz,rgb,normal` float32 `.bin`; only
-  xyz+rgb are used. The active class head is selected by `dataset_name`
-  (scannet / s3dis / multiscan / 3rscan / scannetpp / arkitscenes) — `scannetpp`
-  classes are hardcoded as `SCANNETPP_CLASSES`, others resolved from config.
+- **LLM 인스턴스는 하나다.** `llm_parser.LocalLLMParser` 를 server가 만들어
+  `patrol_intent`(FIND/PATROL 라우팅·방 해석)와 `patrol_report`(보고서 문장)에
+  주입한다. 새 LLM 호출을 추가할 때 모델을 또 로드하지 말 것.
 
-- **LLM intent parsing** (`webapp_llm/llm_parser.py`): a local HF model emits JSON
-  `{target_object, clip_prompt, location_hint, action, return_home}`; only
-  `clip_prompt` feeds the CLIP/heatmap or UniDet3D match stage. `location_hint`
-  (e.g. "옆 방") is **not yet used** — clustering is single-region only (see
-  `docs/clustering-candidates.md` §8 limitations).
+- **탐지 이벤트는 ARM 상태에서만 채택된다** (`detect_events.DetectionListener`).
+  순찰 중 **방 안에서 스캔할 때만** ARM 하고 이동 중엔 DISARM 이라, 늦게 도착한
+  탐지가 엉뚱한 방에 기록되지 않는다. 2D 디텍터 프로세스는 이 저장소 밖이다.
 
-- **Mosaic3D model specifics** (from `3D-segmentation/README.md` §9): SparseUNet-101,
-  out_dim 768 (CLIP ViT-L text dim), PPT condition fixed to `ScanNet`, CLIP text
-  encoder `hf-hub:UCSC-VLAA/ViT-L-16-HTxt-Recap-CLIP`, inference grid_size 0.02,
-  color normalized `/127.5 - 1`.
+- **Unity 스크립트 중 씬에 붙어 있는 건 둘뿐이다** (`TelloSimulator`,
+  `CameraFollow`). `HorrorAtmosphere`/`HorrorAudio`/`CamcorderHUD`/
+  `SettingsPanel` 은 `TelloSimulator.cs` 가 런타임에 `AddComponent` 하고,
+  `PlannedPathRenderer`/`FlightReportRenderer`/`VoxelMapRenderer` 는 필요할 때
+  에디터에서 수동으로 붙인다 (README.md §8). 씬 파일에 GUID가 없다고 지우면 안 된다.
 
-## Docs to read first for a given task
+- **경로 시각화는 파일 경유다.** 서버가 `--viz-dir` (Unity `Assets/Resources`)
+  에 `planned_path_3d.json` / `flight_trajectory_3d.json` 을 쓰고 위 렌더러가
+  읽는다. 이 두 파일은 추적 대상이라 실행할 때마다 diff가 생긴다 — 커밋하지 말 것.
 
-- Whole-system flow & TODOs: `docs/project-overview.md`
-- Candidate extraction / coords / ranking: `docs/clustering-candidates.md`
-- Running the Mosaic3D pipeline end-to-end: `3D-segmentation/README.md`
-- LLM + UniDet3D webapp + the unidet3d env recipe: `3D-segmentation/webapp_llm/README.md`
-- UniDet3D / mmdet3d install background: `docs/mmdet_get_started.md`
+- **하드코딩된 절대 경로**가 두 루트로 나뉜다:
+  `/data1/workspaces/jgshin22/Gesture-Drone-Control` (README) 와
+  `/home/jgshin22/work/Gesture-Drone-Control`. 둘 다 이 저장소의 체크아웃이다.
+  스크립트를 고칠 때는 그 파일이 이미 쓰는 스타일을 따를 것.
+
+- 건물은 **00809 (`Qpor2mEya8F`) 하나만** 지원한다. 00800(`TEEsavR23oF`)의 glb·
+  복셀맵·transform은 이 브랜치에서 제거했다 — 필요하면
+  `git checkout sim-integration -- <path>` 로 되살린다.

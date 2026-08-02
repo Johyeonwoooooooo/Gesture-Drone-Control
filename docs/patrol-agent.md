@@ -1,6 +1,6 @@
 # 순찰 에이전트 (LLM agent) — 경로 계획 · 탐지 반응 · 보고서
 
-`webapp_llm_v2`의 **순찰 모드**. 자연어 명령으로 방을 지정하면 드론이 그 방까지
+`patrol` 패키지의 **순찰 모드**. 자연어 명령으로 방을 지정하면 드론이 그 방까지
 날아가 360° 스캔하고, 2D detection이 사람을 찾으면 정지 → 라이트 온 → 사진 기록
 → 알림 후 복귀하며, 마지막에 순찰 보고서를 생성한다.
 
@@ -8,7 +8,7 @@
 
 | 부분 | 담당 | 위치 |
 |---|---|---|
-| 경로 계획 / 순찰 실행 / 탐지 반응 / 보고서 | 이 문서 | `3D-segmentation/webapp_llm_v2/patrol_*.py` |
+| 경로 계획 / 순찰 실행 / 탐지 반응 / 보고서 | 이 문서 | `patrol/patrol_*.py` |
 | **2D person detection 모델** | 팀원 | 별도 프로세스 |
 | **Unity 드론 카메라 → Python 사진 전송(TCP)** | 팀원 | Unity C# + 별도 프로세스 |
 
@@ -58,10 +58,10 @@ sock.sendto(json.dumps({
 detector 없이 반응 시퀀스를 확인하려면:
 
 ```bash
-python -m webapp_llm_v2.detect_events --emit --label person --conf 0.9 \
+python -m patrol.detect_events --emit --label person --conf 0.9 \
     --image /path/to/any.jpg
 # 수신만 확인:
-python -m webapp_llm_v2.detect_events            # 9004에서 armed 상태로 대기
+python -m patrol.detect_events            # 9004에서 armed 상태로 대기
 ```
 
 ---
@@ -104,9 +104,9 @@ python -m webapp_llm_v2.detect_events            # 9004에서 armed 상태로 �
 
 ```bash
 source /data1/workspaces/jgshin22/miniconda3/etc/profile.d/conda.sh
-conda activate mosaic3d
+conda activate patrol           # 또는 unidet3d (README.md §1 — numpy<2 필요)
 
-python 3D-segmentation/webapp_llm_v2/server.py \
+python patrol/server.py \
     --sim --unity-host <UNITY-IP> --llm-device cuda:0 \
     --patrol-port 9004 --patrol-labels person \
     --viz-dir simulator/tello_simulator/Assets/Resources
@@ -126,7 +126,7 @@ query> report                   # 마지막 순찰 보고서 재생성
 ### 방 별칭
 
 LitePT 데이터에는 `002_012` 같은 코드와 `bedroom` 같은 타입만 있다. "현우방"은
-**`webapp_llm_v2/room_aliases.json`에만** 존재하므로, 사람 이름 방을 쓰려면 이
+**`patrol/room_aliases.json`에만** 존재하므로, 사람 이름 방을 쓰려면 이
 파일을 편집해야 한다. 별칭은 LLM 프롬프트의 방 목록에 주입되고, LLM이 놓쳐도
 원문 부분 문자열 매칭으로 다시 잡힌다.
 
@@ -228,12 +228,12 @@ else if (followYawWhileHovering && Mathf.Abs(yawRate) > minYawRate)
 python simulator/bridge/fake_unity_sim.py --verbose --auto-confirm-sec 3
 
 # 2) 서버
-python 3D-segmentation/webapp_llm_v2/server.py --sim --unity-host 127.0.0.1 \
+python patrol/server.py --sim --unity-host 127.0.0.1 \
     --llm-device cuda:0
 query> 현우방만 탐색해줘
 
 # 3) 스캔 중에 다른 셸에서 사람 탐지 흉내
-python -m webapp_llm_v2.detect_events --emit --label person --conf 0.9 \
+python -m patrol.detect_events --emit --label person --conf 0.9 \
     --image image.png --repeat 5 --interval 2
 ```
 

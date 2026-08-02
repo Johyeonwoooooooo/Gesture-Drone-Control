@@ -1,13 +1,21 @@
-# 통합 파이프라인: 자연어 명령 → LitePT 탐색 → Unity에서 확인 → 드론 비행
+# 순찰 드론 시뮬레이터: 자연어 → 탐색/순찰 → Unity에서 확인 → 비행
 
-`sim-integration` 브랜치. 서버 터미널에 자연어를 입력하면 → LLM이 의도 분석 →
-LitePT 사전계산 디텍션에서 물체를 찾고 → Unity 카메라가 후보를 비춰주며 →
-사용자가 **[이동]** 버튼을 누르면 → 드론이 시뮬레이터에서 실제로 경로를 비행합니다.
+서버 터미널에 자연어를 입력하면 → LLM이 의도를 분석하고 → LitePT 사전계산
+디텍션에서 대상을 찾은 뒤 → Unity 카메라가 후보(또는 순찰 계획)를 비춰주고 →
+사용자가 **[이동]** 을 누르면 → 드론이 시뮬레이터에서 실제로 경로를 비행한다.
+
+두 모드가 프롬프트마다 자동으로 갈린다.
+
+- **FIND** (`거실 소파로 가줘`) — 물체 하나를 찾아 후보 확인 후 비행.
+- **PATROL** (`현우방만 탐색해줘`) — 구역을 돌며 360° 스캔, 사람 탐지 시 반응,
+  마지막에 순찰 보고서 생성.
+
+구성 요소:
 
 - **탐색 백엔드**: **LitePT** — `data/final_npy/detections.json` (ScanNet-20 인스턴스,
-  건물 00809). CLIP/Mosaic3D 캐시 불필요.
+  건물 00809). GPU 추론·CLIP 캐시 불필요, 읽기만 한다.
 - **시뮬레이터**: Unity 6 Tello 시뮬레이터. 3인칭(이동방향 뒤) / 1인칭 카메라, C키 전환.
-- **확인 플로우**: 후보 프리뷰 → [이동] 확정 / [다음 후보] 순환.
+- **확인 플로우**: 프리뷰 → [이동] 확정 / [다음 후보] 순환.
 
 ```
 [GPU 서버 (Linux)]                                  [노트북 (Windows/macOS)]
@@ -16,7 +24,7 @@ LitePT 사전계산 디텍션에서 물체를 찾고 → Unity 카메라가 후�
         └→ 후보 좌표 전송(preview) ──── UDP ──────→   카메라가 후보 위치로 이동
         ┌───────────────────────────── UDP ←──────   [이동]/[다음 후보] 버튼 클릭
         └→ [이동] 확정 시: A* 경로 계산
-             └→ 좌표 변환(mosaic→Unity) ─ UDP ────→   드론이 경로 비행
+             └→ 좌표 변환(§6) ──────── UDP ──────→   드론이 경로 비행
         └→ 각 단계 상태 ──────────────── UDP ──────→   화면 상단 상태 배너
 ```
 
@@ -25,8 +33,9 @@ LitePT 사전계산 디텍션에서 물체를 찾고 → Unity 카메라가 후�
 | 서버 → 노트북 | UDP **9000** | Tello 명령 (`command`/`takeoff`/`land`/`rc`/`setpos`/`msg`/`preview`) |
 | 노트북 → 서버 | (9000 응답) | 각 명령에 `"ok"` (서버는 9001 바인딩) |
 | 노트북 → 서버 | UDP **9002** | 드론 상태 JSON 20 Hz + 버튼 이벤트(`{"event":"confirm"\|"next"}`) |
+| 2D 디텍터 → 서버 | UDP **9004** | 사람 탐지 JSON 한 줄 (별도 프로세스, `docs/patrol-agent.md`) |
 
-> 프롬프트는 **서버 터미널**에서 입력. Unity 화면엔 상태 배너 + 확인 버튼이 표시됩니다.
+> 프롬프트는 **서버 터미널**에서 입력. Unity 화면엔 상태 배너 + 확인 버튼이 표시된다.
 
 ---
 
@@ -36,14 +45,14 @@ LitePT 사전계산 디텍션에서 물체를 찾고 → Unity 카메라가 후�
 
 | 위치 | 할 일 | 참고 |
 |---|---|---|
-| 서버 | `git clone`/`checkout sim-integration`, conda `mosaic3d` 구성 | §1 |
+| 서버 | `git clone` → `checkout patrol-mvp`, conda 환경 구성 | §1 |
 | 서버 | `data/final_npy/` 데이터(detections.json + 방별 npy + glb) 확인 | §1 |
 | 노트북 | Unity Hub + 에디터 `6000.3.12f1` 설치, `simulator/tello_simulator` 열기 | §2 / §3 |
-| 노트북 | **test.unity** 에서 옛 집(TEE) 지우고 00809(Qpor) 배치 → 콜라이더 → 저장 | §8 |
+| 노트북 | **test.unity** 에 00809(Qpor) 배치 확인 → 콜라이더 → 저장 | §8 |
 | (선택) 서버 | 씬을 새로 배치했으면 좌표 캘리브레이션 재실행 | §8 |
 
 > 캘리브레이션 결과(`transforms/00809_Qpor2mEya8F.json`, score 1.0)는 이미 커밋돼
-> 있음. glb를 §8의 값 그대로 배치했으면 재실행 불필요.
+> 있다. glb를 §8의 값 그대로 배치했으면 재실행 불필요.
 
 ### B. 매번 다시 실행 — 이 순서 그대로 (§4가 상세)
 
@@ -52,8 +61,7 @@ LitePT 사전계산 디텍션에서 물체를 찾고 → Unity 카메라가 후�
 ② [노트북] Unity ▶ Play → Console "listening on 9000"(초록) 확인
 ③ [노트북] python3 .../simulator/bridge/relay.py client --server-host <서버IP>
 ④ [서버]   python simulator/bridge/smoke.py --unity-host 127.0.0.1   # 'ok' 게이트
-⑤ [서버]   python 3D-segmentation/webapp_llm_v2/server.py \
-               --llm-device cuda:1 --sim --unity-host 127.0.0.1
+⑤ [서버]   python patrol/server.py --llm-device cuda:1 --sim --unity-host 127.0.0.1
 ⑥ [서버]   query> 자연어 입력. (드론은 Play 시 이미 집 안 홈에 있음 — §5)
 ```
 
@@ -69,12 +77,23 @@ LitePT 사전계산 디텍션에서 물체를 찾고 → Unity 카메라가 후�
 
 ```bash
 git clone <repo> && cd Gesture-Drone-Control
-git checkout sim-integration
-source /data1/workspaces/jgshin22/miniconda3/etc/profile.d/conda.sh
-conda activate mosaic3d          # 환경 구성은 3D-segmentation/setup_env/ 참고
+git checkout patrol-mvp
 ```
 
-**데이터 확인** — git에 없음. 서버에 다음이 있어야 함:
+**파이썬 환경** — 필요한 건 `requirements.txt` 가 전부다 (numpy, scipy, pillow,
+torch, transformers). GPU는 LLM 의도 파서에만 쓴다.
+
+```bash
+conda create -n patrol python=3.10 -y && conda activate patrol
+pip install -r requirements.txt
+```
+
+> **numpy는 반드시 2 미만.** 이 저장소 서버의 기존 env 중에서는 `unidet3d`
+> (numpy 1.24 / torch 2.1.2) 가 그대로 동작하고, `mosaic3d` 는 numpy가 2.2로
+> 올라가 `torch.from_numpy` 가 `RuntimeError: Numpy is not available` 로 깨져 있다.
+> 새로 만들지 않고 쓸 거라면 `conda activate unidet3d`.
+
+**데이터 확인** — git에 없다(용량). 서버에 다음이 있어야 한다:
 
 ```
 data/final_npy/
@@ -85,14 +104,15 @@ data/final_npy/
     └── centers.pkl
 ```
 
-없으면 minyeong-3d 브랜치 `litept_indoor/` (`infer_centers.py` → `export_json.py`)로 생성.
+없으면 `minyeong-3d` 브랜치 `litept_indoor/` (`infer_centers.py` → `export_json.py`)로
+생성한다. 이 브랜치에는 생성 파이프라인이 없다 — 결과만 읽는다.
 
 ## 2. Windows Unity — 설치·씬은 (최초 1회), Play는 (매번)
 
 1. [Unity Hub](https://unity.com/download) 설치 → Installs → **`6000.3.12f1`** (Unity 6).
 2. Projects → Open → 레포의 `simulator/tello_simulator`.
    최초 임포트는 수 분 + 인터넷 필요(git URL 패키지).
-3. **씬 준비** (§8) — 최초 1회.
+3. **씬 확인** (§8) — 최초 1회.
 4. `Assets/test.unity` → ▶ Play → Console `[Tello] UDP server listening on 9000` 확인.
 5. 방화벽: 직접 UDP 방식일 때만 인바운드 9000 허용 (릴레이면 불필요):
    ```powershell
@@ -102,7 +122,7 @@ data/final_npy/
 ## 3. macOS Unity — 설치·씬은 (최초 1회), Play는 (매번)
 
 1. Unity Hub 설치 (Apple Silicon이면 Silicon 에디터), `6000.3.12f1` 설치.
-2. `simulator/tello_simulator` 열기 → 씬 준비(§8) → `Assets/test.unity` → Play.
+2. `simulator/tello_simulator` 열기 → 씬 확인(§8) → `Assets/test.unity` → Play.
 3. 직접 UDP 방식이면 첫 Play 때 "수신 연결 허용" 팝업 → 허용 (릴레이면 불필요).
 
 ## 4. 접속 (매번) — 상세
@@ -113,7 +133,7 @@ data/final_npy/
 **⓪ 정리 (시작 전)**
 ```bash
 # 서버
-pkill -f 'relay\.py server'; pkill -f webapp_llm_v2/server.py
+pkill -f 'relay\.py server'; pkill -f 'patrol/server\.py'
 # 노트북: Unity Play 끄고, 이전 relay client 터미널 Ctrl+C
 ```
 
@@ -140,7 +160,7 @@ python3 .../simulator/bridge/relay.py client --server-host 166.104.223.32
 **④ 서버 — 경로 게이트** `[서버 터미널 B]`
 ```bash
 cd /data1/workspaces/jgshin22/Gesture-Drone-Control
-source /data1/workspaces/jgshin22/miniconda3/etc/profile.d/conda.sh && conda activate mosaic3d
+conda activate patrol            # 또는 unidet3d (§1)
 python simulator/bridge/smoke.py --unity-host 127.0.0.1
 ```
 ✅ `command -> 'ok'` + `state pos=...`.
@@ -148,7 +168,7 @@ python simulator/bridge/smoke.py --unity-host 127.0.0.1
 
 **⑤ 서버 — 파이프라인** `[서버 터미널 B]`
 ```bash
-python 3D-segmentation/webapp_llm_v2/server.py --llm-device cuda:1 --sim --unity-host 127.0.0.1
+python patrol/server.py --llm-device cuda:1 --sim --unity-host 127.0.0.1
 ```
 ✅ 시작 로그 `[sim] Unity 127.0.0.1:9000 -> 'ok'`.
 
@@ -164,7 +184,7 @@ python 3D-segmentation/webapp_llm_v2/server.py --llm-device cuda:1 --sim --unity
 **Unity 없이 서버만 테스트**:
 ```bash
 python simulator/bridge/fake_unity_sim.py --auto-next 1 --auto-confirm-sec 3 &
-python 3D-segmentation/webapp_llm_v2/server.py --sim --unity-host 127.0.0.1
+python patrol/server.py --sim --unity-host 127.0.0.1
 ```
 
 ## 5. 사용법
@@ -179,7 +199,7 @@ query> go to the refrigerator
 
 흐름: 의도 분석(LLM) → LitePT 후보 랭킹 → **Unity 카메라가 1순위 후보로 이동, 노란
 마커+라벨** → 사용자가 [이동]/[다음 후보] → 확정 시 드론 현 위치에서 A* → 비행 → 착륙.
-다음 쿼리는 드론이 선 자리에서 이어짐.
+다음 쿼리는 드론이 선 자리에서 이어진다.
 
 탐색 물체 (ScanNet-20, wall/floor 제외): `cabinet bed chair sofa table door window
 bookshelf picture counter desk curtain refrigerator "shower curtain" toilet sink
@@ -198,13 +218,13 @@ bathtub otherfurniture` (tv/모니터 등 → otherfurniture).
 |  |  |  | **H** 키 | 캠코더 HUD 숨김/표시 |
 |  |  |  | **Tab** 키 | 설정 패널 (경로 표시·사운드) |
 
-3인칭 카메라는 드론의 **이동방향 뒤**에서 따라감. `--confirm-timeout`(기본 120초) 내
+3인칭 카메라는 드론의 **이동방향 뒤**에서 따라간다. `--confirm-timeout`(기본 120초) 내
 버튼 무응답 시 쿼리 취소.
 
 ### 순찰 모드 (구역 탐색 + 보고서)
 
 같은 프롬프트에서 **물체 찾기**와 **구역 순찰**이 자동으로 갈린다 (LLM 라우팅,
-`webapp_llm_v2/patrol_intent.py`). 순찰이면:
+`patrol/patrol_intent.py`). 순찰이면:
 
 ```
 query> 현우방만 탐색해줘        # 별칭 → 002_012
@@ -216,7 +236,7 @@ query> report                   # 마지막 순찰 보고서 재생성
 
 흐름: 방 해석 → (프리뷰 [이동] 확인) → **이륙 1회** → 방마다 A* 이동 + 제자리
 360° 스캔 → 사람 탐지 시 **정지 → 라이트 온 → 사진 기록 → 알림** → 복귀·착륙 →
-`webapp_llm_v2/out/reports/<ts>_patrol/` 에 `report.md` / `report.html` /
+`patrol/out/reports/<ts>_patrol/` 에 `report.md` / `report.html` /
 `report.json` + `events/*.jpg` 생성.
 
 2D detection은 **별도 프로세스**가 담당하고, 사람을 찾으면 UDP 9004로 JSON
@@ -228,7 +248,7 @@ query> report                   # 마지막 순찰 보고서 재생성
 `--max-rooms 12`, `--no-patrol-confirm`, `--room-aliases`, `--no-light`,
 `--viz-dir simulator/tello_simulator/Assets/Resources`(경로·탐지 지점을 씬에 렌더).
 
-방 별칭("현우방")은 `webapp_llm_v2/room_aliases.json` 에서 편집한다 — LitePT
+방 별칭("현우방")은 `patrol/room_aliases.json` 에서 편집한다 — LitePT
 데이터에는 방 코드와 타입만 있어서 이 파일이 없으면 사람 이름 방을 못 찾는다.
 
 ### 홈에서 시작 (Play 즉시)
@@ -239,11 +259,11 @@ query> report                   # 마지막 순찰 보고서 재생성
 `home` 을 칠 필요는 없다 — `home` 은 비행 중간에 되돌릴 때 쓴다.
 
 `spawnPosition` 기본값 **(−22.51, 5.20, 5.22)** 는 00809 전용이다. 출처:
-`litept_backend.default_home()` = mosaic `(4.50, −1.04, −2.06)` → §6 변환.
+`litept_backend.default_home()` = 디텍션 프레임 `(4.50, −1.04, −2.06)` → §6 변환.
 **건물이나 glb 배치를 바꾸면 이 값도 바꿔야 한다.** 새 값 구하는 법:
 
 ```bash
-python 3D-segmentation/webapp_llm_v2/litept_backend.py   # 마지막 줄 home = ... (mosaic)
+python patrol/litept_backend.py   # 마지막 줄 home = ... (디텍션 프레임)
 ```
 그 값을 §6 식에 넣거나, 서버를 한 번 띄워 드론이 멈춘 Unity 좌표를 Inspector에서
 읽어 `spawnPosition` 에 박으면 된다.
@@ -251,10 +271,10 @@ python 3D-segmentation/webapp_llm_v2/litept_backend.py   # 마지막 줄 home = 
 ## 6. 좌표계 (00809)
 
 집 glb를 **Position (0, 15.5, 0), Rotation (−90, 0, 0), Scale (5, 5, 5)** 로 배치.
-mosaic/LitePT(Z-up, m) ↔ Unity(Y-up) 변환:
+디텍션 프레임(Z-up, m) ↔ Unity(Y-up) 변환:
 
 ```
-unity = ( -5·x,  5·z + 15.5,  -5·y )      # mosaic (x,y,z)
+unity = ( -5·x,  5·z + 15.5,  -5·y )      # 디텍션 (x,y,z)
 ```
 
 - y 오프셋 15.5 = 가장 낮은 바닥(z≈−3.09)을 Unity y=0 위로 올림. TelloSimulator
@@ -266,44 +286,59 @@ unity = ( -5·x,  5·z + 15.5,  -5·y )      # mosaic (x,y,z)
 ## 7. 구성 요소
 
 ```
-simulator/
+patrol/                      # 두뇌 (파이썬)
+├── server.py                # 메인 REPL (LLM→LitePT→confirm→plan→fly)
+├── llm_parser.py            # 로컬 HF LLM — 의도 JSON 파싱 (FIND/PATROL 공용)
+├── patrol_intent.py         # FIND/PATROL 라우팅 + 방 해석
+├── patrol_mission.py        # 순찰 실행 (구간 비행·360° 스캔·탐지 반응)
+├── patrol_report.py         # 보고서 md/html/json
+├── detect_events.py         # UDP 9004 탐지 수신 (ARM/DISARM)
+├── litept_backend.py        # detections.json 로드/랭킹, 포인트 병합, 홈
+├── room_index.py            # 방 인덱스·별칭·스캔 포즈
+├── planner.py               # A* / RRT* (복셀 그리드)
+├── sdk_export.py            # Tello SDK 커맨드 프로그램 기록 (out/)
+└── room_aliases.json        # 방 별칭 ("현우방" → 002_012)
+
+simulator/                   # 시뮬 (Unity + 브리지)
 ├── tello_simulator/Assets/
-│   ├── TelloSimulator.cs   # UDP 수신, 비행, preview/버튼 UI, 이벤트 송신
-│   ├── CameraFollow.cs     # 3/1인칭(이동방향 기준)/프리뷰 카메라, C키 토글
-│   ├── HorrorAtmosphere.cs # 호러 조명·포그·포스트FX·손전등 (L/F/[/] 키)
-│   ├── CamcorderHUD.cs     # 캠코더 UI: REC·배터리·시계·글리치 (N/H 키)
-│   ├── SettingsPanel.cs    # 설정 패널: 경로 표시·사운드 (Tab, PlayerPrefs 저장)
-│   ├── HorrorAudio.cs      # 앰비언트/스팅어/심박 (클립 없으면 무음)
-│   └── Resources/Audio/    # 사운드 클립 놓는 곳 (README.md 참고)
-├── bridge/
-│   ├── unity_bridge.py     # UDP 브리지 (명령 + 상태/이벤트 수신)
-│   ├── coord_transform.py  # 좌표 변환 (JSON)
-│   ├── calibrate_transform.py  # 좌표 캘리브레이션 (--coords-dir)
-│   ├── follow_path.py      # PID rc 추종, fly_mission
-│   ├── fake_unity_sim.py   # Unity 없는 테스트 스텁 (--auto-confirm-sec/--auto-next)
-│   ├── relay.py            # NAT 우회 UDP-over-TCP 릴레이
-│   ├── smoke.py            # 연결 점검
-│   └── transforms/*.json   # 건물별 좌표 변환
-3D-segmentation/webapp_llm_v2/
-├── server.py               # 메인 REPL (LLM→LitePT→confirm→plan→fly)
-├── litept_backend.py       # detections.json 로드/랭킹, 포인트 병합, 홈
-└── planner.py  sdk_export.py
+│   ├── TelloSimulator.cs    # UDP 수신, 비행, preview/버튼 UI, 이벤트 송신
+│   ├── CameraFollow.cs      # 3/1인칭(이동방향 기준)/프리뷰 카메라, C키 토글
+│   ├── HorrorAtmosphere.cs  # 호러 조명·포그·포스트FX·손전등 (L/F/[/] 키)
+│   ├── CamcorderHUD.cs      # 캠코더 UI: REC·배터리·시계·글리치 (N/H 키)
+│   ├── SettingsPanel.cs     # 설정 패널: 경로 표시·사운드 (Tab, PlayerPrefs 저장)
+│   ├── HorrorAudio.cs       # 앰비언트/스팅어/심박 (클립 없으면 무음)
+│   ├── PlannedPathRenderer.cs / FlightReportRenderer.cs / VoxelMapRenderer.cs
+│   │                        # 시각화 — 씬에 수동 부착 (§8)
+│   └── Resources/Audio/     # 사운드 클립 놓는 곳 (Audio/README.md 참고)
+└── bridge/
+    ├── unity_bridge.py      # UDP 브리지 (명령 + 상태/이벤트 수신)
+    ├── coord_transform.py   # 좌표 변환 (JSON)
+    ├── calibrate_transform.py  # 좌표 캘리브레이션
+    ├── follow_path.py       # PID rc 추종, fly_mission
+    ├── fake_unity_sim.py    # Unity 없는 테스트 스텁 (--auto-confirm-sec/--auto-next)
+    ├── relay.py             # NAT 우회 UDP-over-TCP 릴레이
+    ├── smoke.py             # 연결 점검
+    └── transforms/*.json    # 건물별 좌표 변환
 ```
 
 비행: `takeoff` → 20 Hz PID `rc` (드론 현 위치 출발) → `land`.
 안전: 상태 5초 끊기면 정지·착륙, 경로 길이 타임아웃, 충돌 카운트.
 
-## 8. 씬 준비 (test.unity에서 TEE → Qpor 교체, 최초 1회)
+문서: 순찰 에이전트 계약 `docs/patrol-agent.md`, 파이썬 모듈 상세 `patrol/README.md`.
 
-커밋된 `test.unity`에는 옛 집 `TEEsavR23oF`(00800)가 들어있음. 이걸 **00809(Qpor)** 로 교체:
+## 8. 씬 준비 (최초 1회)
 
-1. **glb 임포트**: 파인더에서 `data/final_npy/Qpor2mEya8F.glb` 를 Unity **Project 창**
-   `Assets` 로 드래그. (레포에 이미 `Qpor2mEya8F.glb` 가 있으면 생략.)
-2. `Assets/test.unity` 열기 (SampleScene 아님).
-3. **옛 집 제거**: Hierarchy에서 `TEEsavR23oF` (집 모양 최상위) 우클릭 → **Delete**.
-   (두 집을 같이 두면 콜라이더·좌표가 겹쳐 꼬임.)
-4. **Qpor 배치**: Project의 `Qpor2mEya8F` 프리팹 → Hierarchy로 드래그 → 선택 →
-   Inspector **Transform** 에 직접 입력:
+커밋된 `test.unity` 에는 **00809(Qpor2mEya8F)** 가 이미 배치돼 있다. 열어서
+Hierarchy에 `tello`(드론) + `Main Camera` + `Qpor2mEya8F` 가 보이면 그대로 Play하면
+된다. Scene 뷰에서 드론은 집에 비해 작고 멀어 안 보일 수 있는데 정상 — **Play를
+누르면** 드론이 집 안 홈으로 순간이동하고 카메라가 따라간다 (§5의 `spawnAtHome`).
+
+**다른 건물로 바꾸거나 배치를 다시 할 때만** 아래 절차:
+
+1. **glb 임포트**: `data/final_npy/<건물>.glb` 를 Unity **Project 창** `Assets` 로 드래그.
+2. **옛 집 제거**: Hierarchy에서 기존 집 루트 우클릭 → **Delete**.
+   (두 집을 같이 두면 콜라이더·좌표가 겹쳐 꼬인다.)
+3. **배치**: Project의 프리팹 → Hierarchy로 드래그 → 선택 → Inspector **Transform**:
 
    | Transform | X | Y | Z |
    |---|---|---|---|
@@ -311,27 +346,38 @@ simulator/
    | Rotation | `-90` | `0` | `0` |
    | Scale | `5` | `5` | `5` |
 
-5. Qpor 루트 선택 → 메뉴 `Tools → Add Mesh Colliders to Selected`.
-6. **⌘S (Ctrl+S) 저장** ← 빠지면 다시 열 때 사라짐.
+4. 루트 선택 → 메뉴 `Tools → Add Mesh Colliders to Selected`.
+5. **⌘S (Ctrl+S) 저장** ← 빠지면 다시 열 때 사라진다.
 
-확인: Hierarchy에 `tello`(드론) + `Main Camera` + `Qpor2mEya8F` 가 있으면 됨. Scene 뷰에서
-Scene 뷰에서 드론은 집에 비해 작고 멀어서 안 보일 수 있는데 정상 — **Play를 누르면**
-드론이 집 안 홈으로 순간이동하고 카메라가 따라감 (§5의 `spawnAtHome`).
-
-**복셀맵 재익스포트가 필요한 경우** (glb를 위 값과 다르게 배치했을 때만):
-Qpor 루트 선택 → `Tools → Export 3D Voxel Map (Selected Root)` → JSON을
-`simulator/bridge/` 로 복사 → 서버에서 캘리브레이션:
+**복셀맵 재익스포트 + 캘리브레이션** (위 값과 다르게 배치했을 때만):
+집 루트 선택 → `Tools → Export 3D Voxel Map (Selected Root)` → JSON을
+`simulator/bridge/` 로 복사 → 서버에서:
 ```bash
 python simulator/bridge/calibrate_transform.py --building 00809_Qpor2mEya8F \
-    --coords-dir data/final_npy --voxel-map simulator/bridge/<복셀맵>.json \
-    --scale 5 --translation 0 15.5 0
+    --voxel-map simulator/bridge/<복셀맵>.json --scale 5 --translation 0 15.5 0
 ```
-성공 시 `transforms/00809_Qpor2mEya8F.json` 갱신 → 커밋.
+성공 시 `transforms/<건물>.json` 갱신 → 커밋.
+
+### 경로 시각화 컴포넌트 (선택, 최초 1회)
+
+계획 경로·실제 궤적·장애물 복셀을 씬에 그리려면:
+
+1. Hierarchy 우클릭 → Create Empty → 이름 `Visualizers`
+2. Inspector에서 컴포넌트 추가:
+   - `PlannedPathRenderer` — 계획 경로 (빨간 라인, `Resources/planned_path_3d.json`)
+   - `FlightReportRenderer` — 실제 궤적 (하늘색) + 침범 지점 (빨간 구)
+   - `VoxelMapRenderer` — 장애물 복셀 (와이어 큐브). `Voxel Map Path` 에
+     `simulator/bridge/Qpor2mEya8F_voxel_map_3d.json` 절대경로 입력
+3. 씬 저장 (Ctrl+S)
+
+서버는 `--viz-dir simulator/tello_simulator/Assets/Resources` 로 띄운다.
+드론의 비행 트레일과 충돌 마커는 `TelloSimulator` 에 내장이라 별도 셋업 불필요.
+컴포넌트를 안 붙여도 에러는 안 나고, 설정 패널(Tab)의 해당 토글이 무동작일 뿐이다.
 
 ## 9. 호러 연출 (조명·포그·사운드)
 
 **씬 편집 불필요.** `HorrorAtmosphere.cs` 가 `[RuntimeInitializeOnLoadMethod]` 로
-Play 시 스스로 뜬다. Play만 누르면 어두워짐.
+Play 시 스스로 뜬다. Play만 누르면 어두워진다.
 
 | 켜지는 것 | 값 |
 |---|---|
@@ -350,7 +396,7 @@ Play 시 스스로 뜬다. Play만 누르면 어두워짐.
 - 좌상단: 깜빡이는 빨간 ● **REC** + 테이프 카운터 `SP 00:03:41`
 - 우상단: **배터리** 게이지 + % (기본 92%에서 시작, 25분에 소진, 비행 중 2배 소모.
   20% 아래면 빨갛게 깜빡임). **순수 연출** — 드론을 착륙시키거나 하지 않는다
-- 좌하단: **날짜 + 현재 시각** (`2026. 07. 25.` / `AM 03:14:22`, 실제 시스템 시계)
+- 좌하단: **날짜 + 현재 시각** (실제 시스템 시계)
 - 우하단: 카메라 ID, 나이트샷 켜면 `◉ NIGHT SHOT`
 - 화면 네 귀퉁이 뷰파인더 브래킷 + 중앙 오토포커스 박스
 - 9~26초마다 **VHS 트래킹 글리치** — 찢어진 스캔라인 띠가 화면을 훑고 지나감
@@ -403,7 +449,7 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 | 충돌 마커 | 충돌 지점 빨간 구 |
 
 씬에 `PlannedPathRenderer`/`FlightReportRenderer` 가 없으면 그 토글은 아무 일도
-하지 않는다(에러 없음).
+하지 않는다(에러 없음). 붙이는 방법은 §8.
 
 **사운드** — 마스터(=`AudioListener.volume`), 전체 음소거, 그리고 레이어별 볼륨:
 앰비언트 / 로터(호버링·전속) / 스팅어 / 심박.
@@ -435,21 +481,21 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 - Unity 프론트에서 프롬프트 직접 입력 (현재는 서버 터미널).
 - `return_home` 시뮬레이터 왕복 비행 (현재 SDK JSON에만).
 - 다층(cross-floor) 경로 개선 (A* max_iters 한계).
+- Unity 쪽 `light` verb + 촬영 카메라 (`docs/patrol-agent.md` 참고).
 
 ## 11. 트러블슈팅
 
 | 증상 | 원인 / 해결 |
 |---|---|
+| `RuntimeError: Numpy is not available` | numpy 2.x + 구 torch 조합 — §1의 numpy<2 조건 |
 | `relay client`: `Connection refused` | 서버 relay server(§4 ①)가 안 떠 있음. ping은 되는데 refused면 리스너 없음 |
 | `smoke`/서버 시작: `-> 'timeout'` | Unity가 9000을 안 듣는 중 (§4 ②). Console에 `listening on 9000` 초록 확인 |
 | Unity Console 빨강 `address already in use` | 9000 점유 — `lsof -i :9000` → `kill -9 <PID>` → 재Play |
 | 명령 보내도 드론 안 움직임 / 배너 안 뜸 | 서버→Unity 경로 끊김. §4 ④ smoke로 'ok' 확인부터 |
 | Play해도 드론이 씬 기본위치 그대로 | `TelloSimulator` 의 `spawnAtHome` 이 꺼졌거나 `spawnPosition` 이 다른 건물 값 (§5) |
 | `home` 쳐도 드론이 안 움직임 | setpos 미도달 = 위와 동일. 순서 ①→⑤ 다시 |
-| 3인칭 카메라가 고정 각도 | 구버전 `CameraFollow.cs` — 최신 pull 후 Unity 재컴파일 (이동방향 추종은 최신 커밋) |
+| 3인칭 카메라가 고정 각도 | 구버전 `CameraFollow.cs` — 최신 pull 후 Unity 재컴파일 |
 | `InvalidOperationException ... Input System` | 구버전 `CameraFollow.cs` — 최신 pull. 급하면 Player Settings → Active Input Handling → Both |
-| test.unity 열었는데 집 안 보임 | SampleScene 보는 중일 수 있음. `Assets/test.unity` 로 전환 |
-| `Missing Prefab ... house_scan_v2` | SampleScene의 옛 프리팹 참조 — 무해. test.unity 사용, SampleScene 무시 |
 | Scene 뷰에서 드론 안 보임 | 정상 (집 대비 작고 멂). Play하면 집 안 홈으로 스폰 |
 | 드론이 벽으로 돌진 / 바닥·천장에 붙음 | glb 배치값 오류 — §8 (0,15.5,0)/(−90,0,0)/(5,5,5) 재확인 |
 | 후보 확인 중 `확인 시간 초과` | `--confirm-timeout` 내 버튼 무클릭 — 쿼리 재입력 |

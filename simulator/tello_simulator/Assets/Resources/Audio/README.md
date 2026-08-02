@@ -27,7 +27,7 @@ Inspector에서 직접 드래그해 넣으면 그 값이 우선이고, 이 폴�
 - pixabay.com/sound-effects — 전부 무료, 가입 불필요
 - opengameart.org — 게임용 CC0 사운드팩
 
-라이선스가 CC-BY면 `README-integration.md`에 출처 한 줄 남길 것.
+라이선스가 CC-BY면 저장소 루트 `README.md`에 출처 한 줄 남길 것.
 
 ## 볼륨 조절
 

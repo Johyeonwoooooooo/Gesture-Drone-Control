@@ -50,7 +50,7 @@ sys.path.insert(0, str(_THIS.parents[1]))  # repo root
 from patrol.llm_parser import LocalLLMParser  # noqa: E402
 
 from patrol import (patrol_intent, patrol_mission, patrol_report,  # noqa: E402
-                           planner, room_index, sdk_export)
+                    planner, room_index, sdk_export)
 from patrol.detect_events import DetectionListener  # noqa: E402
 from patrol.litept_backend import LitePTBackend  # noqa: E402
 
@@ -84,7 +84,7 @@ def main() -> None:
                     help="World-meter launch point. Default: first room's "
                          "centroid, 1 m above its floor.")
     ap.add_argument("--out-dir", default=str(_THIS.parent / "out"))
-    # Unity simulator link (simulator/bridge; see README-integration.md)
+    # Unity simulator link (simulator/bridge; see README.md §4)
     ap.add_argument("--sim", action="store_true",
                     help="Preview + fly in the Unity Tello simulator.")
     ap.add_argument("--unity-host", default=None,
@@ -137,9 +137,9 @@ def main() -> None:
     args = ap.parse_args()
 
     data_dir = Path(args.data_dir)
-    print(f"[v2] loading LitePT detections from {data_dir} ...")
+    print(f"[patrol] loading LitePT detections from {data_dir} ...")
     backend = LitePTBackend(data_dir)
-    print(f"[v2] {len(backend.detections)} detections, "
+    print(f"[patrol] {len(backend.detections)} detections, "
           f"{len(backend.room_dirs)} rooms")
 
     llm_device = args.llm_device if args.llm_device_map is None else "cuda:0"
@@ -187,12 +187,12 @@ def main() -> None:
     # ------------------------------------------------------------ scene setup
     rooms_index = room_index.build_room_index(backend, args.room_aliases)
     n_alias = sum(1 for r in rooms_index.values() if r.aliases)
-    print(f"[v2] room index: {len(rooms_index)} rooms ({n_alias} with 별칭)")
+    print(f"[patrol] room index: {len(rooms_index)} rooms ({n_alias} with 별칭)")
 
-    print(f"[v2] merging point clouds (stride={args.point_stride}) ...")
+    print(f"[patrol] merging point clouds (stride={args.point_stride}) ...")
     t0 = time.time()
     points_world = backend.load_points(stride=args.point_stride)
-    print(f"[v2] voxelizing {len(points_world)} points "
+    print(f"[patrol] voxelizing {len(points_world)} points "
           f"(res={args.resolution} margin={args.margin} sample={args.sample}) ...")
     gm = planner.voxelize(points_world, args.resolution, args.margin, args.sample)
     home = (np.asarray(args.home_xyz, dtype=float) if args.home_xyz is not None
@@ -211,7 +211,7 @@ def main() -> None:
         print(f"[patrol] WARNING: cannot bind udp/{args.patrol_port} ({e}) — "
               "patrols will run without detection reactions")
         listener = None
-    print(f"[v2] scene ready: grid={gm.shape}, home={np.round(home, 2)} "
+    print(f"[patrol] scene ready: grid={gm.shape}, home={np.round(home, 2)} "
           f"({time.time()-t0:.1f}s)")
 
     state: Dict[str, object] = {"last_goal": None, "last_patrol": None}
@@ -476,18 +476,18 @@ def main() -> None:
         try:
             user_text = input("\nquery> ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\n[v2] bye.")
+            print("\n[patrol] bye.")
             break
         if not user_text:
             continue
         low = user_text.lower()
         if low in ("quit", "exit", "q"):
-            print("[v2] bye.")
+            print("[patrol] bye.")
             break
         if low == "home":
             state["last_goal"] = None
             teleport_home()
-            print(f"[v2] drone reset to home {np.round(home, 2)}")
+            print(f"[patrol] drone reset to home {np.round(home, 2)}")
             continue
         if low == "rooms":
             print(room_index.room_directory_text(rooms_index))
@@ -495,7 +495,7 @@ def main() -> None:
         if low == "report":
             last = state.get("last_patrol")
             if last is None:
-                print("[v2] 아직 순찰 기록이 없습니다.")
+                print("[patrol] 아직 순찰 기록이 없습니다.")
                 continue
             # Rebuild in place: the detection photos already live in out/events.
             result, rooms, q, out_dir = last
@@ -505,7 +505,7 @@ def main() -> None:
         try:
             run_query(user_text)
         except Exception as e:  # keep the REPL alive on any per-query failure
-            print(f"[v2] error: {e}")
+            print(f"[patrol] error: {e}")
             import traceback
             traceback.print_exc()
 
