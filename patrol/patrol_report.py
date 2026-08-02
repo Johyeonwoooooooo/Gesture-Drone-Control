@@ -264,7 +264,7 @@ def _html(facts: dict, summary: str, result) -> str:
                  f"<td>{v.scan_degrees:.0f}°</td><td>{v.events}건</td>"
                  f"<td>{v.leg_length_m:.1f} m</td><td>{v.duration_s:.0f}s</td></tr>")
     P.append("</table>")
-    P.append("<footer>patrol patrol agent · 자동 생성</footer>")
+    P.append("<footer>순찰 에이전트 · 자동 생성</footer>")
     P.append("</body></html>")
     return "\n".join(P)
 
