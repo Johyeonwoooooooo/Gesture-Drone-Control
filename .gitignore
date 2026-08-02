@@ -132,8 +132,14 @@ dmypy.json
 
 data/
 *.npy
-# UniDet3D precomputed detection cache (regenerate via precompute_unidet3d.py)
-3D-segmentation/cache/*/unidet3d/
+
+# Left over on disk from the pre-cleanup branches (sim-integration and older):
+# the Mosaic3D/UniDet3D submodule checkouts and the SpUNet feature cache. Not
+# used by the patrol pipeline; kept only so switching back to those branches
+# doesn't require re-cloning. Safe to delete.
+Mosaic3D/
+unidet3d/
+3D-segmentation/
 
 # Unity (simulator/tello_simulator) — editor-generated, never commit
 simulator/tello_simulator/Library/
