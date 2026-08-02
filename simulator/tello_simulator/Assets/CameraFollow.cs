@@ -21,7 +21,7 @@ public class CameraFollow : MonoBehaviour
     public KeyCode toggleKey = KeyCode.C;
 
     [Header("Third Person")]
-    public Vector3 offset = new Vector3(0, 1.5f, -4.0f); // 이동방향 기준 (위 1.5, 뒤 4)
+    public Vector3 offset = new Vector3(0, 0.5f, -10f); // 3인칭 원거리
 
     [Header("First Person")]
     public Vector3 fpvOffset = new Vector3(0, 0.2f, 0.4f); // 드론 앞머리 기준

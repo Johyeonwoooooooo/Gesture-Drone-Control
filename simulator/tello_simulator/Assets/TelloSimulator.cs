@@ -24,6 +24,10 @@ public class TelloSimulator : MonoBehaviour
     [Tooltip("Clamp the drone so it never drops below this world-space Y value.")]
     public float minHeight = 0.5f;
 
+    [Header("Home Position")]
+    [Tooltip("H키로 텔레포트할 집 내부 좌표 (World Space). Play 중 드론을 원하는 위치로 옮긴 뒤 Position 값을 복사해 넣으면 됨.")]
+    public Vector3 homePosition = new Vector3(0f, 2f, 0f);
+
     [Header("Flight Visualization")]
     [Tooltip("Draw a colored trail behind the drone while it flies.")]
     public bool showFlightTrail = true;
@@ -32,6 +36,10 @@ public class TelloSimulator : MonoBehaviour
     [Tooltip("Drop a red sphere marker at every recorded collision position.")]
     public bool markCollisions = true;
     public float collisionMarkerSize = 1.2f;
+
+    [Header("Cargo Settings")]
+    [Tooltip("Local offset from the drone centre where the held object is parked.")]
+    public Vector3 cargoOffset = new Vector3(0f, -0.5f, 0f);
 
     [Header("Collision Settings")]
     [Tooltip("Radius of the sphere used to detect environment collisions every frame, " +
@@ -42,6 +50,8 @@ public class TelloSimulator : MonoBehaviour
     public LayerMask collisionMask = ~0;
     [Tooltip("Minimum seconds between two recorded collision events.")]
     public float collisionDebounce = 0.2f;
+
+    private bool udpRcActive = false;   // UDP rc 명령이 활성 상태일 때만 trail 켬
 
     private readonly ConcurrentQueue<string> commandQueue = new ConcurrentQueue<string>();
 
@@ -79,6 +89,9 @@ public class TelloSimulator : MonoBehaviour
     [NonSerialized] public Vector3 previewTarget;
     [NonSerialized] public string previewLabel = "";
     private GameObject previewMarker;
+
+    private GameObject heldObject;
+    private Collider[] heldObjectColliders;
 
     private CharacterController cc;
     private TrailRenderer trail;
@@ -212,6 +225,56 @@ public class TelloSimulator : MonoBehaviour
             ProcessCommand(cmd);
         }
 
+        // T: 이륙 / L: 착륙 / H: 홈 위치로 텔레포트
+        {
+            var kb2 = UnityEngine.InputSystem.Keyboard.current;
+            if (kb2 != null)
+            {
+                if (kb2.tKey.wasPressedThisFrame) commandQueue.Enqueue("takeoff");
+                if (kb2.lKey.wasPressedThisFrame) commandQueue.Enqueue("land");
+                if (kb2.hKey.wasPressedThisFrame)
+                {
+                    bool wasEnabled = cc != null && cc.enabled;
+                    if (wasEnabled) cc.enabled = false;
+                    transform.position = homePosition;
+                    if (wasEnabled) cc.enabled = true;
+                    isFlying = true;
+                    if (trail != null) trail.emitting = true;
+                    Debug.Log($"[Tello] 홈 위치로 이동: {homePosition}");
+                }
+            }
+        }
+
+        // WASD 키보드 수동 조종 (비행 중일 때만)
+        if (isFlying)
+        {
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null)
+            {
+                float lr  = (kb.dKey.isPressed ? 1f : 0f) - (kb.aKey.isPressed ? 1f : 0f);
+                float fb  = (kb.wKey.isPressed ? 1f : 0f) - (kb.sKey.isPressed ? 1f : 0f);
+                float ud  = (kb.eKey.isPressed ? 1f : 0f) - (kb.qKey.isPressed ? 1f : 0f);
+                float yaw = (kb.rightArrowKey.isPressed ? 1f : 0f) - (kb.leftArrowKey.isPressed ? 1f : 0f);
+                // 키 입력이 있을 때만 rc 값 덮어씀
+                if (lr != 0f || fb != 0f || ud != 0f || yaw != 0f)
+                {
+                    targetLR  = lr;
+                    targetFB  = fb;
+                    targetUD  = ud;
+                    targetYaw = yaw;
+                    udpRcActive = false;   // 키보드 우선 → trail 끔
+                }
+                else
+                {
+                    targetLR  = 0f;
+                    targetFB  = 0f;
+                    targetUD  = 0f;
+                    targetYaw = 0f;
+                }
+                if (trail != null) trail.emitting = udpRcActive;
+            }
+        }
+
         if (isFlying)
         {
             currentLR = Mathf.SmoothDamp(currentLR, targetLR, ref velLR, smoothTime);
@@ -219,8 +282,17 @@ public class TelloSimulator : MonoBehaviour
             currentUD = Mathf.SmoothDamp(currentUD, targetUD, ref velUD, smoothTime);
             currentYaw = Mathf.SmoothDamp(currentYaw, targetYaw, ref velYaw, smoothTime);
 
-            Vector3 localMove = new Vector3(currentLR, currentUD, currentFB) * moveSpeed * Time.deltaTime;
-            Vector3 worldMove = transform.TransformDirection(localMove);
+            // 카메라 기준 이동: 카메라 forward/right를 XZ 평면에 투영
+            Camera cam = Camera.main;
+            Vector3 fwd   = cam != null
+                ? Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up).normalized
+                : transform.forward;
+            Vector3 right = cam != null
+                ? Vector3.ProjectOnPlane(cam.transform.right, Vector3.up).normalized
+                : transform.right;
+
+            Vector3 worldMove = (fwd * currentFB + right * currentLR + Vector3.up * currentUD)
+                                * moveSpeed * Time.deltaTime;
             cc.Move(worldMove);
 
             // Floor guard: lift back to minHeight through the CharacterController so the
@@ -377,10 +449,12 @@ public class TelloSimulator : MonoBehaviour
                 && float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out float ud)
                 && float.TryParse(parts[4], NumberStyles.Float, CultureInfo.InvariantCulture, out float yaw))
             {
-                targetLR = lr / 100f;
-                targetFB = fb / 100f;
-                targetUD = ud / 100f;
+                targetLR  = lr  / 100f;
+                targetFB  = fb  / 100f;
+                targetUD  = ud  / 100f;
                 targetYaw = yaw / 100f;
+                udpRcActive = (lr != 0f || fb != 0f || ud != 0f || yaw != 0f);
+                if (trail != null) trail.emitting = udpRcActive && isFlying;
             }
             else
             {
@@ -389,7 +463,61 @@ public class TelloSimulator : MonoBehaviour
             return;
         }
 
+        if (cmd.StartsWith("pickup "))
+        {
+            Pickup(raw.Substring(7).Trim());
+            return;
+        }
+
+        if (cmd == "putdown")
+        {
+            Putdown();
+            return;
+        }
+
         Debug.Log($"[Tello] Unknown command: '{cmd}'");
+    }
+
+    void Pickup(string objectName)
+    {
+        if (heldObject != null)
+        {
+            Debug.LogWarning($"[Tello] Already holding '{heldObject.name}'. Putdown first.");
+            return;
+        }
+        GameObject target = GameObject.Find(objectName);
+        if (target == null)
+        {
+            Debug.LogWarning($"[Tello] Pickup failed: no GameObject named '{objectName}'.");
+            return;
+        }
+        heldObject = target;
+        heldObjectColliders = heldObject.GetComponentsInChildren<Collider>(true);
+        foreach (Collider col in heldObjectColliders)
+            col.enabled = false;
+        heldObject.transform.SetParent(transform);
+        heldObject.transform.localPosition = cargoOffset;
+        heldObject.transform.localRotation = Quaternion.identity;
+        Debug.Log($"[Tello] Picked up '{objectName}'.");
+        SendState();
+    }
+
+    void Putdown()
+    {
+        if (heldObject == null)
+        {
+            Debug.LogWarning("[Tello] Putdown: nothing held.");
+            return;
+        }
+        heldObject.transform.SetParent(null);
+        heldObject.transform.position = transform.position + Vector3.down * 0.5f;
+        foreach (Collider col in heldObjectColliders)
+            if (col != null) col.enabled = true;
+        string name = heldObject.name;
+        heldObject = null;
+        heldObjectColliders = null;
+        Debug.Log($"[Tello] Put down '{name}'.");
+        SendState();
     }
 
     void SendState()
@@ -412,6 +540,7 @@ public class TelloSimulator : MonoBehaviour
                 + "\"flying\":" + (isFlying ? "true" : "false") + ","
                 + "\"had_collision\":" + (hadCollision ? "true" : "false") + ","
                 + "\"collision_count\":" + collisionCount.ToString(CultureInfo.InvariantCulture) + ","
+                + "\"carrying\":" + (heldObject != null ? "\"" + heldObject.name + "\"" : "null") + ","
                 + "\"time\":" + Time.time.ToString("F4", CultureInfo.InvariantCulture)
                 + "}";
 
@@ -472,13 +601,19 @@ public class TelloSimulator : MonoBehaviour
         }
     }
 
+    public void RegisterGhostCollision()
+    {
+        if (!isFlying) return;
+        RecordCollision();
+        Debug.Log("<color=magenta>[Tello] 유령과 충돌!</color>");
+    }
+
     void OnControllerColliderHit(ControllerColliderHit hit)
     {
         if (!isFlying || hit.collider == null)
-        {
             return;
-        }
-
+        if (hit.collider.CompareTag("Pickable"))
+            return;
         RecordCollision();
     }
 
@@ -505,12 +640,10 @@ public class TelloSimulator : MonoBehaviour
             {
                 continue;
             }
-            // Skip the drone's own colliders.
             if (hit.transform == transform || hit.transform.IsChildOf(transform))
-            {
                 continue;
-            }
-
+            if (hit.CompareTag("Pickable"))
+                continue;
             RecordCollision();
             break;
         }
@@ -634,6 +767,7 @@ public class TelloSimulator : MonoBehaviour
         GUI.Label(new Rect(10, 85, 520, 25), $"Position: {transform.position}", style);
         GUI.Label(new Rect(10, 110, 520, 25), $"State stream: {statePort} @ {stateSendHz:F0}Hz", style);
         GUI.Label(new Rect(10, 135, 520, 25), $"Collision: {(hadCollision ? "yes" : "no")} ({collisionCount})", style);
+        GUI.color = Color.white;
     }
 
     void OnApplicationQuit()
