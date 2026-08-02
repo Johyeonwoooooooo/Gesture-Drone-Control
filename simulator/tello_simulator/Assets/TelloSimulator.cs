@@ -89,6 +89,7 @@ public class TelloSimulator : MonoBehaviour
     private int collisionCount = 0;
     private string statusMessage = "";
     private float statusMessageTime = -1f;
+    private float holdMovementUntil = -1f;
 
     // Candidate-preview state (set by the "preview" UDP command). CameraFollow
     // switches to its Preview mode while previewActive; OnGUI shows the
@@ -100,6 +101,13 @@ public class TelloSimulator : MonoBehaviour
 
     // Read by CamcorderHUD (battery drains faster in flight).
     public bool IsFlying => isFlying;
+
+    public void PauseForDetection(float seconds)
+    {
+        holdMovementUntil = Mathf.Max(holdMovementUntil, Time.time + Mathf.Max(0f, seconds));
+        targetLR = targetFB = targetUD = targetYaw = 0f;
+        currentLR = currentFB = currentUD = currentYaw = 0f;
+    }
 
     // Path/marker visibility, driven by SettingsPanel. The trail keeps recording
     // while hidden so toggling it back on shows the whole flight, not a stub.
@@ -253,7 +261,14 @@ public class TelloSimulator : MonoBehaviour
             ProcessCommand(cmd);
         }
 
-        if (isFlying)
+        bool holdingForDetection = Time.time < holdMovementUntil;
+        if (isFlying && holdingForDetection)
+        {
+            targetLR = targetFB = targetUD = targetYaw = 0f;
+            currentLR = currentFB = currentUD = currentYaw = 0f;
+        }
+
+        if (isFlying && !holdingForDetection)
         {
             currentLR = Mathf.SmoothDamp(currentLR, targetLR, ref velLR, smoothTime);
             currentFB = Mathf.SmoothDamp(currentFB, targetFB, ref velFB, smoothTime);
@@ -406,6 +421,12 @@ public class TelloSimulator : MonoBehaviour
 
         if (cmd.StartsWith("rc "))
         {
+            if (Time.time < holdMovementUntil)
+            {
+                targetLR = targetFB = targetUD = targetYaw = 0f;
+                return;
+            }
+
             string[] parts = cmd.Split(' ');
             if (parts.Length == 5
                 && float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float lr)

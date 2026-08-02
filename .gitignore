@@ -77,6 +77,7 @@ ExportedObj/
 *.csproj
 *.unityproj
 *.sln
+*.slnx
 *.suo
 *.tmp
 *.user
@@ -136,6 +137,8 @@ simulator/tello_simulator/Build/
 simulator/tello_simulator/Builds/
 simulator/tello_simulator/.vsconfig
 simulator/tello_simulator/UpgradeLog*.htm
+simulator/bridge/detection_frames/
+simulator/yolov8n.pt
 
 # Visual Studio / JetBrains / macOS
 .vs/

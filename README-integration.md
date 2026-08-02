@@ -195,6 +195,7 @@ bathtub otherfurniture` (tv/모니터 등 → otherfurniture).
 |  |  |  | **[** / **]** | 밝기 −/+ (어두우면 `]`) |
 |  |  |  | **N** 키 | 나이트샷(IR 초록 화면) |
 |  |  |  | **H** 키 | 캠코더 HUD 숨김/표시 |
+|  |  |  | **P** 키 | 현재 위치에서 360도 사람 감지 순찰 스캔 (§10) |
 |  |  |  | **Tab** 키 | 설정 패널 (경로 표시·사운드) |
 
 3인칭 카메라는 드론의 **이동방향 뒤**에서 따라감. `--confirm-timeout`(기본 120초) 내
@@ -242,6 +243,7 @@ simulator/
 │   ├── HorrorAtmosphere.cs # 호러 조명·포그·포스트FX·손전등 (L/F/[/] 키)
 │   ├── CamcorderHUD.cs     # 캠코더 UI: REC·배터리·시계·글리치 (N/H 키)
 │   ├── SettingsPanel.cs    # 설정 패널: 경로 표시·사운드 (Tab, PlayerPrefs 저장)
+│   ├── PatrolPersonDetection.cs # 드론 카메라 360도 스캔 + TCP YOLO 사람 감지
 │   ├── HorrorAudio.cs      # 앰비언트/스팅어/심박 (클립 없으면 무음)
 │   └── Resources/Audio/    # 사운드 클립 놓는 곳 (README.md 참고)
 ├── bridge/
@@ -252,6 +254,7 @@ simulator/
 │   ├── fake_unity_sim.py   # Unity 없는 테스트 스텁 (--auto-confirm-sec/--auto-next)
 │   ├── relay.py            # NAT 우회 UDP-over-TCP 릴레이
 │   ├── smoke.py            # 연결 점검
+│   ├── person_detector_tcp.py # TCP JPEG 수신 + YOLO person detection 응답
 │   └── transforms/*.json   # 건물별 좌표 변환
 3D-segmentation/webapp_llm_v2/
 ├── server.py               # 메인 REPL (LLM→LitePT→confirm→plan→fly)
@@ -399,13 +402,115 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
   `TelloSimulator.ProcessCommand` 분기 1개면 된다. 모르는 verb는 Unity·스텁 양쪽에서
   `ok` 후 무시되므로 하위 호환은 안전.
 
-## 10. Future work
+## 10. 사람 감지 순찰 스캔 (Unity 카메라 → Python YOLO)
+
+Unity Tello 시뮬레이터에서 드론 카메라 화면을 Python YOLO detector로 보내고,
+현재 위치에서 360도 순찰 스캔 중 사람이 감지되면 프레임을 저장하고 잠깐 정지하는
+기능이다. 자연어/LitePT 목적지 비행과 별개로 Unity의 **P** 키로 실행한다.
+
+### 구성 파일
+
+| 파일 | 역할 |
+|---|---|
+| `simulator/tello_simulator/Assets/PatrolPersonDetection.cs` | 드론 카메라 생성, 손전등, 360도 스캔, TCP 프레임 전송, 감지 시 저장/정지 |
+| `simulator/bridge/person_detector_tcp.py` | TCP로 JPEG 수신, YOLO person detection 실행, bbox/confidence JSON 응답 |
+| `simulator/tello_simulator/Assets/TelloSimulator.cs` | 감지 시 외부 `rc` 이동을 잠깐 무시하는 `PauseForDetection()` 제공 |
+
+### Python detector 실행
+
+의존성:
+
+```bash
+python3 -m pip install ultralytics
+```
+
+실행:
+
+```bash
+cd simulator
+python3 bridge/person_detector_tcp.py --host 127.0.0.1 --port 9100
+```
+
+통신만 테스트할 때:
+
+```bash
+cd simulator
+python3 bridge/person_detector_tcp.py --host 127.0.0.1 --port 9100 --mock-person
+```
+
+정상 운용에서는 Python의 `--save-dir` / `--save-all`을 쓰지 않는다. 저장은 Unity
+쪽에서 사람 감지 시에만 수행한다.
+
+### Unity 설정
+
+드론 오브젝트, 즉 `TelloSimulator`가 붙은 오브젝트에 `PatrolPersonDetection`
+컴포넌트를 추가한다.
+
+`P` 키를 누르면 현재 위치에서 360도 스캔을 시작한다.
+
+### 동작 흐름
+
+1. `P` 입력
+2. 드론이 현재 위치에서 360도 매끄럽게 회전
+3. `Frame Interval`마다 드론 카메라 JPEG를 TCP로 전송
+4. Python detector가 `person=True`와 confidence를 응답
+5. Unity confidence threshold 이상이면 프레임 저장
+6. Unity Console에 감지 로그 출력
+7. 드론 회전을 약 2초 정지
+8. 남은 360도 스캔 계속 진행
+9. 360도 완료 후 detection 종료
+
+사람이 감지된 프레임만 Unity가 `simulator/bridge/detection_frames`에 저장한다.
+파일명 예:
+
+```text
+patrol_person_detected_angle_071_20260802_211851_598.jpg
+```
+
+| 부분 | 의미 |
+|---|---|
+| `angle_071` | 360도 스캔 중 약 71도 지점 |
+| `20260802_211851_598` | 저장 시각 |
+
+### 중복 저장 제어
+
+현재 Raycast/personId 기반 동일 인물 식별은 사용하지 않는다. 대신 연속 감지 latch로
+중복 저장을 줄인다.
+
+```text
+사람 처음 감지 -> 저장 + 2초 정지
+같은 사람이 계속 보임 -> 추가 저장/정지 안 함
+사람 미검출 응답이 연속 N번 발생 -> 다시 감지 허용
+```
+
+`N`은 Inspector의 `No Person Responses To Rearm` 값이다. 기본 추천값은 `2`이며,
+중복 저장이 많으면 `3` 또는 `4`로 올린다.
+
+
+감지 시 Unity Console:
+
+```text
+[PatrolDetection] saved detected person frame: ...
+[PatrolDetection] PERSON detected confidence=0.86 - pause 2.0s
+```
+
+Python 서버 로그:
+
+```text
+[person-detector] person detected from 127.0.0.1 confidence=0.86
+```
+
+Python 로그는 서버가 사람을 검출했다는 뜻이고, Unity pause 여부는 Unity Console의
+`[PatrolDetection] PERSON detected ...` 로그로 확인한다. 일반 detector 응답 로그는
+출력하지 않는다.
+
+## 11. Future work
 
 - Unity 프론트에서 프롬프트 직접 입력 (현재는 서버 터미널).
 - `return_home` 시뮬레이터 왕복 비행 (현재 SDK JSON에만).
 - 다층(cross-floor) 경로 개선 (A* max_iters 한계).
 
-## 11. 트러블슈팅
+## 12. 트러블슈팅
 
 | 증상 | 원인 / 해결 |
 |---|---|
@@ -426,10 +531,16 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 | Unity 배너/버튼 한글 깨짐 | 서버 `--sim-no-status` 로 배너 끄기 가능 |
 | Unity 임포트 실패 | 에디터 `6000.3.12f1` 확인, 인터넷 확인, `Library/` 삭제 후 재열기 |
 | `No detections.json` | LitePT 데이터 미생성 — §1 |
+| Python에는 `person detected`가 뜨는데 Unity가 안 멈춤 | Unity의 `Detection Confidence Threshold`가 너무 높은지 확인 |
+| 저장 파일이 너무 많이 생김 | Python detector를 `--save-dir` / `--save-all` 없이 실행했는지 확인, `No Person Responses To Rearm` 증가 |
+| `frame_*.jpg`가 생김 | Python detector 저장 옵션이 켜진 것. 정상 운용에서는 끄기 |
+| `patrol_person_detected_*.jpg`가 안 생김 | Unity threshold, `Save New Person Frames`, `Save Directory` 확인 |
+| 사람 감지 preview가 다른 방향 | `Onboard Camera Local Euler`의 Y 값을 `180`으로 조정 |
+| 순찰 회전이 끊김 | `Frame Interval`을 `0.5 ~ 0.8`로 키우고 Console 로그를 줄이기 |
 
 ---
 
-## 12. 강화학습 경로 (`--algo rl`) — A* 대체
+## 13. 강화학습 경로 (`--algo rl`) — A* 대체
 
 경로 계획을 A*/RRT* 대신 **학습된 SAC 정책**으로 돌릴 수 있다. 정책은 같은
 건물(00809)을 같은 월드미터 프레임에서 학습했으므로, `planner.plan_path()`
