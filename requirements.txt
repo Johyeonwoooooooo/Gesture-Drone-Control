@@ -6,14 +6,19 @@
 # GPU는 LLM 의도 파서(llm_parser.py)에만 쓴다. 3D 인식은 사전계산 결과
 # (data/final_npy)를 읽기만 하므로 spconv/MinkowskiEngine/CLIP이 필요 없다.
 
-# numpy 2.x는 torch 2.1/2.2 휠(numpy 1.x로 컴파일)과 ABI가 깨져
-# `RuntimeError: Numpy is not available` 이 난다. 반드시 2 미만.
-numpy<2
-
-torch>=2.0,<2.3            # cu121 휠 권장: --index-url https://download.pytorch.org/whl/cu121
+numpy>=1.24                # numpy 2로 검증 완료 — 제거된 API를 쓰지 않는다
+torch>=2.3                 # 2.3부터 numpy 2 지원. 기본 휠이 CUDA 런타임을 동봉한다
 transformers>=4.40,<5
 accelerate>=0.30           # --llm-device-map 으로 LLM을 여러 GPU에 분산할 때
 
 # 아래 둘은 없어도 동작한다 (각각 numpy 폴백 / 임베드 생략). 있는 쪽이 빠르고 낫다.
 scipy>=1.10                # planner.py 장애물 팽창 (없으면 느린 numpy roll 폴백)
 pillow>=10.0               # patrol_report.py 사진 축소 임베드 (없으면 링크만)
+
+# ---------------------------------------------------------------------------
+# 기존 env를 재사용할 때만 해당하는 주의사항
+#
+# 이 서버의 `unidet3d` env는 torch 2.1.2 — numpy 1.x로 컴파일된 휠이라
+# numpy 2를 얹으면 `torch.from_numpy`가 전부 `RuntimeError: Numpy is not
+# available` 로 죽는다. 그 env에서 돌릴 거면 numpy를 2 미만으로 유지할 것.
+# 새로 만든 env에는 해당 없다.

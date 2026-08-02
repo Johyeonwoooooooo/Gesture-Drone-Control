@@ -29,13 +29,20 @@ contract with the separately-owned 2D person detector.
 
 ## Environment
 
-One env, no compiled 3D stack. `pip install -r requirements.txt` (numpy<2,
-torch, transformers, accelerate, scipy, pillow). GPU is used only by the LLM.
+One env, no compiled 3D stack. `pip install -r requirements.txt` (numpy, torch,
+transformers, accelerate, scipy, pillow) — no spconv/MinkowskiEngine/mmdet3d/CLIP.
+GPU is used only by the LLM.
 
-> **numpy must be < 2.** torch 2.1/2.2 wheels are built against numpy 1.x;
-> with numpy 2.x every `torch.from_numpy` raises `RuntimeError: Numpy is not
-> available`. On this box the existing `unidet3d` conda env (numpy 1.24 / torch
-> 2.1.2) works as-is; **`mosaic3d` is currently broken this way**.
+On this box the **`patrol` conda env (5.1G)** is that env: numpy 2.2.6 /
+torch 2.13 / transformers 5.14, whole pipeline verified. `conda activate patrol`.
+
+> **Only when reusing an older env:** `unidet3d` (torch 2.1.2) ships wheels built
+> against numpy 1.x, so numpy 2 there makes every `torch.from_numpy` raise
+> `RuntimeError: Numpy is not available` — keep numpy < 2 in that env. The code
+> itself is numpy-2 clean (verified on 2.2.6 and 2.4.4). The old `mosaic3d` env
+> was broken this way and has been deleted; rebuild from another branch's
+> `3D-segmentation/setup_env/setup_env.sh` if the Mosaic3D/viser stack is ever
+> needed again.
 
 Detections are **read**, never computed here: `data/final_npy/` (gitignored,
 ~305 MB) holds `detections.json` + per-room `coord/color/normal.npy` +

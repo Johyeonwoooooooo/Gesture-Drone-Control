@@ -104,7 +104,7 @@ python -m patrol.detect_events            # 9004에서 armed 상태로 대기
 
 ```bash
 source /data1/workspaces/jgshin22/miniconda3/etc/profile.d/conda.sh
-conda activate patrol           # 또는 unidet3d (README.md §1 — numpy<2 필요)
+conda activate patrol
 
 python patrol/server.py \
     --sim --unity-host <UNITY-IP> --llm-device cuda:0 \

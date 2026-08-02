@@ -81,17 +81,21 @@ git checkout patrol-mvp
 ```
 
 **파이썬 환경** — 필요한 건 `requirements.txt` 가 전부다 (numpy, scipy, pillow,
-torch, transformers). GPU는 LLM 의도 파서에만 쓴다.
+torch, transformers). GPU는 LLM 의도 파서에만 쓴다. 컴파일된 3D 스택
+(spconv·MinkowskiEngine·mmdet3d)은 하나도 필요 없어서 설치가 pip 한 줄이다.
 
 ```bash
 conda create -n patrol python=3.10 -y && conda activate patrol
 pip install -r requirements.txt
 ```
 
-> **numpy는 반드시 2 미만.** 이 저장소 서버의 기존 env 중에서는 `unidet3d`
-> (numpy 1.24 / torch 2.1.2) 가 그대로 동작하고, `mosaic3d` 는 numpy가 2.2로
-> 올라가 `torch.from_numpy` 가 `RuntimeError: Numpy is not available` 로 깨져 있다.
-> 새로 만들지 않고 쓸 거라면 `conda activate unidet3d`.
+이 서버에는 위 명령으로 만든 **`patrol` env(5.1G)** 가 이미 있다 —
+numpy 2.2.6 / torch 2.13 / transformers 5.14 로 전 경로 검증 완료.
+
+> **기존 env를 재사용할 때만 주의.** `unidet3d` env(torch 2.1.2)는 numpy 1.x로
+> 컴파일된 휠이라 numpy 2를 얹으면 `torch.from_numpy` 가 전부
+> `RuntimeError: Numpy is not available` 로 죽는다. 그 env에서 돌릴 거면 numpy를
+> 2 미만으로 유지할 것. 새로 만든 `patrol` env에는 해당 없다.
 
 **데이터 확인** — git에 없다(용량). 서버에 다음이 있어야 한다:
 
@@ -160,7 +164,7 @@ python3 .../simulator/bridge/relay.py client --server-host 166.104.223.32
 **④ 서버 — 경로 게이트** `[서버 터미널 B]`
 ```bash
 cd /data1/workspaces/jgshin22/Gesture-Drone-Control
-conda activate patrol            # 또는 unidet3d (§1)
+conda activate patrol
 python simulator/bridge/smoke.py --unity-host 127.0.0.1
 ```
 ✅ `command -> 'ok'` + `state pos=...`.
@@ -487,7 +491,7 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 
 | 증상 | 원인 / 해결 |
 |---|---|
-| `RuntimeError: Numpy is not available` | numpy 2.x + 구 torch 조합 — §1의 numpy<2 조건 |
+| `RuntimeError: Numpy is not available` | numpy 2.x + 구 torch(2.1/2.2) 조합. `patrol` env를 쓰거나, 굳이 `unidet3d` env를 쓸 거면 numpy를 2 미만으로 (§1) |
 | `relay client`: `Connection refused` | 서버 relay server(§4 ①)가 안 떠 있음. ping은 되는데 refused면 리스너 없음 |
 | `smoke`/서버 시작: `-> 'timeout'` | Unity가 9000을 안 듣는 중 (§4 ②). Console에 `listening on 9000` 초록 확인 |
 | Unity Console 빨강 `address already in use` | 9000 점유 — `lsof -i :9000` → `kill -9 <PID>` → 재Play |
