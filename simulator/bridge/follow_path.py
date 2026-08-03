@@ -25,6 +25,13 @@ except ImportError:  # run as a plain script from simulator/bridge/
     from unity_bridge import DroneState, UnityTelloBridge
 
 # TelloSimulator.cs moveSpeed: rc=100 commands 15 u/s. Coupled to the C# field.
+#
+# The in-sim settings panel (SettingsPanel.cs, Tab) can now change moveSpeed at
+# runtime, and it does NOT tell us — so at a panel ratio of r the drone actually
+# flies r x the `max_speed` asked for below. follow_path closes on the reported
+# position, so the flight still lands on its waypoints; only the u/s scale is
+# nominal (and corners overshoot more). Keep the panel at 기본값 whenever the
+# absolute speed matters, e.g. when timing a mission or tuning arrival_threshold.
 UNITY_MOVE_SPEED = 15.0
 
 

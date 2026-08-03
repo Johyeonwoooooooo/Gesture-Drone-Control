@@ -1,6 +1,7 @@
 using UnityEngine;
 
-// In-game settings panel (Tab). Two groups:
+// In-game settings panel (Tab). Three groups:
+//   비행       — drone move speed
 //   경로 표시 — flight trail, planned path, flown trajectory, collision markers
 //   사운드     — master + per-layer volumes
 //
@@ -14,6 +15,17 @@ using UnityEngine;
 public class SettingsPanel : MonoBehaviour
 {
     const string PrefPrefix = "tello.settings.";
+
+    // Slider bounds for TelloSimulator.moveSpeed (u/s commanded by rc = 100).
+    // The stock 15 sits a third of the way in, so the slider spans roughly
+    // 0.3x to 4x the default flight speed.
+    const float MinMoveSpeed = 5f;
+    const float MaxMoveSpeed = 60f;
+
+    [Header("비행")]
+    [Tooltip("TelloSimulator.moveSpeed — u/s at rc = 100. Loaded from the simulator's " +
+             "own value on first bind, so the Inspector setting stays the default.")]
+    public float moveSpeed = 15f;
 
     [Header("경로 표시")]
     public bool showTrail = true;
@@ -33,10 +45,13 @@ public class SettingsPanel : MonoBehaviour
     private PlannedPathRenderer plannedPath;
     private FlightReportRenderer flightReport;
     private HorrorAudio audioRig;
-    private Rect window = new Rect(20f, 92f, 330f, 430f);
+    private Rect window = new Rect(20f, 92f, 330f, 500f);
     private GUIStyle header;
+    private GUIStyle hint;
     private bool applied;
     private bool audioPrefsLoaded;
+    private bool flightPrefsLoaded;
+    private float defaultMoveSpeed = 15f;
     private bool prefsDirty;
     private float bindDeadline;
 
@@ -81,6 +96,20 @@ public class SettingsPanel : MonoBehaviour
         masterVolume = PlayerPrefs.GetFloat(PrefPrefix + "master", masterVolume);
         muted = GetBool("muted", muted);
         LoadAudioPrefs();
+        LoadFlightPrefs();
+    }
+
+    // Same late-bind guard as LoadAudioPrefs, for a different reason: the
+    // simulator's own moveSpeed is the "기본값" the restore button returns to, so
+    // it has to be read BEFORE Apply() writes the stored value over it.
+    void LoadFlightPrefs()
+    {
+        if (sim == null || flightPrefsLoaded) return;
+        flightPrefsLoaded = true;
+        defaultMoveSpeed = sim.moveSpeed;
+        moveSpeed = Mathf.Clamp(
+            PlayerPrefs.GetFloat(PrefPrefix + "moveSpeed", defaultMoveSpeed),
+            MinMoveSpeed, MaxMoveSpeed);
     }
 
     // Separate from Load(): HorrorAudio is created during HorrorAtmosphere.Start,
@@ -105,6 +134,7 @@ public class SettingsPanel : MonoBehaviour
         SetBool("collisionMarkers", showCollisionMarkers);
         PlayerPrefs.SetFloat(PrefPrefix + "master", masterVolume);
         SetBool("muted", muted);
+        PlayerPrefs.SetFloat(PrefPrefix + "moveSpeed", moveSpeed);
         if (audioRig != null)
         {
             PlayerPrefs.SetFloat(PrefPrefix + "ambient", audioRig.ambientVolume);
@@ -151,11 +181,13 @@ public class SettingsPanel : MonoBehaviour
         if (plannedPath == null) plannedPath = FindFirstObjectByType<PlannedPathRenderer>();
         if (flightReport == null) flightReport = FindFirstObjectByType<FlightReportRenderer>();
         LoadAudioPrefs();
+        LoadFlightPrefs();
 
         if (sim != null)
         {
             sim.SetTrailVisible(showTrail);
             sim.SetCollisionMarkersVisible(showCollisionMarkers);
+            sim.moveSpeed = moveSpeed;
         }
         if (plannedPath != null) plannedPath.SetVisible(showPlannedPath);
         if (flightReport != null) flightReport.SetVisible(showFlightReport);
@@ -170,6 +202,8 @@ public class SettingsPanel : MonoBehaviour
         if (header == null)
         {
             header = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold };
+            hint = new GUIStyle(GUI.skin.label) { fontSize = 10, wordWrap = true };
+            hint.normal.textColor = new Color(1f, 0.78f, 0.4f);
         }
         window = GUILayout.Window(GetInstanceID(), window, DrawWindow, "설정  (Tab)");
     }
@@ -179,6 +213,43 @@ public class SettingsPanel : MonoBehaviour
         bool changed = false;
 
         GUILayout.Space(4f);
+        GUILayout.Label("비행", header);
+        if (sim != null)
+        {
+            changed |= SliderRange(ref moveSpeed, "이동 속도", MinMoveSpeed, MaxMoveSpeed,
+                                   $"{moveSpeed:F0} u/s");
+            GUILayout.BeginHorizontal();
+            // Read after the slider so the ratio matches the value drawn beside it.
+            float ratio = moveSpeed / Mathf.Max(0.01f, defaultMoveSpeed);
+            GUILayout.Label($"기본 {defaultMoveSpeed:F0} u/s 대비 ×{ratio:F2}");
+            if (GUILayout.Button("기본값", GUILayout.Width(64f)))
+            {
+                moveSpeed = defaultMoveSpeed;
+                ratio = 1f;
+                changed = true;
+            }
+            GUILayout.EndHorizontal();
+
+            // The server converts its target velocity to rc with a hardcoded 15 u/s
+            // (follow_path.UNITY_MOVE_SPEED), so anything but 1.00x makes the drone
+            // fly at ratio x the commanded --sim-speed. Both control loops close on
+            // the simulator's reported position, so the mission still completes —
+            // the number just stops being u/s, and corners overshoot more.
+            //
+            // Gated on the *rendered* 2 decimals, not Approximately, so the warning
+            // can never sit under a label that reads x1.00.
+            if (Mathf.Abs(ratio - 1f) >= 0.005f)
+            {
+                GUILayout.Label($"[주의] 서버 --sim-speed 가 실제로는 ×{ratio:F2} 로 "
+                                + "나갑니다 (눈금이 명목값이 됨).", hint);
+            }
+        }
+        else
+        {
+            GUILayout.Label("TelloSimulator 없음 — 속도 슬라이더 비활성");
+        }
+
+        GUILayout.Space(10f);
         GUILayout.Label("경로 표시", header);
         changed |= Toggle(ref showTrail, "비행 트레일 (지나온 경로)");
         changed |= Toggle(ref showPlannedPath, "계획 경로 (A* 결과)");
@@ -225,6 +296,21 @@ public class SettingsPanel : MonoBehaviour
     {
         bool now = GUILayout.Toggle(value, " " + label);
         bool changed = now != value;
+        value = now;
+        return changed;
+    }
+
+    // Slider() is the 0..1 volume flavour; this one spans an arbitrary range and
+    // shows the caller's own formatting (u/s rather than a percentage).
+    static bool SliderRange(ref float value, string label, float min, float max, string readout)
+    {
+        GUILayout.BeginHorizontal();
+        GUILayout.Label(label, GUILayout.Width(110f));
+        float now = GUILayout.HorizontalSlider(value, min, max, GUILayout.Width(130f));
+        GUILayout.Label(readout, GUILayout.Width(60f));
+        GUILayout.EndHorizontal();
+
+        bool changed = !Mathf.Approximately(now, value);
         value = now;
         return changed;
     }

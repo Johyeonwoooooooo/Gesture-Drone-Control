@@ -220,7 +220,7 @@ bathtub otherfurniture` (tv/모니터 등 → otherfurniture).
 |  |  |  | **[** / **]** | 밝기 −/+ (어두우면 `]`) |
 |  |  |  | **N** 키 | 나이트샷(IR 초록 화면) |
 |  |  |  | **H** 키 | 캠코더 HUD 숨김/표시 |
-|  |  |  | **Tab** 키 | 설정 패널 (경로 표시·사운드) |
+|  |  |  | **Tab** 키 | 설정 패널 (비행 속도·경로 표시·사운드) |
 
 3인칭 카메라는 드론의 **이동방향 뒤**에서 따라간다. `--confirm-timeout`(기본 120초) 내
 버튼 무응답 시 쿼리 취소.
@@ -309,7 +309,7 @@ simulator/                   # 시뮬 (Unity + 브리지)
 │   ├── CameraFollow.cs      # 3/1인칭(이동방향 기준)/프리뷰 카메라, C키 토글
 │   ├── HorrorAtmosphere.cs  # 호러 조명·포그·포스트FX·손전등 (L/F/[/] 키)
 │   ├── CamcorderHUD.cs      # 캠코더 UI: REC·배터리·시계·글리치 (N/H 키)
-│   ├── SettingsPanel.cs     # 설정 패널: 경로 표시·사운드 (Tab, PlayerPrefs 저장)
+│   ├── SettingsPanel.cs     # 설정 패널: 비행 속도·경로 표시·사운드 (Tab, PlayerPrefs 저장)
 │   ├── HorrorAudio.cs       # 앰비언트/스팅어/심박 (클립 없으면 무음)
 │   ├── PlannedPathRenderer.cs / FlightReportRenderer.cs / VoxelMapRenderer.cs
 │   │                        # 시각화 — 씬에 수동 부착 (§8)
@@ -441,6 +441,17 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 ### 설정 패널 (`SettingsPanel.cs`, Tab)
 
 드래그 가능한 창. 바꾸면 즉시 적용되고 **PlayerPrefs에 저장**돼 다음 Play에도 남는다.
+
+**비행** — `이동 속도` 슬라이더가 `TelloSimulator.moveSpeed`(rc=100일 때의 u/s)를
+5~60 사이에서 조절한다. 기본 15는 Inspector 값을 그대로 읽어오고, 옆의 **[기본값]**
+버튼이 거기로 되돌린다. 비행 중에 바꿔도 안전하다 (이·착륙은 순간이동이라 무관).
+
+> **눈금 주의.** 서버는 목표 속도를 rc로 바꿀 때 15 u/s를 하드코딩한다
+> (`follow_path.UNITY_MOVE_SPEED`). 그래서 배율이 ×r 이면 드론은 `--sim-speed` 로
+> 지정한 값의 **r배**로 난다. 두 제어 루프 모두 시뮬레이터가 보고한 위치·yaw로
+> 닫혀 있어서 미션 자체는 정상 완료되지만, u/s 눈금이 명목값이 되고 코너에서
+> 오버슈트가 커진다. 배율이 1이 아니면 패널이 경고 문구를 띄운다. 비행 시간을
+> 재거나 `arrival_threshold` 를 튜닝할 땐 [기본값] 으로 두고 한다.
 
 **경로 표시** — 전부 켜짐이 기본. 어두운 집 안에서 unlit 라인이 밝게 떠서 분위기를
 깨므로, 연출 확인할 땐 끄고 디버깅할 땐 켜는 식으로 쓴다.
