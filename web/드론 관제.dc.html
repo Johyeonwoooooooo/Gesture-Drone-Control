@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=East+Sea+Dokdo&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;background:#0a0405;overflow:hidden}
+*{box-sizing:border-box}
+a{color:#f87171}a:hover{color:#fca5a5}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#3a1a20;border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
+@keyframes dronePulse{0%{transform:translate(-50%,-50%) scale(.6);opacity:.9}100%{transform:translate(-50%,-50%) scale(3.4);opacity:0}}
+@keyframes blinkDot{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes toastIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes flicker{0%,88%,100%{opacity:1}89%{opacity:.35}90%{opacity:1}93%{opacity:.55}94%{opacity:1}}
+@keyframes dripStretch{0%{height:8px}55%{height:54px}100%{height:8px}}
+@keyframes dripFall{0%{transform:translateY(0);opacity:0}8%{opacity:1}85%{opacity:1}100%{transform:translateY(72vh);opacity:0}}
+@keyframes destRing{0%{transform:translate(-50%,-50%) scale(.5);opacity:1}100%{transform:translate(-50%,-50%) scale(2.6);opacity:0}}
+/* 전체 화면으로 띄운 시뮬 스테이지는 인라인 height 를 무시하고 화면을 채운다 */
+:fullscreen{width:100%!important;height:100%!important;background:#000}
+:-webkit-full-screen{width:100%!important;height:100%!important;background:#000}
+</style>
+</helmet>
+<div style="width:100vw;height:100vh;display:flex;flex-direction:column;background:#0a0405;color:#cfc2c5;font-family:'IBM Plex Sans KR',sans-serif;font-size:13px;overflow:hidden">
+  <header style="height:56px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;background:#10070a;border-bottom:1px solid #2a1015">
+    <div style="display:flex;align-items:center;gap:10px;flex:none">
+      <div style="width:30px;height:30px;border:1px solid #4a1d24;border-radius:6px;display:grid;place-items:center;background:#170a0d">
+        <div style="width:10px;height:10px;background:#ef4444;border-radius:50%;box-shadow:0 0 10px #dc2626cc;animation:blinkDot 2.4s infinite"></div>
+      </div>
+      <div>
+        <div style="font-family:'East Sea Dokdo',cursive;font-size:26px;line-height:1;color:#ef4444;text-shadow:0 0 14px #dc262699,0 2px 4px #000;animation:flicker 6s infinite">흉가 드론 관제</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.08em">HAUNTED OPS · 00809_Qpor2mEya8F</div>
+      </div>
+    </div>
+    <!-- 순찰 지시 검색창. 지금은 방 이름·번호 부분일치로 지도를 옮겨 줄 뿐이고,
+         자연어 해석(Qwen)이 붙으면 runSearch() 안에서 setTargets 로 바뀐다. -->
+    <div style="flex:1;display:flex;justify-content:center;min-width:0">
+      <div style="display:flex;align-items:center;gap:6px;width:100%;max-width:440px;height:34px;padding:0 6px 0 11px;background:#170a0d;border:1px solid {{searchBorder}};border-radius:9px">
+        <span style="flex:none;color:#8a7478;font-size:13px">⌕</span>
+        <input value="{{q}}" onChange="{{onQ}}" onKeyDown="{{onQKey}}" onFocus="{{onQFocus}}" onBlur="{{onQBlur}}" placeholder="{{searchPlaceholder}}" style="flex:1;min-width:0;height:100%;border:none;outline:none;background:transparent;color:#e8dde0;font-family:'IBM Plex Sans KR',sans-serif;font-size:12px">
+        <button onClick="{{onSearch}}" style="flex:none;height:24px;padding:0 12px;border:1px solid #4a1d24;border-radius:6px;background:#241014;color:#cfc2c5;font-family:'IBM Plex Sans KR',sans-serif;font-size:11px;cursor:pointer" style-hover="border-color:#ef4444;color:#f87171">검색</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px">
+      <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:#101d16;border:1px solid #1e3a2a;border-radius:6px;color:#4ade80">
+        <span style="width:6px;height:6px;border-radius:50%;background:#4ade80;animation:blinkDot 1.6s infinite"></span>생존 신호 확인
+      </div>
+      <div style="padding:5px 10px;background:#170a0d;border:1px solid #3a161c;border-radius:6px;color:#a8969a">SLAM 정상 (아마)</div>
+      <div style="padding:5px 10px;background:#170a0d;border:1px solid #3a161c;border-radius:6px;color:#a8969a">RTT 38ms</div>
+    </div>
+  </header>
+  <div style="position:fixed;left:0;right:0;top:56px;height:0;z-index:40;pointer-events:none">
+    <span style="position:absolute;left:9%;top:0;width:3px;background:linear-gradient(#450a0a,#b91c1c);border-radius:0 0 3px 3px;animation:dripStretch 8s ease-in-out infinite"></span>
+    <span style="position:absolute;left:27%;top:0;width:2px;background:linear-gradient(#450a0a,#991b1b);border-radius:0 0 2px 2px;animation:dripStretch 11s ease-in-out 2s infinite"></span>
+    <span style="position:absolute;left:44%;top:0;width:3px;background:linear-gradient(#450a0a,#b91c1c);border-radius:0 0 3px 3px;animation:dripStretch 7s ease-in-out 1s infinite"></span>
+    <span style="position:absolute;left:66%;top:0;width:2px;background:linear-gradient(#450a0a,#991b1b);border-radius:0 0 2px 2px;animation:dripStretch 13s ease-in-out 3.5s infinite"></span>
+    <span style="position:absolute;left:88%;top:0;width:3px;background:linear-gradient(#450a0a,#b91c1c);border-radius:0 0 3px 3px;animation:dripStretch 9s ease-in-out .5s infinite"></span>
+    <span style="position:absolute;left:44.1%;top:52px;width:4px;height:7px;border-radius:50%;background:#b91c1c;animation:dripFall 6s ease-in 1.5s infinite"></span>
+    <span style="position:absolute;left:9.1%;top:52px;width:4px;height:7px;border-radius:50%;background:#b91c1c;animation:dripFall 9s ease-in 4s infinite"></span>
+  </div>
+  <div style="flex:1;display:flex;min-height:0">
+    <aside style="width:236px;flex:none;background:#10070a;border-right:1px solid #2a1015;display:flex;flex-direction:column;min-height:0">
+      <div style="padding:12px;border-bottom:1px solid #2a1015">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.1em;margin-bottom:8px">FLOOR</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+          <sc-for list="{{floorTabs}}" as="t" hint-placeholder-count="3">
+            <button onClick="{{t.onClick}}" style="position:relative;height:40px;border:1px solid {{t.border}};border-radius:8px;background:{{t.bg}};color:{{t.color}};font-family:'IBM Plex Sans KR',sans-serif;font-weight:600;font-size:13px;cursor:pointer" style-hover="border-color:#ef4444">
+              {{t.label}}
+              <span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:400;color:#8a7478">{{t.count}} rooms</span>
+              <sc-if value="{{t.droneHere}}" hint-placeholder-val="{{false}}"><span style="position:absolute;top:5px;right:6px;width:6px;height:6px;border-radius:50%;background:#34d399"></span></sc-if>
+              <sc-if value="{{t.selHere}}" hint-placeholder-val="{{false}}"><span style="position:absolute;top:3px;left:5px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#f87171">{{t.selTxt}}</span></sc-if>
+            </button>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button onClick="{{onFloorAll}}" style="flex:1;height:28px;border:1px solid #7f1d1d;border-radius:7px;background:#450a0a55;color:#fca5a5;font-family:'IBM Plex Sans KR',sans-serif;font-size:11px;font-weight:600;cursor:pointer" style-hover="background:#7f1d1d">이 층 전체 순찰</button>
+          <button onClick="{{onFloorNone}}" style="flex:none;width:76px;height:28px;border:1px solid #3a161c;border-radius:7px;background:#170a0d;color:#a8969a;font-family:'IBM Plex Sans KR',sans-serif;font-size:11px;cursor:pointer" style-hover="border-color:#ef4444">해제</button>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;min-height:0;padding:8px 12px 16px">
+        <sc-for list="{{sidebarGroups}}" as="g" hint-placeholder-count="3">
+          <div style="margin-top:10px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.1em;padding:4px 2px">{{g.label}}</div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <sc-for list="{{g.rooms}}" as="r" hint-placeholder-count="4">
+                <button onClick="{{r.onClick}}" title="이 방으로 이동" style="display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid {{r.border}};border-radius:7px;background:{{r.bg}};cursor:pointer;text-align:left" style-hover="border-color:#ef4444;background:#1d0c10">
+                  <span style="width:16px;height:16px;flex:none;border-radius:50%;background:{{r.dotBg}};border:1px solid {{r.dot}};display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:{{r.orderColor}}">{{r.orderTxt}}</span>
+                  <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                    <span style="font-size:12px;font-weight:600;color:#e8dde0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{r.name}}</span>
+                    <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{r.id}} · {{r.furnTxt}}</span>
+                  </span>
+                  <span style="font-size:10px;color:{{r.tagColor}};flex:none">{{r.tag}}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="flex:none;padding:10px 12px;border-top:1px solid #2a1015;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5f4a4e;line-height:1.6">
+        방 22 · 문 20 · 계단 2<br>해상도 0.02 m/px
+      </div>
+    </aside>
+    <main style="flex:1;position:relative;min-width:0;overflow:hidden;background:#0a0405;background-image:linear-gradient(#2a101508 1px,transparent 1px),linear-gradient(90deg,#ffffff05 1px,transparent 1px);background-size:40px 40px">
+      <sc-if value="{{simMax}}" hint-placeholder-val="{{false}}">
+        <div ref="{{stageRef}}" onDoubleClick="{{onStageDbl}}" style="position:absolute;inset:0;z-index:0;background:repeating-linear-gradient(135deg,#0d0608 0 18px,#120709 18px 36px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
+          <sc-if value="{{simShareOn}}" hint-placeholder-val="{{false}}">{{simVideoEl}}</sc-if>
+          <sc-if value="{{simShareOff}}" hint-placeholder-val="{{true}}">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:.14em;color:#8a7478">SIM FEED · 미연결</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#5f4a4e;text-align:center;line-height:1.8">시뮬레이터(Unity) 창을 공유하면 여기에 뜹니다</span>
+            <button onClick="{{onSimShare}}" style="margin-top:4px;height:32px;padding:0 16px;border:1px solid #ef4444;border-radius:8px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:700;font-size:12px;cursor:pointer" style-hover="background:#7f1d1d">시뮬레이터 화면 연결</button>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#f59e0b">{{simShareErr}}</span>
+          </sc-if>
+          <sc-if value="{{simShareOff}}" hint-placeholder-val="{{true}}">
+            <span style="position:absolute;left:14px;top:12px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f87171;animation:blinkDot 1.6s infinite">REC ●</span>
+            <span style="position:absolute;left:50%;top:12px;transform:translateX(-50%);font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a7478">CAM 01 · 3RD PERSON · {{simStatusTxt}}</span>
+          </sc-if>
+          <div style="position:absolute;left:14px;bottom:44px;display:flex;flex-direction:column;gap:3px;font-family:'IBM Plex Mono',monospace;font-size:11px">
+            <span style="color:#e8dde0">{{simRoomTxt}}</span>
+            <span style="color:#8a7478">{{simCoordTxt}}</span>
+          </div>
+          <div style="position:absolute;right:14px;bottom:44px;display:flex;align-items:center;gap:8px">
+            <sc-if value="{{simShareOn}}" hint-placeholder-val="{{false}}">
+              <div style="display:flex;align-items:center;height:26px;border:1px solid #4a1d24;border-radius:6px;background:#10070ae6;overflow:hidden">
+                <button onClick="{{onCropDown}}" title="상단 잘라내기 줄이기" style="width:24px;height:100%;border:none;background:transparent;color:#a8969a;cursor:pointer;font-size:13px" style-hover="background:#35161d">−</button>
+                <span title="시뮬 창 타이틀바를 잘라냅니다" style="padding:0 6px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#cfc2c5;white-space:nowrap">⊟ {{cropTxt}}</span>
+                <button onClick="{{onCropUp}}" title="상단 잘라내기 늘리기" style="width:24px;height:100%;border:none;background:transparent;color:#a8969a;cursor:pointer;font-size:13px" style-hover="background:#35161d">+</button>
+              </div>
+            </sc-if>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5f4a4e">{{fsHint}}</span>
+            <button onClick="{{onFullscreen}}" title="전체 화면 (더블클릭 / Esc 로 해제)" style="height:26px;padding:0 12px;border:1px solid {{fsBorder}};border-radius:6px;background:#10070ae6;color:{{fsColor}};font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer" style-hover="border-color:#ef4444">{{fsTxt}}</button>
+          </div>
+        </div>
+      </sc-if>
+      <div ref="{{mapRef}}" onMouseDown="{{onMapDown}}" onMouseMove="{{onMapMove}}" onMouseLeave="{{onMapLeave}}" onClick="{{onMapClick}}" style="position:absolute;left:{{mapL}};top:{{mapT}};right:{{mapR}};bottom:{{mapB}};width:{{mapWd}};height:{{mapHt}};border:{{mapBorder}};border-radius:{{mapRadius}};box-shadow:{{mapShadow}};z-index:{{mapZ}};background:#0a0405;cursor:{{mapCursor}};overflow:hidden">
+        <sc-if value="{{simMax}}" hint-placeholder-val="{{false}}">
+          <div style="position:absolute;left:8px;top:8px;z-index:5;display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#a8969a;background:#0a0405cc;border:1px solid #2a1015;border-radius:5px;padding:3px 7px;pointer-events:none">평면도 · {{curFloorLabel}}</div>
+          <button onClick="{{onSimMin}}" title="평면도 크게 보기" style="position:absolute;right:8px;top:8px;z-index:5;width:22px;height:22px;border:1px solid #4a1d24;border-radius:5px;background:#170a0de6;color:#cfc2c5;cursor:pointer;font-size:11px" style-hover="border-color:#ef4444">⛶</button>
+        </sc-if>
+        <sc-if value="{{loaded}}" hint-placeholder-val="{{false}}">
+          <div style="position:absolute;left:0;top:0;transform-origin:0 0;transform:translate({{vtx}}px,{{vty}}px) scale({{vs}});width:{{planeW}}px;height:{{planeH}}px">
+            {{floorImg}}
+            <sc-for list="{{roomRects}}" as="r" hint-placeholder-count="5">
+              <div onMouseEnter="{{r.onEnter}}" onMouseLeave="{{r.onLeave}}" style="position:absolute;left:{{r.left}}px;top:{{r.top}}px;width:{{r.w}}px;height:{{r.h}}px;border:1px solid {{r.border}};background:{{r.bg}};border-radius:3px">
+                <span style="position:absolute;left:4px;top:3px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;color:{{r.labelColor}};background:#0a0405cc;padding:1px 5px;border-radius:4px;pointer-events:none;white-space:nowrap">{{r.name}}</span>
+              </div>
+            </sc-for>
+            <sc-for list="{{passageDots}}" as="p" hint-placeholder-count="3">
+              <div style="position:absolute;left:{{p.left}}px;top:{{p.top}}px;width:7px;height:7px;transform:translate(-50%,-50%) rotate(45deg);background:#f59e0b;box-shadow:0 0 6px #f59e0b99;pointer-events:none"></div>
+            </sc-for>
+            <sc-for list="{{stairChips}}" as="s" hint-placeholder-count="1">
+              <div style="position:absolute;left:{{s.left}}px;top:{{s.top}}px;transform:translate(-50%,-130%);font-family:'IBM Plex Mono',monospace;font-size:10px;color:#fbbf24;background:#0a0405d9;border:1px solid #57431a;border-radius:5px;padding:2px 6px;pointer-events:none;white-space:nowrap">계단 ↕</div>
+            </sc-for>
+            <sc-for list="{{routeRuns}}" as="rr" hint-placeholder-count="0">
+              <svg width="{{planeW}}" height="{{planeH}}" style="position:absolute;left:0;top:0;pointer-events:none;overflow:visible">
+                <polyline points="{{rr.pts}}" fill="none" stroke="{{rr.color}}" stroke-width="3" stroke-dasharray="{{rr.dash}}" stroke-linecap="round" opacity="0.8"></polyline>
+              </svg>
+            </sc-for>
+            <sc-for list="{{targetMarks}}" as="m" hint-placeholder-count="0">
+              <div style="position:absolute;left:{{m.left}}px;top:{{m.top}}px;pointer-events:none">
+                <span style="position:absolute;left:0;top:0;width:26px;height:26px;border:2px solid #f87171;border-radius:50%;transform:translate(-50%,-50%);animation:destRing 1.8s ease-out infinite"></span>
+                <span style="position:absolute;left:0;top:0;width:20px;height:20px;background:#ef4444;border:2px solid #fecaca;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 10px #ef4444aa;display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;color:#fff5f5">{{m.order}}</span>
+                <span style="position:absolute;left:0;top:0;transform:translate(-50%,-210%);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:#fecaca;background:#450a0acc;border:1px solid #7f1d1d;border-radius:5px;padding:2px 7px;white-space:nowrap">{{m.name}}</span>
+              </div>
+            </sc-for>
+            <sc-if value="{{droneVisible}}" hint-placeholder-val="{{false}}">
+              <div style="position:absolute;left:{{droneLeft}}px;top:{{droneTop}}px;pointer-events:none">
+                <span style="position:absolute;left:0;top:0;width:22px;height:22px;border:2px solid #34d399;border-radius:50%;animation:dronePulse 2s ease-out infinite"></span>
+                <span style="position:absolute;left:0;top:0;width:22px;height:22px;border:2px solid #34d399;border-radius:50%;animation:dronePulse 2s ease-out infinite;animation-delay:1s"></span>
+                <span style="position:absolute;left:0;top:0;width:16px;height:16px;background:#10b981;border:2px solid #a7f3d0;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 12px #34d399cc"></span>
+                <span style="position:absolute;left:0;top:0;transform:translate(-50%,110%);font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:#a7f3d0;background:#022c22cc;border:1px solid #14532d;border-radius:5px;padding:2px 7px;white-space:nowrap">DRONE · {{droneName}}</span>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+        <sc-if value="{{notLoaded}}" hint-placeholder-val="{{true}}">
+          <div style="position:absolute;inset:0;display:grid;place-items:center;color:#8a7478;font-family:'IBM Plex Mono',monospace;font-size:12px">저택의 기록을 불러오는 중…</div>
+        </sc-if>
+      </div>
+      <div style="position:absolute;inset:0;pointer-events:none;z-index:3;background:radial-gradient(ellipse at center,transparent 52%,#1a000088 100%);box-shadow:inset 0 0 130px 30px #000000d0"></div>
+      <sc-if value="{{hoverVisible}}" hint-placeholder-val="{{false}}">
+        <div style="position:absolute;left:{{hoverX}}px;top:{{hoverY}}px;pointer-events:none;z-index:5;background:#10070af2;border:1px solid #4a1d24;border-radius:9px;padding:10px 12px;min-width:170px;box-shadow:0 8px 24px #00000080">
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
+            <span style="font-size:13px;font-weight:700;color:#f6eef0">{{hoverName}}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478">{{hoverId}} · {{hoverFloor}}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:11px;color:#a8969a">
+            <span style="color:#8a7478">크기</span><span style="font-family:'IBM Plex Mono',monospace">{{hoverSize}}</span>
+            <span style="color:#8a7478">면적</span><span style="font-family:'IBM Plex Mono',monospace">{{hoverArea}}</span>
+            <span style="color:#8a7478">통로</span><span style="font-family:'IBM Plex Mono',monospace">{{hoverPass}}</span>
+            <span style="color:#8a7478">가구</span><span>{{hoverFurn}}</span>
+          </div>
+          <div style="margin-top:7px;font-size:10px;color:{{hoverPickColor}}">{{hoverPickTxt}}</div>
+        </div>
+      </sc-if>
+      <div style="position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:6px;z-index:4">
+        <button onClick="{{zoomIn}}" style="width:32px;height:32px;border:1px solid #4a1d24;border-radius:7px;background:#10070ae6;color:#cfc2c5;font-size:16px;cursor:pointer" style-hover="border-color:#ef4444">+</button>
+        <button onClick="{{zoomOut}}" style="width:32px;height:32px;border:1px solid #4a1d24;border-radius:7px;background:#10070ae6;color:#cfc2c5;font-size:16px;cursor:pointer" style-hover="border-color:#ef4444">−</button>
+        <button onClick="{{zoomFit}}" title="화면 맞춤" style="width:32px;height:32px;border:1px solid #4a1d24;border-radius:7px;background:#10070ae6;color:#cfc2c5;font-size:12px;cursor:pointer" style-hover="border-color:#ef4444">⤢</button>
+        <button onClick="{{onSimOpen}}" title="Unity 시뮬레이션 창" style="width:32px;height:32px;border:1px solid #4a1d24;border-radius:7px;background:#10070ae6;color:#cfc2c5;font-family:'IBM Plex Mono',monospace;font-size:9px;cursor:pointer" style-hover="border-color:#ef4444">SIM</button>
+      </div>
+      <sc-if value="{{simVisible}}" hint-placeholder-val="{{false}}">
+        <div style="position:absolute;right:12px;bottom:42px;z-index:7;width:320px;background:#10070af7;border:1px solid #4a1d24;border-radius:10px;box-shadow:0 12px 34px #000000b0;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#170a0d;border-bottom:1px solid #2a1015">
+            <span style="width:7px;height:7px;border-radius:50%;background:{{simDotColor}};animation:blinkDot 1.2s infinite"></span>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:#e8dde0;letter-spacing:.08em">UNITY SIM · {{simStatusTxt}}</span>
+            <button onClick="{{onSimMax}}" title="크게 보기 (평면도와 교체)" style="margin-left:auto;width:20px;height:20px;border:none;border-radius:4px;background:#241014;color:#a8969a;cursor:pointer;font-size:10px" style-hover="background:#35161d">⛶</button>
+            <button onClick="{{onPanelFullscreen}}" title="전체 화면" style="width:20px;height:20px;border:none;border-radius:4px;background:#241014;color:#a8969a;cursor:pointer;font-size:10px" style-hover="background:#35161d">⤢</button>
+            <button onClick="{{onSimClose}}" style="width:20px;height:20px;border:none;border-radius:4px;background:#241014;color:#a8969a;cursor:pointer;font-size:10px" style-hover="background:#35161d">✕</button>
+          </div>
+          <div ref="{{panelRef}}" onDoubleClick="{{onPanelDbl}}" style="position:relative;height:180px;background:repeating-linear-gradient(135deg,#0d0608 0 14px,#120709 14px 28px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+            <sc-if value="{{simShareOn}}" hint-placeholder-val="{{false}}">{{simVideoEl2}}</sc-if>
+            <sc-if value="{{simShareOff}}" hint-placeholder-val="{{true}}">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a7478">SIM FEED · 미연결</span>
+              <button onClick="{{onSimShare}}" style="height:26px;padding:0 12px;border:1px solid #ef4444;border-radius:7px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:600;font-size:11px;cursor:pointer" style-hover="background:#7f1d1d">화면 연결</button>
+            </sc-if>
+            <sc-if value="{{simShareOff}}" hint-placeholder-val="{{true}}">
+              <span style="position:absolute;left:10px;top:8px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#f87171">REC ●</span>
+              <span style="position:absolute;right:10px;top:8px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478">CAM 01 · 3RD PERSON</span>
+            </sc-if>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-top:1px solid #2a1015;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#a8969a">
+            <span style="color:#e8dde0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">{{simRoomTxt}}</span>
+            <span style="margin-left:auto;color:#8a7478">{{simCoordTxt}}</span>
+          </div>
+        </div>
+      </sc-if>
+      <div style="position:absolute;left:0;right:0;bottom:0;height:30px;display:flex;align-items:center;gap:18px;padding:0 14px;background:#10070ad9;border-top:1px solid #2a1015;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8a7478;z-index:4">
+        <span style="color:#a8969a">{{curFloorLabel}}</span>
+        <span>zoom {{zoomTxt}}</span>
+        <span>{{cursorTxt}}</span>
+        <span style="margin-left:auto;color:#5f4a4e">드래그 이동 · 휠 줌 · 평면도 방 클릭 = 순찰 대상 추가/해제 · 좌측 목록 클릭 = 이동만</span>
+      </div>
+    </main>
+    <aside style="width:312px;flex:none;background:#10070a;border-left:1px solid #2a1015;display:flex;flex-direction:column;min-height:0">
+      <div style="padding:14px 16px;border-bottom:1px solid #2a1015;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-weight:700;font-size:14px;color:#f6eef0">순찰 계획</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;padding:4px 9px;border-radius:20px;border:1px solid {{chipBorder}};color:{{chipColor}};background:{{chipBg}}">{{chipTxt}}</div>
+      </div>
+      <div style="flex:1;overflow-y:auto;min-height:0;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+        <div style="border:1px solid #1e3a2a;background:#0e1a14;border-radius:10px;padding:11px 13px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+            <span style="width:9px;height:9px;border-radius:50%;background:#34d399;box-shadow:0 0 8px #34d39988;animation:{{startDotAnim}}"></span>
+            <span style="font-size:11px;color:#6ee7b7;font-weight:600;letter-spacing:.05em">출발 · 복귀 지점</span>
+            <span style="margin-left:auto;font-size:10px;color:{{startSrcColor}};border:1px solid {{startSrcBorder}};border-radius:5px;padding:1px 7px">{{startSrcTxt}}</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:10px">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;color:#f6eef0">{{startRoomTxt}}</span>
+            <span style="font-size:11px;color:#8a7478">{{startFloorTxt}}</span>
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#86a69a;margin-top:4px">{{startCoordTxt}}</div>
+        </div>
+        <div style="border:1px solid {{listBorder}};background:{{listBg}};border-radius:10px;padding:11px 13px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="width:9px;height:9px;border-radius:50%;background:{{listDot}}"></span>
+            <span style="font-size:11px;color:{{listTitleColor}};font-weight:600;letter-spacing:.05em">순찰 구역 · 방문 순서</span>
+            <sc-if value="{{hasTargets}}" hint-placeholder-val="{{false}}">
+              <button onClick="{{onClearAll}}" style="margin-left:auto;border:1px solid #3f2021;background:transparent;color:#f87171;font-size:10px;border-radius:5px;padding:2px 8px;cursor:pointer" style-hover="background:#2a1215">전체 해제</button>
+            </sc-if>
+          </div>
+          <sc-if value="{{hasTargets}}" hint-placeholder-val="{{false}}">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <sc-for list="{{targetRows}}" as="t" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid #3f2021;border-radius:7px;background:#170f11">
+                  <span style="width:17px;height:17px;flex:none;border-radius:50%;background:#450a0a;border:1px solid #7f1d1d;display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;color:#fca5a5">{{t.order}}</span>
+                  <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                    <span style="font-size:12px;font-weight:600;color:#e8dde0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{t.name}}</span>
+                    <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478">{{t.sub}}</span>
+                  </span>
+                  <button onClick="{{t.onUp}}" title="앞으로" style="flex:none;width:18px;height:18px;border:none;border-radius:4px;background:#241014;color:#a8969a;cursor:pointer;font-size:9px" style-hover="background:#35161d">▲</button>
+                  <button onClick="{{t.onRemove}}" title="제외" style="flex:none;width:18px;height:18px;border:none;border-radius:4px;background:#241014;color:#f87171;cursor:pointer;font-size:9px" style-hover="background:#35161d">✕</button>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{noTargets}}" hint-placeholder-val="{{true}}">
+            <div style="font-size:12px;color:#8a7478;padding:4px 0;line-height:1.7">평면도에서 방을 클릭하거나<br>「이 층 전체 순찰」로 층 단위로 지정하세요</div>
+          </sc-if>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #2a1015;background:#150a0d;border-radius:10px;padding:9px 13px">
+          <span style="flex:1;font-size:12px;color:#cfc2c5">순찰 후 복귀</span>
+          <button onClick="{{onToggleHome}}" style="flex:none;height:24px;padding:0 12px;border:1px solid {{homeBorder}};border-radius:6px;background:{{homeBg}};color:{{homeColor}};font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;cursor:pointer">{{homeTxt}}</button>
+        </div>
+        <sc-if value="{{planBoxVisible}}" hint-placeholder-val="{{false}}">
+          <div style="border:1px solid {{planBorder}};background:{{planBg}};border-radius:10px;padding:11px 13px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="width:9px;height:9px;border-radius:50%;background:{{planDot}};animation:{{planDotAnim}}"></span>
+              <span style="font-size:11px;color:{{planTitleColor}};font-weight:600;letter-spacing:.05em">순찰 경로 (SAC)</span>
+              <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478">{{planEngineTxt}}</span>
+            </div>
+            <div style="font-size:12px;color:#e8dde0;margin-bottom:7px">{{planStatusTxt}}</div>
+            <sc-if value="{{planStatsVisible}}" hint-placeholder-val="{{false}}">
+              <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:11px">
+                <sc-for list="{{planRows}}" as="r" hint-placeholder-count="5">
+                  <span style="color:#8a7478">{{r.k}}</span><span style="color:{{r.c}};font-family:'IBM Plex Mono',monospace;text-align:right">{{r.v}}</span>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{planLegsVisible}}" hint-placeholder-val="{{false}}">
+              <div style="margin-top:8px;display:flex;flex-direction:column;gap:3px;font-family:'IBM Plex Mono',monospace;font-size:10px">
+                <sc-for list="{{planLegs}}" as="l" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:6px;color:{{l.c}}">
+                    <span style="flex:none;width:14px;text-align:center">{{l.icon}}</span>
+                    <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{l.txt}}</span>
+                    <span style="flex:none;color:#8a7478">{{l.dist}}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{planRetryVisible}}" hint-placeholder-val="{{false}}">
+              <button onClick="{{onReplan}}" style="width:100%;margin-top:8px;height:28px;border:1px solid #4a1d24;border-radius:6px;background:#170a0d;color:#cfc2c5;font-size:11px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">경로 다시 계산</button>
+            </sc-if>
+          </div>
+        </sc-if>
+      </div>
+      <div style="flex:none;padding:14px 16px;border-top:1px solid #2a1015">
+        <button onClick="{{onLaunch}}" disabled="{{launchDisabled}}" style="width:100%;height:44px;border:none;border-radius:9px;background:{{launchBg}};color:{{launchColor}};font-family:'IBM Plex Sans KR',sans-serif;font-weight:700;font-size:14px;letter-spacing:.03em;cursor:{{launchCursor}}">{{launchTxt}}</button>
+      </div>
+    </aside>
+  </div>
+  <div style="position:fixed;left:50%;bottom:44px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:20;align-items:center">
+    <sc-for list="{{toasts}}" as="t" hint-placeholder-count="0">
+      <div style="background:#170a0df2;border:1px solid #4a1d24;border-radius:9px;padding:9px 16px;font-size:12px;color:#e8dde0;box-shadow:0 8px 24px #000000a0;animation:toastIn .2s ease-out;max-width:480px">{{t.text}}</div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;droneRoom&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;007&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;002&quot;, &quot;003&quot;, &quot;004&quot;, &quot;005&quot;, &quot;006&quot;, &quot;007&quot;, &quot;008&quot;, &quot;009&quot;, &quot;010&quot;, &quot;011&quot;, &quot;012&quot;, &quot;013&quot;, &quot;014&quot;, &quot;015&quot;, &quot;016&quot;, &quot;017&quot;, &quot;018&quot;, &quot;019&quot;, &quot;020&quot;, &quot;021&quot;, &quot;022&quot;, &quot;023&quot;], &quot;section&quot;: &quot;시뮬레이션&quot;},
+  &quot;showPassages&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;지도&quot;},
+  &quot;onLaunchMission&quot;: {&quot;editor&quot;: null, &quot;tsType&quot;: &quot;(payload: object) =&gt; void&quot;}
+}">
+// ── Unity 창 화면 공유 (getDisplayMedia) ─────────────────────────
+// exe 는 네이티브 창이라 브라우저에 임베드할 수 없다. 대신 사용자가 한 번
+// 허용해 주면 그 창을 캡처해 <video> 로 페이지 안에 그린다. localhost 는
+// secure context 라 http 로도 동작하고, 권한 요청은 클릭(사용자 제스처)
+// 안에서만 뜬다. 스트림은 두 컴포넌트(셸/지도)가 같이 쓰므로 window 에 둔다.
+if (!window.__simShare) {
+  window.__simShare = {
+    stream: null, error: null, subs: new Set(),
+    notify() { for (const f of this.subs) { try { f(); } catch (e) {} } },
+    supported() { return !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia); },
+    start() {
+      if (!this.supported()) {
+        this.error = '이 브라우저는 화면 공유를 지원하지 않습니다 (Chrome/Edge 권장)';
+        this.notify(); return;
+      }
+      // await 하지 않는다 — 사용자 제스처 안에서 바로 호출해야 권한창이 뜬다.
+      navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: false })
+        .then(s => {
+          this.stream = s; this.error = null;
+          const t = s.getVideoTracks()[0];
+          if (t) t.addEventListener('ended', () => { this.stream = null; this.notify(); });
+          this.notify();
+        })
+        .catch(e => {
+          this.error = (e && e.name === 'NotAllowedError')
+            ? '화면 공유가 취소되었습니다' : String((e && e.message) || e);
+          this.notify();
+        });
+    },
+    stop() {
+      if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
+      this.error = null; this.notify();
+    },
+    // ── 창 타이틀바 잘라내기 ───────────────────────────────────
+    // getDisplayMedia 의 '창' 캡처는 타이틀바("tello_simulator [ㅡ][ㅁ][X]")까지
+    // 같이 찍힌다. 프레임에 박혀 오는 거라 웹에서 전체 화면을 해도 안 없어진다.
+    // 근본 해결은 Unity 를 테두리 없이 띄우는 것(-popupwindow / WindowMode.cs)이고,
+    // 여기서는 그게 안 될 때를 위해 영상 위쪽을 잘라낸다.
+    vw: 0, vh: 0,          // 캡처 원본 크기 (loadedmetadata 에서 채움)
+    crop: null,            // 잘라낼 상단 비율(0~1). null 이면 자동 추정
+    CROP_KEY: 'hauntedOps.simCropTop',
+    setCrop(t) {
+      this.crop = Math.max(0, Math.min(0.2, t));
+      try { localStorage.setItem(this.CROP_KEY, String(this.crop)); } catch (e) {}
+      this.notify();
+    },
+    // 캡처된 창 = [타이틀바 + 게임 화면]. 게임 화면이 16:9 라고 보면 원본
+    // 크기에서 16:9 를 뺀 만큼이 타이틀바다. 16:9 가 아니면 엉뚱한 값이 나오니
+    // 그럴 땐 0 으로 두고 사용자가 −/+ 로 맞춘다.
+    autoCrop() {
+      if (!this.vw || !this.vh) return 0;
+      const t = 1 - (this.vw * 9 / 16) / this.vh;
+      return (t > 0.005 && t < 0.12) ? t : 0;
+    },
+    cropTop() {
+      if (this.crop == null) {
+        try { const v = localStorage.getItem(this.CROP_KEY); if (v != null) this.crop = parseFloat(v); } catch (e) {}
+      }
+      return this.crop == null ? this.autoCrop() : this.crop;
+    },
+    // 전체 화면. <video> 자체가 아니라 오버레이(CAM 01, 스캔라인)를 감싼
+    // '스테이지' 요소를 통째로 띄운다 — 그래야 HUD 가 같이 남는다.
+    isFull() { return !!(document.fullscreenElement || document.webkitFullscreenElement); },
+    fullscreen(el) {
+      const d = document;
+      if (this.isFull()) { (d.exitFullscreen || d.webkitExitFullscreen || function () {}).call(d); return; }
+      if (!el) return;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (req) { try { req.call(el); } catch (e) { this.error = '전체 화면 전환 실패: ' + e; this.notify(); } }
+    },
+  };
+  // 전체 화면 진입/이탈은 Esc 로도 일어난다. 구독자(셸/지도)가 버튼 라벨을
+  // 다시 그릴 수 있도록 같은 notify 채널로 흘려보낸다.
+  const fsNotify = () => window.__simShare.notify();
+  document.addEventListener('fullscreenchange', fsNotify);
+  document.addEventListener('webkitfullscreenchange', fsNotify);
+}
+// 공유 스트림을 그리는 <video>. srcObject 는 props 로 못 넘겨서 ref 로 꽂는다.
+// 상단 잘라내기는 CSS object-view-box 로 한다 — 원본을 먼저 잘라낸 뒤 object-fit
+// 이 적용되므로 컨테이너 크기를 재지 않아도 되고, 미지원 브라우저(Firefox)에서는
+// 그냥 안 잘릴 뿐 깨지지 않는다.
+function simVideo(extra) {
+  const S = window.__simShare;
+  const s = S.stream;
+  if (!s) return null;
+  const t = S.cropTop();
+  return React.createElement('video', {
+    autoPlay: true, muted: true, playsInline: true,
+    onLoadedMetadata: e => {
+      const v = e.currentTarget;
+      if (v.videoWidth && (S.vw !== v.videoWidth || S.vh !== v.videoHeight)) {
+        S.vw = v.videoWidth; S.vh = v.videoHeight; S.notify();
+      }
+    },
+    // 인라인 ref 는 렌더마다 다시 불리므로 crop 변경도 여기서 반영된다.
+    ref: el => {
+      if (!el) return;
+      if (el.srcObject !== s) el.srcObject = s;
+      el.style.setProperty('object-view-box',
+        t > 0 ? `inset(${(t * 100).toFixed(2)}% 0% 0% 0%)` : 'none');
+    },
+    style: Object.assign({ position: 'absolute', inset: 0, width: '100%', height: '100%',
+                           objectFit: 'contain', background: '#000' }, extra || {}),
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 순찰 구역 지정 화면
+//   평면도/방 목록 클릭으로 순찰할 방을 골라 담는다(다중 선택). 층 탭 아래
+//   「이 층 전체 순찰」로 층 단위 지정도 된다.
+//   고른 구역들은 방문 순서대로 이어붙인 다구간 경로로 계획된다. 마지막
+//   구간은 「순찰 후 복귀」가 켜져 있으면 출발 지점(드론 현재 위치)이다.
+//
+// 자연어 명령으로 순찰 구역을 고르는 경로는 여기 없다 — 별도로 돌아가는
+// Qwen(3D-segmentation/webapp_llm/llm_parser.py)이 맡는다. 붙일 때는 그쪽이
+// 낸 방 목록을 setTargets() 로 넘기면 나머지(순서·경로·payload)는 그대로 쓴다.
+// ══════════════════════════════════════════════════════════════════
+class Component extends DCLogic {
+  state = { meta: null, floor: 1, view: { tx: 0, ty: 0, s: 1 }, hoverId: null, mouse: null, cursorW: null,
+            toasts: [], dragging: false, simOpen: false, simMax: false,
+            q: '', qFocus: false,   // 상단 검색창
+            // ── 순찰 요청 ────────────────────────────────────────────
+            targets: [],        // 방 id 배열. 배열 순서 = 방문 순서
+            returnHome: true,   // 순찰 후 출발 지점으로 복귀할지
+            // ── 드론 / 경로 ─────────────────────────────────────────
+            drone: null,        // {x,y,z,source,flying,connected} — 1초마다 폴링
+            plan: null,         // {legs:[..], path:[[x,y,z]..], dist, ok, engine, ms}
+            planning: false, planProg: '', planErr: null };
+  mapRef = React.createRef();
+  stageRef = React.createRef();     // 시뮬 최대화 스테이지 (전체 화면 대상)
+  panelRef = React.createRef();     // 우하단 시뮬 미니 패널
+  toastSeq = 0;
+  planSeq = 0;               // 응답 경합(늦게 온 옛 요청) 무시용
+
+  componentDidMount() {
+    Promise.all([
+      fetch('uploads/web_meta.json').then(r => r.json()),
+      fetch('uploads/detections.json').then(r => r.json()).catch(() => []),
+    ]).then(([meta, dets]) => {
+      this.det = {};
+      for (const d of dets) {
+        const id = d.room_name.slice(-3);
+        (this.det[id] = this.det[id] || []).push(d);
+      }
+      this.furn = {};
+      for (const id of Object.keys(this.det)) {
+        const items = this.det[id].filter(d => !this.EXCLUDE.has(d.label) && d.n_points >= 300).sort((a, b) => b.n_points - a.n_points);
+        const seq = {};
+        this.furn[id] = items.map((d, i) => {
+          seq[d.label] = (seq[d.label] || 0) + 1;
+          return { key: `${id}-${i}`, label: d.label, kr: this.KR[d.label] || d.label, num: seq[d.label], center: d.center, n: d.n_points };
+        });
+      }
+      const droneRoom = this.droneRoomId(meta);
+      const floor = meta.rooms[droneRoom].floor;
+      this.setState({ meta, floor }, () => this.fitView());
+    });
+    const attach = () => {
+      const el = this.mapRef.current;
+      if (!el) { setTimeout(attach, 100); return; }
+      el.addEventListener('wheel', this.onWheel, { passive: false });
+    };
+    attach();
+    this.pollDrone();
+    this.droneIv = setInterval(this.pollDrone, 1000);   // 시뮬레이터 위치 추적
+    this._shareSub = () => this.setState(st => ({ shareTick: (st.shareTick || 0) + 1 }));
+    window.__simShare.subs.add(this._shareSub);
+    window.addEventListener('mousemove', this.onWinMove);
+    window.addEventListener('mouseup', this.onWinUp);
+    window.addEventListener('resize', this.onResize);
+  }
+
+  // 드론 현재 위치 = 순찰 출발점이자 복귀 지점. 서버가 시뮬레이터에 붙어
+  // 있으면 실시간, 아니면 스폰(홈) 좌표를 준다. 서버가 없으면 무시한다.
+  pollDrone = () => {
+    fetch('api/drone').then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => {
+        const prev = this.state.drone;
+        if (prev && prev.source === d.source &&
+            Math.abs(prev.x - d.x) < 1e-3 && Math.abs(prev.y - d.y) < 1e-3 &&
+            Math.abs(prev.z - d.z) < 1e-3) return;     // 안 움직였으면 리렌더 생략
+        this.setState({ drone: d });
+      })
+      .catch(() => {});
+  };
+  componentWillUnmount() {
+    const el = this.mapRef.current;
+    if (el) el.removeEventListener('wheel', this.onWheel);
+    window.removeEventListener('mousemove', this.onWinMove);
+    window.removeEventListener('mouseup', this.onWinUp);
+    window.removeEventListener('resize', this.onResize);
+    clearInterval(this.droneIv);
+    clearTimeout(this.planTimer);
+    window.__simShare.subs.delete(this._shareSub);
+  }
+  componentDidUpdate(prev) {
+    if (prev.droneRoom !== this.props.droneRoom && this.state.meta) {
+      const floor = this.state.meta.rooms[this.droneRoomId(this.state.meta)].floor;
+      this.setState({ floor }, () => this.fitView());
+    }
+  }
+
+  LABELS = {
+    "002": "현우의 수상한 지하 벙커", "003": "규철이 숨겨둔 비밀 무기고",
+    "004": "다 같이 모이는 척하는 감시실", "005": "채원의 심문실(추정)", "006": "민영의 정체불명 실험실",
+    "007": "현우의 도청 장비실", "008": "규철의 알리바이 조작실", "009": "지윤의 블랙박스 보관소", "010": "그냥 복도 (아마도)",
+    "011": "2층 복도 (CCTV 사각지대)", "012": "채원의 금고가 있다는 소문의 방", "013": "민영의 출입금지 구역", "014": "현우의 이중장부 서재",
+    "015": "지윤의 위장 세탁소", "016": "규철의 지하조직 본부", "017": "채원의 변장 도구실", "018": "민영의 해킹 작전실",
+    "019": "현우의 음모 회의실", "020": "지윤의 증거 인멸실", "021": "규철의 탈출 통로 입구", "022": "채원의 폭탄 해체 연습실", "023": "그냥 복도 (믿지 마세요)"
+  };
+  label(id) { return this.LABELS[id] || `ROOM ${id}`; }
+  KR = { sofa: '소파', chair: '의자', table: '테이블', bed: '침대', cabinet: '수납장', desk: '책상', refrigerator: '냉장고', toilet: '변기', bathtub: '욕조', counter: '조리대', bookshelf: '책장', sink: '세면대', television: 'TV', shower: '샤워부스', otherfurniture: '기타 가구', door: '문', window: '창문', curtain: '커튼', picture: '액자' };
+  EXCLUDE = new Set(['door', 'window', 'curtain', 'picture', 'otherfurniture']);
+  furnOf(id) { return (this.furn && this.furn[id]) || []; }
+  summary(id, n) {
+    const cnt = {};
+    for (const f of this.furnOf(id)) cnt[f.kr] = (cnt[f.kr] || 0) + 1;
+    const top = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, n);
+    return top.map(([k, c]) => c > 1 ? `${k} ${c}` : k).join(' · ');
+  }
+  // 출발/복귀 지점 = 드론 현재 위치.
+  //   서버가 알려준 위치(시뮬레이터 실시간 또는 스폰) > 방 중앙(기본값)
+  dronePose() {
+    const st = this.state, meta = st.meta;
+    if (st.drone) {
+      const f = this.floorOfZ(st.drone.z);
+      return { room: this.roomAt(f, st.drone.x, st.drone.y) || this.droneRoomId(),
+               pos: [st.drone.x, st.drone.y], z: st.drone.z, floor: f };
+    }
+    const id = this.droneRoomId(), rm = meta.rooms[id];
+    return { room: id, pos: [rm.center[0], rm.center[1]], z: rm.center[2], floor: rm.floor };
+  }
+  droneRoomId(meta) {
+    const m = meta || this.state.meta;
+    const id = this.props.droneRoom ?? "007";
+    return m.rooms[id] ? id : "007";
+  }
+
+  // ── 순찰 구역 선택 ────────────────────────────────────────────
+  // 지도/목록 클릭도, 자연어 명령도 결국 이 targets 배열 하나를 만든다.
+  // 배열 순서가 곧 방문 순서다.
+  toggleTarget(id) {
+    const st = this.state;
+    const has = st.targets.includes(id);
+    const targets = has ? st.targets.filter(t => t !== id) : [...st.targets, id];
+    this.setState({ targets }, () => this.schedulePlan());
+    this.toast(has ? `순찰 대상에서 제외: ${this.label(id)}`
+                   : `순찰 대상 추가 ${targets.length}번째: ${this.label(id)}`);
+  }
+  // 방 목록을 통째로 갈아끼운다. 외부(LLM 파서 등)에서 고른 결과를 넣는 입구.
+  setTargets(ids) {
+    this.setState({ targets: ids }, () => this.schedulePlan());
+  }
+  moveUp(id) {
+    const t = [...this.state.targets], i = t.indexOf(id);
+    if (i <= 0) return;
+    t[i - 1] = t.splice(i, 1, t[i - 1])[0];
+    this.setState({ targets: t }, () => this.schedulePlan());
+  }
+  // 지정된 방들을 드론 위치에서 가까운 순으로 늘어놓는다(방그래프 홉 수 기준).
+  // LLM 이 "방문 순서"를 정하는 자리 — 지금은 최근접 우선 그리디로 대신한다.
+  orderRooms(ids) {
+    if (ids.length < 2) return ids;
+    const remain = new Set(ids), out = [];
+    let cur = this.dronePose().room;
+    while (remain.size) {
+      let best = null, bestN = Infinity;
+      for (const id of remain) {
+        const p = this.findPath(cur, id);
+        const n = p ? p.length : 999;
+        if (n < bestN) { bestN = n; best = id; }
+      }
+      out.push(best); remain.delete(best); cur = best;
+    }
+    return out;
+  }
+
+  // ── 다구간 순찰 경로 ──────────────────────────────────────────
+  // /plan 은 한 구간(start→goal)만 계산한다. 순찰은 구간이 여러 개라
+  // 드론 → 대상1 → 대상2 → … → (복귀) 를 순서대로 호출해 이어붙인다.
+  // 각 구간의 출발점은 앞 구간 응답의 (스냅된) goal 을 그대로 쓴다.
+  schedulePlan() {
+    clearTimeout(this.planTimer);
+    this.planTimer = setTimeout(() => this.planPatrol(), 250);   // 연속 클릭 묶기
+  }
+  planPatrol() {
+    const st = this.state, meta = st.meta;
+    if (!meta || !st.targets.length) {
+      this.planSeq++;
+      this.setState({ plan: null, planning: false, planErr: null, planProg: '' });
+      return;
+    }
+    const seq = ++this.planSeq;
+    const pose = this.dronePose();
+    const home = [pose.pos[0], pose.pos[1], pose.z];
+    const stops = st.targets.map(id => {
+      const c = meta.rooms[id].center;
+      return { room: id, goal: [c[0], c[1], c[2]] };
+    });
+    if (st.returnHome) stops.push({ room: pose.room, goal: home, home: true });
+
+    this.setState({ planning: true, planErr: null, plan: null, planProg: `구간 1 / ${stops.length}` });
+    const legs = [];
+    let cursor = home;
+    const t0 = performance.now();
+
+    const step = (i) => {
+      if (seq !== this.planSeq) return;                 // 더 최신 요청이 있음
+      if (i >= stops.length) { finish(); return; }
+      this.setState({ planProg: `구간 ${i + 1} / ${stops.length}` });
+      const s = stops[i];
+      fetch('plan', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ start: cursor, goal: s.goal }) })
+        .then(r => r.ok ? r.json() : r.json().then(j => Promise.reject(new Error(j.error || ('HTTP ' + r.status)))))
+        .then(j => {
+          if (seq !== this.planSeq) return;
+          legs.push({ room: s.room, home: !!s.home, path: j.path || [], ok: !!j.success,
+                      dist: j.flown, steps: j.steps, bumps: j.bumps, engine: j.engine });
+          cursor = j.goal || s.goal;
+          step(i + 1);
+        })
+        .catch(e => {
+          if (seq !== this.planSeq) return;
+          // 서버가 없거나 한 구간이 실패해도 순찰 자체는 계획할 수 있어야 한다.
+          // 그 구간만 방그래프 직선으로 채우고 계속 간다.
+          const wps = this.buildWps(cursor, s.goal);
+          legs.push({ room: s.room, home: !!s.home, path: wps.map(w => [w.x, w.y, w.z]),
+                      ok: false, fallback: true, dist: this.pathLen(wps), engine: 'fallback' });
+          cursor = s.goal;
+          this.fallbackErr = String(e.message || e);
+          step(i + 1);
+        });
+    };
+    const finish = () => {
+      if (seq !== this.planSeq) return;
+      const path = [];
+      for (const l of legs) for (const p of l.path) path.push(p);
+      const anyFb = legs.some(l => l.fallback);
+      this.setState({
+        planning: false, planProg: '',
+        planErr: anyFb ? (this.fallbackErr || '일부 구간을 정책으로 못 풀었습니다') : null,
+        plan: { legs, path, dist: legs.reduce((a, l) => a + (l.dist || 0), 0),
+                ok: legs.every(l => l.ok), engine: (legs.find(l => !l.fallback) || {}).engine || 'fallback',
+                ms: Math.round(performance.now() - t0) },
+      });
+      this.toast(anyFb
+        ? `순찰 경로 ${legs.length}구간 생성 — 일부 구간은 방그래프 직선으로 대체`
+        : `순찰 경로 생성 — ${legs.length}구간 · ${legs.reduce((a, l) => a + (l.dist || 0), 0).toFixed(1)}m`);
+    };
+    step(0);
+  }
+
+  floorOfZ(z) { return z < 0.2 ? 0 : (z < 2.9 ? 1 : 2); }
+  pathToWps(path) {
+    return path.map(p => {
+      const f = this.floorOfZ(p[2]);
+      return { x: p[0], y: p[1], z: p[2], floor: f, room: this.roomAt(f, p[0], p[1]) || '' };
+    });
+  }
+  findPath(a, b) {
+    if (a === b) return [a];
+    const g = {};
+    for (const e of this.state.meta.edges) { (g[e.a] = g[e.a] || []).push(e.b); (g[e.b] = g[e.b] || []).push(e.a); }
+    const prev = { [a]: null }, q = [a];
+    while (q.length) {
+      const cur = q.shift();
+      if (cur === b) break;
+      for (const nx of g[cur] || []) if (!(nx in prev)) { prev[nx] = cur; q.push(nx); }
+    }
+    if (!(b in prev)) return null;
+    const path = []; for (let c = b; c !== null; c = prev[c]) path.unshift(c);
+    return path;
+  }
+  // RL 서버가 없을 때의 폴백: 방그래프를 따라 문 중심을 경유하는 직선.
+  buildWps(from, to) {
+    const meta = this.state.meta;
+    const fRoom = this.roomAt(this.floorOfZ(from[2]), from[0], from[1]) || this.droneRoomId();
+    const tRoom = this.roomAt(this.floorOfZ(to[2]), to[0], to[1]) || this.droneRoomId();
+    const wps = [{ x: from[0], y: from[1], z: from[2] }];
+    const path = this.findPath(fRoom, tRoom);
+    if (path) for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i], b = path[i + 1];
+      const e = meta.edges.find(e => (e.a === a && e.b === b) || (e.a === b && e.b === a));
+      if (!e) continue;
+      wps.push({ x: e.door_center[0], y: e.door_center[1], z: e.door_center[2] });
+      if (meta.rooms[b].floor !== meta.rooms[a].floor)
+        wps.push({ x: e.door_center[0], y: e.door_center[1], z: meta.rooms[b].center[2] });
+    }
+    wps.push({ x: to[0], y: to[1], z: to[2] });
+    return wps;
+  }
+  pathLen(wps) { let t = 0; for (let i = 0; i < wps.length - 1; i++) t += Math.hypot(wps[i + 1].x - wps[i].x, wps[i + 1].y - wps[i].y); return t; }
+
+  fmeta(f) { return this.state.meta.floors[String(f)]; }
+  w2p(f, x, y) { const m = this.fmeta(f); return [(x - m.xmin) / this.state.meta.res, (m.ymax - y) / this.state.meta.res]; }
+  p2w(f, col, row) { const m = this.fmeta(f); return [m.xmin + col * this.state.meta.res, m.ymax - row * this.state.meta.res]; }
+
+  fitScale(f) {
+    const el = this.mapRef.current, m = this.fmeta(f);
+    if (!el) return 1;
+    const r = el.getBoundingClientRect();
+    return Math.min((r.width - 70) / m.width, (r.height - 90) / m.height);
+  }
+  fitView() {
+    const el = this.mapRef.current; if (!el || !this.state.meta) return;
+    const m = this.fmeta(this.state.floor), r = el.getBoundingClientRect();
+    const s = this.fitScale(this.state.floor);
+    this.setState({ view: { tx: (r.width - m.width * s) / 2, ty: (r.height - m.height * s - 20) / 2, s } });
+  }
+  setFloor(f) { if (f === this.state.floor) return; this.setState({ floor: f, hoverId: null }, () => this.fitView()); }
+  // ── 상단 검색 ────────────────────────────────────────────────────
+  // 자연어 순찰 지시("2층 전체 돌아줘")는 POST /api/intent 가 방 id 목록으로
+  // 바꿔준다 (규격은 저장소 루트 API.md). 여기서는 그 목록을 setTargets 에
+  // 넣기만 하면 순서·경로·payload 는 기존 코드가 그대로 처리한다.
+  // API 가 답을 못 주면 예전대로 방 이름/번호 부분일치로 지도만 옮긴다.
+  runSearch() {
+    const q = this.state.q.trim(), meta = this.state.meta;
+    if (!q || !meta) return;
+    fetch('api/intent', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: q })
+    })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(r => {
+        if (!r.rooms || !r.rooms.length) { this.searchByName(q, r.why); return; }
+        const ids = r.rooms.filter(id => meta.rooms[id]);
+        if (!ids.length) { this.searchByName(q, r.why); return; }
+        this.setTargets(this.orderRooms(ids));
+        this.focusRoom(ids[0]);
+        this.toast(`${r.why || '자연어 해석'} — ${ids.length}개 구역 지정`);
+      })
+      .catch(() => this.searchByName(q, null));
+  }
+  // 이름/번호 부분일치 — API 가 없거나 구역을 못 집었을 때의 폴백.
+  searchByName(q, why) {
+    const meta = this.state.meta;
+    const hit = Object.keys(meta.rooms).filter(id => id.includes(q) || this.label(id).includes(q));
+    if (!hit.length) {
+      this.toast(why ? `"${q}" — ${why}` : `"${q}" 에 맞는 구역이 없습니다`);
+      return;
+    }
+    this.focusRoom(hit[0]);
+    this.toast(hit.length > 1
+      ? `${hit.length}곳 일치 — ${this.label(hit[0])} 로 이동`
+      : `${this.label(hit[0])} 로 이동`);
+  }
+  focusRoom(id) {
+    const meta = this.state.meta, rm = meta.rooms[id];
+    const go = () => {
+      const el = this.mapRef.current, r = el.getBoundingClientRect();
+      const [c0] = [this.w2p(rm.floor, (rm.bbox_min[0] + rm.bbox_max[0]) / 2, (rm.bbox_min[1] + rm.bbox_max[1]) / 2)];
+      const s = Math.min(Math.max(this.fitScale(rm.floor) * 2, 0.8), 4);
+      this.setState({ view: { tx: r.width / 2 - c0[0] * s, ty: (r.height - 20) / 2 - c0[1] * s, s }, hoverId: id });
+    };
+    if (rm.floor !== this.state.floor) this.setState({ floor: rm.floor }, go); else go();
+  }
+
+  onWheel = (e) => {
+    e.preventDefault();
+    const el = this.mapRef.current, r = el.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    const { tx, ty, s } = this.state.view;
+    const s2 = Math.min(Math.max(s * Math.exp(-e.deltaY * 0.0012), 0.15), 8);
+    this.setState({ view: { tx: mx - (mx - tx) * (s2 / s), ty: my - (my - ty) * (s2 / s), s: s2 } });
+  };
+  onWinMove = (e) => {
+    if (!this.drag) return;
+    const dx = e.clientX - this.drag.sx, dy = e.clientY - this.drag.sy;
+    if (Math.abs(dx) + Math.abs(dy) > 4) this.drag.moved = true;
+    if (this.drag.moved) this.setState({ view: { tx: this.drag.tx + dx, ty: this.drag.ty + dy, s: this.state.view.s }, dragging: true });
+  };
+  onWinUp = () => { if (this.drag) { this.lastDragMoved = this.drag.moved; this.drag = null; this.setState({ dragging: false }); } };
+  onResize = () => { /* keep view; user can refit */ };
+
+  clientToWorld(e) {
+    const el = this.mapRef.current, r = el.getBoundingClientRect();
+    const { tx, ty, s } = this.state.view;
+    const col = (e.clientX - r.left - tx) / s, row = (e.clientY - r.top - ty) / s;
+    const [x, y] = this.p2w(this.state.floor, col, row);
+    return { col, row, x, y };
+  }
+  roomAt(f, x, y) {
+    const meta = this.state.meta;
+    let best = null, bestA = Infinity;
+    for (const id of this.fmeta(f).rooms) {
+      const rm = meta.rooms[id];
+      if (x >= rm.bbox_min[0] && x <= rm.bbox_max[0] && y >= rm.bbox_min[1] && y <= rm.bbox_max[1]) {
+        const a = (rm.bbox_max[0] - rm.bbox_min[0]) * (rm.bbox_max[1] - rm.bbox_min[1]);
+        if (a < bestA) { bestA = a; best = id; }
+      }
+    }
+    return best;
+  }
+
+  toast(text) {
+    const id = ++this.toastSeq;
+    this.setState(s => ({ toasts: [...s.toasts, { id, text }] }));
+    setTimeout(() => this.setState(s => ({ toasts: s.toasts.filter(t => t.id !== id) })), 3000);
+  }
+
+  renderVals() {
+    const st = this.state, meta = st.meta;
+    const fmt = n => (Math.round(n * 100) / 100).toFixed(2);
+    const showPass = this.props.showPassages ?? true;
+    const FLOOR_LABEL = ["1층", "2층", "3층"];
+    const base = {
+      loaded: !!meta, notLoaded: !meta,
+      mapRef: this.mapRef,
+      mapCursor: st.dragging ? 'grabbing' : 'crosshair',
+      toasts: st.toasts,
+      q: st.q,
+      searchBorder: st.qFocus ? '#ef4444' : '#3a161c',
+      searchPlaceholder: '구역 검색 · 순찰 지시 (예: 2층 전체를 순찰해줘)',
+      onQ: e => this.setState({ q: e.target.value }),
+      onQFocus: () => this.setState({ qFocus: true }),
+      onQBlur: () => this.setState({ qFocus: false }),
+      onQKey: e => { if (e.key === 'Enter') this.runSearch(); },
+      onSearch: () => this.runSearch(),
+      zoomIn: () => this.onWheel({ preventDefault() {}, clientX: this.mapRef.current.getBoundingClientRect().left + this.mapRef.current.clientWidth / 2, clientY: this.mapRef.current.getBoundingClientRect().top + this.mapRef.current.clientHeight / 2, deltaY: -260 }),
+      zoomOut: () => this.onWheel({ preventDefault() {}, clientX: this.mapRef.current.getBoundingClientRect().left + this.mapRef.current.clientWidth / 2, clientY: this.mapRef.current.getBoundingClientRect().top + this.mapRef.current.clientHeight / 2, deltaY: 260 }),
+      zoomFit: () => this.fitView(),
+      onMapDown: e => { this.drag = { sx: e.clientX, sy: e.clientY, tx: st.view.tx, ty: st.view.ty, moved: false }; this.lastDragMoved = false; },
+      onMapMove: e => {
+        if (!meta) return;
+        const el = this.mapRef.current, r = el.getBoundingClientRect();
+        const w = this.clientToWorld(e);
+        this.setState({ mouse: { x: e.clientX - r.left, y: e.clientY - r.top }, cursorW: w });
+      },
+      onMapLeave: () => this.setState({ mouse: null, hoverId: null, cursorW: null }),
+      // Unity 창 화면 공유 (셸과 같은 window.__simShare 스트림을 공유한다)
+      simShareOn: !!window.__simShare.stream,
+      simShareOff: !window.__simShare.stream,
+      simVideoEl: simVideo(),
+      simVideoEl2: simVideo(),
+      simShareErr: window.__simShare.error || '',
+      onSimShare: () => window.__simShare.start(),
+      // 전체 화면: 영상만이 아니라 HUD 오버레이까지 감싼 스테이지를 띄운다
+      stageRef: this.stageRef, panelRef: this.panelRef,
+      onFullscreen: () => window.__simShare.fullscreen(this.stageRef.current),
+      onPanelFullscreen: () => window.__simShare.fullscreen(this.panelRef.current),
+      // 스테이지 더블클릭도 전체 화면. 단, 위에 얹힌 버튼에서 시작한 더블클릭은
+      // 버튼의 onClick 이 이미 두 번 처리했으므로 무시한다.
+      onStageDbl: e => {
+        if (e && e.target && e.target.closest && e.target.closest('button')) return;
+        window.__simShare.fullscreen(this.stageRef.current);
+      },
+      onPanelDbl: e => {
+        if (e && e.target && e.target.closest && e.target.closest('button')) return;
+        window.__simShare.fullscreen(this.panelRef.current);
+      },
+      fsTxt: window.__simShare.isFull() ? '⛶ 전체 화면 해제' : '⛶ 전체 화면',
+      fsColor: window.__simShare.isFull() ? '#f87171' : '#cfc2c5',
+      fsBorder: window.__simShare.isFull() ? '#7f1d1d' : '#4a1d24',
+      fsHint: window.__simShare.isFull() ? 'Esc 로 해제' : '더블클릭도 됩니다',
+      // 창 타이틀바 잘라내기 (0.5%p 단위)
+      cropTxt: `${(window.__simShare.cropTop() * 100).toFixed(1)}%`,
+      onCropUp: () => window.__simShare.setCrop(window.__simShare.cropTop() + 0.005),
+      onCropDown: () => window.__simShare.setCrop(window.__simShare.cropTop() - 0.005),
+      // 클릭 = 그 방을 순찰 대상에 추가/해제 (다중 선택)
+      onMapClick: e => {
+        if (!meta || this.lastDragMoved) return;
+        const w = this.clientToWorld(e);
+        const id = this.roomAt(st.floor, w.x, w.y);
+        if (!id) { this.toast('방 내부를 클릭해 주세요'); return; }
+        this.toggleTarget(id);
+      },
+    };
+    if (!meta) return { ...base, floorTabs: [], sidebarGroups: [], toasts: st.toasts,
+      chipTxt: '—', chipColor: '#8a7478', chipBorder: '#3a161c', chipBg: 'transparent',
+      startRoomTxt: '—', startFloorTxt: '', startCoordTxt: '',
+      launchDisabled: true, launchBg: '#2a1015', launchColor: '#5f4a4e', launchCursor: 'default', launchTxt: '순찰 시작',
+      curFloorLabel: '', zoomTxt: '', cursorTxt: '', hoverVisible: false, droneVisible: false,
+      roomRects: [], passageDots: [], stairChips: [], routeRuns: [], targetMarks: [],
+      hasTargets: false, noTargets: true, targetRows: [],
+      listBorder: '#3a161c', listBg: '#150a0d', listDot: '#5f4a4e', listTitleColor: '#a8969a',
+      homeTxt: '켜짐', homeBorder: '#1e3a2a', homeBg: '#101d16', homeColor: '#4ade80', onToggleHome: () => {},
+      onFloorAll: () => {}, onFloorNone: () => {}, onClearAll: () => {},
+      simVisible: false, simStatusTxt: '', simDotColor: '#4ade80', simCoordTxt: '', simRoomTxt: '', simMax: false,
+      mapL: '0', mapT: '0', mapR: '0', mapB: '0', mapWd: 'auto', mapHt: 'auto', mapBorder: 'none', mapRadius: '0', mapShadow: 'none', mapZ: 1,
+      startDotAnim: 'none', startSrcTxt: '', startSrcColor: '#5f4a4e', startSrcBorder: '#3a161c',
+      planBoxVisible: false, planStatsVisible: false, planLegsVisible: false, planRetryVisible: false,
+      planRows: [], planLegs: [], planStatusTxt: '', planEngineTxt: '',
+      planBorder: '#2a1015', planBg: '#10070a', planDot: '#5f4a4e', planDotAnim: 'none', planTitleColor: '#a8969a' };
+
+    const pose = this.dronePose();
+    const droneId = pose.room;
+    const droneFloor = pose.floor;
+    const dronePos = [pose.pos[0], pose.pos[1], pose.z];
+    const targets = st.targets;
+    const plan = st.plan;
+    const simLive = !!(st.drone && st.drone.source === 'sim');   // 시뮬레이터 실시간 위치인가
+    const fm = this.fmeta(st.floor);
+    const area = rm => (rm.bbox_max[0] - rm.bbox_min[0]) * (rm.bbox_max[1] - rm.bbox_min[1]);
+    const orderOf = id => targets.indexOf(id) + 1;               // 0 이면 미선택
+
+    const floorTabs = [0, 1, 2].map(f => {
+      const n = targets.filter(id => meta.rooms[id].floor === f).length;
+      return {
+        label: FLOOR_LABEL[f],
+        count: meta.floors[String(f)].rooms.length,
+        onClick: () => this.setFloor(f),
+        bg: f === st.floor ? '#16283d' : '#111927',
+        border: f === st.floor ? '#ef4444' : '#3a161c',
+        color: f === st.floor ? '#f87171' : '#a8969a',
+        droneHere: droneFloor === f,
+        selHere: n > 0, selTxt: `${n}`,
+      };
+    });
+
+    const sidebarGroups = [0, 1, 2].map(f => ({
+      label: `${FLOOR_LABEL[f]} — FLOOR ${f}`,
+      rooms: meta.floors[String(f)].rooms.map(id => {
+        const rm = meta.rooms[id];
+        const isDrone = id === droneId, ord = orderOf(id), sel = ord > 0;
+        return {
+          id, name: this.label(id),
+          // 목록 클릭 = 이동만. 순찰 대상 지정은 평면도 클릭 / 「이 층 전체 순찰」 담당.
+          onClick: () => this.focusRoom(id),
+          furnTxt: this.summary(id, 2) || '감지된 가구 없음',
+          dot: sel ? '#7f1d1d' : (isDrone ? '#1e3a2a' : '#4a3a3e'),
+          dotBg: sel ? '#450a0a' : 'transparent',
+          orderTxt: sel ? `${ord}` : '', orderColor: '#fca5a5',
+          bg: sel ? '#1c1113' : (isDrone ? '#0e1a14' : 'transparent'),
+          border: sel ? '#7f1d1d' : (isDrone ? '#1e3a2a' : '#2a1015'),
+          tag: isDrone ? '드론' : (sel ? '순찰' : ''),
+          tagColor: isDrone ? '#34d399' : '#f87171',
+        };
+      }),
+    }));
+
+    const roomRects = fm.rooms.map(id => {
+      const rm = meta.rooms[id];
+      const [c0, r0] = this.w2p(st.floor, rm.bbox_min[0], rm.bbox_max[1]);
+      const [c1, r1] = this.w2p(st.floor, rm.bbox_max[0], rm.bbox_min[1]);
+      const hov = st.hoverId === id, sel = orderOf(id) > 0, isDrone = id === droneId && droneFloor === st.floor;
+      return {
+        id, name: this.label(id), left: Math.round(c0), top: Math.round(r0), w: Math.round(c1 - c0), h: Math.round(r1 - r0),
+        border: sel ? '#ef4444' : (isDrone ? '#34d399aa' : (hov ? '#ef4444' : '#ef44443d')),
+        bg: sel ? '#ef444422' : (hov ? '#ef444414' : (isDrone ? '#34d3990d' : 'transparent')),
+        labelColor: sel ? '#fca5a5' : (isDrone ? '#6ee7b7' : (hov ? '#f87171' : '#f8717199')),
+        onEnter: () => this.setState({ hoverId: id }),
+        onLeave: () => this.setState(s => (s.hoverId === id ? { hoverId: null } : null)),
+      };
+    });
+
+    const passageDots = [];
+    if (showPass) for (const id of fm.rooms) for (const p of meta.rooms[id].passages) {
+      const [c, r] = this.w2p(st.floor, p[0], p[1]);
+      passageDots.push({ left: Math.round(c), top: Math.round(r) });
+    }
+    const stairChips = [];
+    for (const e of meta.edges) if (e.type === 'stairs') {
+      const fa = meta.rooms[e.a].floor, fb = meta.rooms[e.b].floor;
+      if (fa === st.floor || fb === st.floor) {
+        const [c, r] = this.w2p(st.floor, e.door_center[0], e.door_center[1]);
+        stairChips.push({ left: Math.round(c), top: Math.round(r) });
+      }
+    }
+
+    const [dc, dr] = this.w2p(droneFloor, dronePos[0], dronePos[1]);
+    const targetMarks = targets.map((id, i) => {
+      const rm = meta.rooms[id];
+      if (rm.floor !== st.floor) return null;
+      const [c, r] = this.w2p(st.floor, rm.center[0], rm.center[1]);
+      return { key: id, order: `${i + 1}`, left: Math.round(c), top: Math.round(r), name: this.label(id) };
+    }).filter(Boolean);
+
+    const hovRm = st.hoverId ? meta.rooms[st.hoverId] : null;
+    const el = this.mapRef.current;
+    let hoverX = 0, hoverY = 0;
+    if (st.mouse && el) {
+      hoverX = Math.min(st.mouse.x + 18, el.clientWidth - 200);
+      hoverY = Math.min(st.mouse.y + 18, el.clientHeight - 160);
+    }
+
+    // 경로 폴리라인: 순찰 구간은 붉은 점선, 복귀 구간은 초록 실선으로 구분
+    const routeRuns = [];
+    if (plan && plan.legs) {
+      for (const leg of plan.legs) {
+        const wps = this.pathToWps(leg.path);
+        let cur = null;
+        for (let i = 0; i < wps.length - 1; i++) {
+          const a = wps[i], b = wps[i + 1];
+          if (a.floor === st.floor && b.floor === st.floor) {
+            const [c1, r1] = this.w2p(st.floor, a.x, a.y), [c2, r2] = this.w2p(st.floor, b.x, b.y);
+            if (!cur) {
+              cur = { key: routeRuns.length, pts: `${Math.round(c1)},${Math.round(r1)}`,
+                      color: leg.home ? '#34d399' : '#ef4444', dash: leg.home ? '0' : '9 7' };
+              routeRuns.push(cur);
+            }
+            cur.pts += ` ${Math.round(c2)},${Math.round(r2)}`;
+          } else cur = null;
+        }
+      }
+    }
+
+    const chip = st.planning ? { t: '경로 계산 중', c: '#a5b4fc', b: '#3f3a6b', bg: '#12131c' }
+      : plan ? { t: `${targets.length}개 구역 계획됨`, c: '#4ade80', b: '#1e3a2a', bg: '#101d16' }
+      : targets.length ? { t: '경로 대기', c: '#fbbf24', b: '#57431a', bg: '#1c150a' }
+      : { t: '구역 미지정', c: '#a8969a', b: '#3a161c', bg: 'transparent' };
+
+    const floorChanges = plan ? this.pathToWps(plan.path).reduce((n, w, i, a) => n + (i && w.floor !== a[i - 1].floor ? 1 : 0), 0) : 0;
+
+    return {
+      ...base,
+      floorTabs, sidebarGroups, roomRects, passageDots, stairChips, targetMarks, routeRuns,
+      vtx: st.view.tx, vty: st.view.ty, vs: st.view.s,
+      planeW: fm.width, planeH: fm.height,
+      floorImg: React.createElement('img', { src: 'uploads/' + fm.png, draggable: false, style: { position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', userSelect: 'none', filter: 'brightness(.6) saturate(.45) sepia(.25) hue-rotate(-15deg) contrast(1.08)' } }),
+      droneVisible: droneFloor === st.floor, droneLeft: Math.round(dc), droneTop: Math.round(dr), droneName: this.label(droneId),
+      hoverVisible: !!hovRm && !!st.mouse && !st.dragging && !st.simMax, hoverX, hoverY,
+      hoverId: st.hoverId, hoverName: st.hoverId ? this.label(st.hoverId) : '', hoverFloor: hovRm ? FLOOR_LABEL[hovRm.floor] : '',
+      hoverSize: hovRm ? `${(hovRm.bbox_max[0] - hovRm.bbox_min[0]).toFixed(1)} × ${(hovRm.bbox_max[1] - hovRm.bbox_min[1]).toFixed(1)} m` : '',
+      hoverArea: hovRm ? `${area(hovRm).toFixed(1)} ㎡` : '',
+      hoverPass: hovRm ? `${hovRm.passages.length}개` : '',
+      hoverFurn: st.hoverId ? (this.summary(st.hoverId, 3) || '없음') : '',
+      hoverPickTxt: st.hoverId ? (orderOf(st.hoverId) > 0 ? `순찰 ${orderOf(st.hoverId)}번째 — 클릭하면 제외` : '클릭하면 순찰 대상 추가') : '',
+      hoverPickColor: st.hoverId && orderOf(st.hoverId) > 0 ? '#fca5a5' : '#5f4a4e',
+      curFloorLabel: `${FLOOR_LABEL[st.floor]} · FLOOR ${st.floor}`,
+      zoomTxt: `${Math.round(st.view.s * 100)}%`,
+      cursorTxt: st.cursorW ? `x ${fmt(st.cursorW.x)}  y ${fmt(st.cursorW.y)} m` : '',
+      chipTxt: chip.t, chipColor: chip.c, chipBorder: chip.b, chipBg: chip.bg,
+
+      // 출발 · 복귀 지점
+      startRoomTxt: this.label(droneId), startFloorTxt: `${droneId} · ${FLOOR_LABEL[droneFloor]}`,
+      startCoordTxt: `[${dronePos.map(fmt).join(', ')}]`,
+      startDotAnim: simLive ? 'blinkDot 1.4s infinite' : 'none',
+      startSrcTxt: simLive ? '시뮬레이터 실시간' : (st.drone ? '스폰(홈) 위치' : '기본값'),
+      startSrcColor: simLive ? '#6ee7b7' : '#8a7478',
+      startSrcBorder: simLive ? '#1e3a2a' : '#3a161c',
+
+      // 층 단위 지정
+      onFloorAll: () => {
+        const ids = meta.floors[String(st.floor)].rooms;
+        const merged = this.orderRooms([...new Set([...targets, ...ids])]);
+        this.setTargets(merged);
+        this.toast(`${FLOOR_LABEL[st.floor]} 전체 ${ids.length}개 방을 순찰 대상에 추가`);
+      },
+      onFloorNone: () => {
+        const ids = new Set(meta.floors[String(st.floor)].rooms);
+        this.setTargets(targets.filter(id => !ids.has(id)));
+        this.toast(`${FLOOR_LABEL[st.floor]} 순찰 대상 해제`);
+      },
+      onClearAll: () => { this.setTargets([]); this.toast('순찰 대상을 모두 해제했습니다'); },
+
+      // 순찰 대상 목록
+      hasTargets: targets.length > 0, noTargets: targets.length === 0,
+      listBorder: targets.length ? '#3f2021' : '#3a161c',
+      listBg: targets.length ? '#170f11' : '#150a0d',
+      listDot: targets.length ? '#f87171' : '#5f4a4e',
+      listTitleColor: targets.length ? '#fca5a5' : '#a8969a',
+      targetRows: targets.map((id, i) => ({
+        key: id, order: `${i + 1}`, name: this.label(id),
+        sub: `${id} · ${FLOOR_LABEL[meta.rooms[id].floor]}`,
+        onUp: () => this.moveUp(id),
+        onRemove: () => this.toggleTarget(id),
+      })),
+
+      // 복귀 토글
+      homeTxt: st.returnHome ? '켜짐' : '꺼짐',
+      homeBorder: st.returnHome ? '#1e3a2a' : '#3a161c',
+      homeBg: st.returnHome ? '#101d16' : '#170a0d',
+      homeColor: st.returnHome ? '#4ade80' : '#8a7478',
+      onToggleHome: () => this.setState({ returnHome: !st.returnHome }, () => this.schedulePlan()),
+
+      // 경로 패널
+      planBoxVisible: targets.length > 0,
+      planBorder: st.planning ? '#3a3f57' : (st.planErr ? '#57431a' : (plan ? (plan.ok ? '#1e3a2a' : '#57431a') : '#2a1015')),
+      planBg: st.planning ? '#12131c' : (st.planErr ? '#1c150a' : (plan ? (plan.ok ? '#0e1a14' : '#1c150a') : '#10070a')),
+      planDot: st.planning ? '#818cf8' : (st.planErr ? '#f59e0b' : (plan ? (plan.ok ? '#4ade80' : '#f59e0b') : '#5f4a4e')),
+      planDotAnim: st.planning ? 'blinkDot .7s infinite' : 'none',
+      planTitleColor: st.planning ? '#a5b4fc' : (plan && plan.ok ? '#6ee7b7' : '#fbbf24'),
+      planEngineTxt: plan ? plan.engine : '',
+      planStatusTxt: st.planning ? `정책 추론 중… ${st.planProg}`
+        : st.planErr ? `일부 구간 대체됨 — ${st.planErr}`
+        : plan ? (plan.ok ? '모든 구간을 정책이 풀었습니다' : '일부 구간은 목표에 도달하지 못했습니다')
+        : '경로 대기 중',
+      planStatsVisible: !!plan,
+      planRows: plan ? [
+        { k: '순찰 구역', v: `${targets.length}개`, c: '#fca5a5' },
+        { k: '경로 구간', v: `${plan.legs.length}구간`, c: '#e8dde0' },
+        { k: '총 비행 거리', v: `${plan.dist.toFixed(1)} m`, c: '#e8dde0' },
+        { k: '층 이동', v: floorChanges ? `${floorChanges}회 (계단 경유)` : '없음', c: floorChanges ? '#fbbf24' : '#a8969a' },
+        { k: '복귀 포함', v: st.returnHome ? '예' : '아니오', c: st.returnHome ? '#4ade80' : '#8a7478' },
+        { k: '계산 시간', v: `${plan.ms} ms`, c: '#8a7478' },
+      ] : [],
+      planLegsVisible: !!plan,
+      planLegs: plan ? plan.legs.map((l, i) => ({
+        key: i,
+        icon: l.home ? '⌂' : `${i + 1}`,
+        txt: l.home ? '출발 지점으로 복귀' : this.label(l.room),
+        dist: `${(l.dist || 0).toFixed(1)}m`,
+        c: l.fallback ? '#f59e0b' : (l.home ? '#6ee7b7' : '#cfc2c5'),
+      })) : [],
+      planRetryVisible: targets.length > 0 && !st.planning,
+      onReplan: () => this.planPatrol(),
+
+      // 시뮬레이터 창
+      simVisible: st.simOpen && !st.simMax, onSimClose: () => this.setState({ simOpen: false }), onSimOpen: () => this.setState({ simOpen: true, simMax: false }),
+      simMax: st.simMax,
+      onSimMax: () => this.setState({ simMax: true, simOpen: false }, () => requestAnimationFrame(() => this.fitView())),
+      onSimMin: () => this.setState({ simMax: false }, () => requestAnimationFrame(() => this.fitView())),
+      mapL: st.simMax ? 'auto' : '0', mapT: st.simMax ? 'auto' : '0', mapR: st.simMax ? '12px' : '0', mapB: st.simMax ? '42px' : '0',
+      mapWd: st.simMax ? '400px' : 'auto', mapHt: st.simMax ? '270px' : 'auto',
+      mapBorder: st.simMax ? '1px solid #4a1d24' : 'none', mapRadius: st.simMax ? '10px' : '0',
+      mapShadow: st.simMax ? '0 12px 34px #000000b0' : 'none', mapZ: st.simMax ? 7 : 1,
+      simStatusTxt: 'STANDBY',
+      simDotColor: '#4ade80',
+      simCoordTxt: `x ${fmt(dronePos[0])}  y ${fmt(dronePos[1])}  z ${fmt(dronePos[2])}`,
+      simRoomTxt: this.label(droneId),
+
+      launchDisabled: !targets.length || st.planning,
+      launchBg: st.planning ? '#2a1015' : (targets.length ? '#991b1b' : '#2a1015'),
+      launchColor: targets.length && !st.planning ? '#fef2f2' : '#5f4a4e',
+      launchCursor: targets.length && !st.planning ? 'pointer' : 'default',
+      launchTxt: st.planning ? '경로 계산 중…' : (targets.length ? `순찰 시작 · ${targets.length}개 구역` : '순찰 시작'),
+      onLaunch: () => {
+        if (!targets.length || st.planning) return;
+        if (!this.props.onLaunchMission) { this.toast('상위 화면이 없어 순찰을 시작할 수 없습니다'); return; }
+        this.props.onLaunchMission({
+          targets: targets.map((id, i) => ({
+            room: id, order: i + 1, floor: meta.rooms[id].floor, name: this.label(id),
+            pos: meta.rooms[id].center,
+          })),
+          returnHome: st.returnHome,
+          scope: this.describeScope(targets),
+          cmd: this.describeTargets(targets, st.returnHome),
+          start: dronePos, startRoom: droneId, startLabel: this.label(droneId),
+          path: plan ? plan.path : null,
+          legs: plan ? plan.legs : null,
+          dist: plan ? plan.dist : 0,
+          floorChanges,
+          engine: plan ? plan.engine : 'fallback',
+        });
+      },
+    };
+  }
+
+  describeTargets(ids, returnHome) {
+    if (!ids.length) return '';
+    const names = ids.map(id => this.label(id));
+    const head = names.length <= 2 ? names.join(', ') : `${names[0]} 외 ${names.length - 1}곳`;
+    return `${head} 순찰${returnHome ? ' 후 복귀' : ''}`;
+  }
+
+  // 순찰 범위 한 줄 요약 (브리핑 화면이 그대로 쓴다).
+  describeScope(ids) {
+    if (!ids.length) return '';
+    const FLOOR_LABEL = ['1층', '2층', '3층'];
+    const meta = this.state.meta;
+    const floors = [...new Set(ids.map(id => meta.rooms[id].floor))].sort();
+    const whole = floors.filter(f => meta.floors[String(f)].rooms.every(r => ids.includes(r)));
+    if (whole.length === 3) return '건물 전체';
+    if (whole.length) return whole.map(f => FLOOR_LABEL[f]).join('·') + ' 전체';
+    return floors.map(f => FLOOR_LABEL[f]).join('·') + ' ' + ids.length + '개 구역';
+  }
+}
+</script>
+</body>
+</html>
