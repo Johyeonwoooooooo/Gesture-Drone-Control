@@ -2,7 +2,8 @@
 
 Deliberately dumb: it takes a (system, user) pair and returns the completion.
 No prompts, no JSON schema, no room directory — all of that lives on the client
-side (`patrol/llm_base.py`) and arrives over the wire. That is what lets
+side (`patrol/patrol_intent.py`, `patrol_report.py`) and arrives over the
+wire. That is what lets
 `llm_server/` stay independent of `patrol/`: copy this folder to any GPU box and
 it runs.
 

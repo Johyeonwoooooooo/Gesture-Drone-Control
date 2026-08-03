@@ -4,22 +4,16 @@
 
 ```
 자연어 (웹 검색창 또는 이 REPL)
-  → LLM 의도 파싱          (llm_base.py + remote_llm.py → GPU 서버의 llm_server/)
-  → FIND / PATROL 라우팅              (patrol_intent.py)
-  ├ FIND:   LitePT 디텍션 매칭·랭킹    (litept_backend.py)
-  │           → 1순위 후보로 A*/RRT* (planner.py) → 비행
-  └ PATROL: 방 해석 (room_index.py)
-              → 방마다 이동 + 360° 스캔, 탐지 반응   (patrol_mission.py)
-              → 복귀·착륙 → 보고서                  (patrol_report.py)
-  → 비행 명령 프로그램 기록                          (sdk_export.py → out/)
+  → 순찰 구역 해석    (patrol_intent.py → GPU 서버의 llm_server/, room_index.py)
+  → 방마다 A* 구간 비행 + 360° 스캔, 탐지 반응        (patrol_mission.py, planner.py)
+  → 복귀·착륙 → 보고서                              (patrol_report.py)
 ```
 
 비행 자체는 `simulator/bridge` 가 담당한다 (UDP → Unity). 이 패키지는 좌표를
 계산해 넘기고 상태/이벤트를 기다린다. 360° 스캔과 사람 탐지는 **Unity 가**
 한다 — 이쪽은 `scan` 을 보내고 `detect`/`scan_done` 을 받는다.
 
-**확인 단계는 없다.** 순찰 구역은 웹 콘솔의 평면도에서 이륙 전에 고르고,
-FIND 는 1순위 후보로 바로 간다.
+**확인 단계는 없다.** 순찰 구역은 웹 콘솔의 평면도에서 이륙 전에 고른다.
 
 일반적인 진입점은 저장소 루트의 `api_server.py`(웹 콘솔용, `API.md`)이고
 `server.py` 의 REPL 은 디버그용이다. **둘을 동시에 띄우면 안 된다** — 브리지를
@@ -30,16 +24,14 @@ FIND 는 1순위 후보로 바로 간다.
 | 파일 | 역할 |
 |---|---|
 | `server.py` | 메인 REPL. 모든 인자·상태(드론 위치, 마지막 순찰)를 들고 있다 |
-| `llm_base.py` | 프롬프트·`ParsedIntent`·JSON 정제 + `parse()`. `generate()` 만 추상 |
-| `remote_llm.py` | 유일한 `generate()` 구현 — `--llm-url` 의 OpenAI 호환 서버에 HTTP로 물어본다. urllib만 씀 |
-| `patrol_intent.py` | FIND/PATROL 라우팅 + 방 지정 해석 (별칭·타입·층) |
-| `litept_backend.py` | `detections.json` 로드, 쿼리 매칭·랭킹, 방별 포인트 병합, 홈 좌표 |
+| `remote_llm.py` | 저장소의 유일한 `generate()` — `--llm-url` 의 OpenAI 호환 서버에 HTTP로 물어본다. urllib만 씀 |
+| `patrol_intent.py` | 순찰 구역 해석 — LLM 프롬프트 + 별칭·타입·층 5단 폴백 |
+| `litept_backend.py` | `detections.json` 로드, 방별 포인트 병합, 홈 좌표 |
 | `room_index.py` | 방 인덱스(코드·타입·중심·바닥높이) + 별칭 + 스캔 포즈. `out/room_index.json` 캐시 |
 | `planner.py` | 복셀 그리드 A* / RRT*. `chaewon` 브랜치 `comparison/3D.py` 에서 가져와 순수 numpy로 정리 |
 | `patrol_mission.py` | 순찰 실행 루프 — 구간 비행, 스캔 지휘, 탐지 반응(정지·라이트·사진), 복귀. `on_progress` 로 구조화된 진행 이벤트를 낸다 |
 | `detect_events.py` | UDP 9004 탐지 수신기 (외부 디텍터 프로세스용 — **기본 경로 아님**). ARM/DISARM 게이팅 |
 | `patrol_report.py` | 순찰 보고서 md/html/json + 이벤트 사진 |
-| `sdk_export.py` | 웨이포인트 → Tello SDK 커맨드 프로그램 JSON |
 | `room_aliases.json` | 방 별칭 ("현우방" → `002_012`), `floor_offset` |
 
 ## 주요 인자
@@ -60,7 +52,7 @@ Qwen/Qwen2.5-3B-Instruct` `--llm-api-key` `--llm-timeout 60`.
 `--hover-height 1.2` `--scan-deg-per-sec 50` `--scan-turns 1` `--max-rooms 12`
 `--no-light` `--room-aliases` `--report-dir` `--patrol-port 9004`(외부 디텍터)
 
-**출력** `--out-dir`(기본 `patrol/out`) `--viz-dir`(Unity `Assets/Resources` 를
+**출력** `--viz-dir`(Unity `Assets/Resources` 를
 가리키면 계획 경로·궤적이 씬에 그려짐)
 
 ## 연속 미션
@@ -71,12 +63,12 @@ Qwen/Qwen2.5-3B-Instruct` `--llm-api-key` `--llm-timeout 60`.
 ## 자가 테스트 (서버 없이)
 
 ```bash
-python patrol/litept_backend.py "거실 소파"   # 매칭·랭킹 + home 좌표 출력
+python patrol/litept_backend.py                # 방별 인스턴스 수 + home 좌표
 python -m patrol.room_index --list             # 방 목록/별칭 (cwd = repo root)
 python -m patrol.detect_events --emit --label person --conf 0.9 --image /abs/x.jpg
 
 # LLM 왕복만 점검 (llm_server/serve.py 가 떠 있어야 함)
-python patrol/remote_llm.py --llm-url http://<host>:8000/v1 "거실 소파 찾아줘"
+python patrol/remote_llm.py --llm-url http://<host>:8000/v1 "2층 전부 순찰해줘"
 ```
 
 ## 출력 형식 (`out/<timestamp>_<target>.json`)

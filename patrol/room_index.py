@@ -1,8 +1,8 @@
-"""Per-room geometry index — the unit a PATROL mission plans over.
+"""Per-room geometry index — the unit a patrol mission plans over.
 
-The object-finding path (`litept_backend.py`) only ever needs one detection
-center. A patrol needs the ROOM itself: where its middle is, how high the floor
-is, how big it is, and what a human calls it ("현우방", "2층 화장실").
+A patrol addresses ROOMS: where the middle is, how high the floor is, how big
+it is, and what a human calls it ("현우방", "2층 화장실"). `litept_backend.py`
+loads the raw data; this turns it into those rooms.
 
 Everything here is derived from the same `--data-dir` layout the backend uses::
 
@@ -325,8 +325,8 @@ def by_web_room_id(index: Dict[str, RoomInfo], web_id: str) -> Optional[RoomInfo
 def room_directory_text(index: Dict[str, RoomInfo]) -> str:
     """Room directory for the LLM system prompt (patrol + object find).
 
-    Extends litept_backend.room_directory_text with the Korean floor label and
-    the human aliases, which is what lets "현우방만 탐색해줘" resolve at all.
+    Lists every room with its Korean floor label, type and human aliases —
+    that last part is what lets "현우방만 탐색해줘" resolve at all.
     """
     lines = ["Room directory (room_id: floor, type, aliases):"]
     for name in sorted(index):

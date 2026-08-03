@@ -355,7 +355,8 @@ def build_app(scene: Scene) -> FastAPI:
 
         Returns web-spelled ids in visit order, plus the names we know them by,
         because the console's own labels are hardcoded and disagree with the
-        aliases the LLM resolved against (see API.md).
+        aliases the LLM resolved against (see API.md). An empty `rooms` means
+        the text named no area we could pin down — `why` says so.
         """
         text = (req.text or "").strip()
         if not text:
@@ -365,7 +366,6 @@ def build_app(scene: Scene) -> FastAPI:
             intent, scene.rooms, text, max_rooms=scene.args.max_rooms)
         rooms = room_index.order_rooms(rooms, scene.drone_pose()[0])
         return {
-            "mode": intent.mode,
             "why": why,
             "rooms": [room_index.web_room_id(r.room_name) for r in rooms],
             "names": {room_index.web_room_id(r.room_name): r.display

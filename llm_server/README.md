@@ -14,7 +14,7 @@ python llm_server/serve.py --port 8000 --llm-device cuda:1 --api-key <토큰>
 
 ## 규칙: 이 폴더는 `patrol/` 을 import하지 않는다
 
-프롬프트도, 방 목록도, JSON 스키마도 전부 클라이언트(`patrol/llm_base.py`)에 있고
+프롬프트도, 방 목록도, JSON 스키마도 전부 클라이언트(`patrol/patrol_intent.py`)에 있고
 여기로는 완성된 system/user 텍스트가 넘어온다. 서버는 모델만 돌린다.
 
 덕분에 **이 폴더만 다른 GPU 박스에 복사해도 그대로 뜬다.** 편의를 위해 여기서

@@ -1,18 +1,15 @@
-"""Patrol intent parsing — "어디를 순찰할까" (vs. "무엇을 찾을까").
+"""Patrol intent parsing — "어디를 순찰할까".
 
-`patrol/llm_base.py` answers the object-finding question and its SYSTEM_PROMPT
-is shared with the v1 webapp, so it is left untouched. This module adds a
-SECOND prompt over the SAME parser handle (`BaseLLMParser.generate`, whether
-that runs the model in-process or over HTTP) and resolves its answer to
-concrete `RoomInfo`s.
+The one LLM prompt in the pipeline that decides where the drone goes. It sits
+on top of `generate(system, user)` and resolves its answer to concrete
+`RoomInfo`s.
 
-    "현우방만 탐색해줘"     -> mode=patrol, rooms=[002_012]
-    "2층 전부 순찰해줘"     -> mode=patrol, rooms=[all floor-1 rooms]
-    "거실 소파 찾아줘"      -> mode=find   (server falls through to run_query)
+    "현우방만 탐색해줘"     -> rooms=[002_012]
+    "2층 전부 순찰해줘"     -> rooms=[all floor-1 rooms]
 
 Room resolution never relies on the LLM alone — an alias/keyword/floor scan of
-the raw text backs it up, mirroring `litept_backend.resolve_room`'s 3-tier
-fallback. A 3B model reliably fails at least one of these on its own.
+the raw text backs it up in five tiers. A 3B model reliably fails at least one
+of these on its own.
 """
 from __future__ import annotations
 
@@ -28,16 +25,9 @@ except ImportError:  # plain-script import path
     from litept_backend import ROOM_KW_MAP  # type: ignore
     from room_index import RoomInfo, room_directory_text  # type: ignore
 
-PATROL_SYSTEM_PROMPT = """You route natural-language drone commands for an indoor patrol drone.
+PATROL_SYSTEM_PROMPT = """You pick the patrol area for an indoor drone from a natural-language command.
 
-Decide first WHAT KIND of command it is:
-- mode "patrol": the user wants the drone to SEARCH / SWEEP / CHECK an AREA
-  (탐색, 순찰, 확인, 둘러봐, 사람 있는지 봐줘, patrol, sweep, check).
-- mode "find":   the user wants a specific OBJECT (소파 찾아줘, 냉장고 어디야,
-  find the chair, tv 사진 찍어줘).
-When both appear ("현우방에서 의자 찾아줘"), the object wins -> "find".
-
-Then fill in the patrol area (leave empty for mode "find"):
+Fill in:
 - target_rooms: list of ROOM IDs like "002_012" (two numbers). Use the room
   directory below: match the user's words against the aliases (별칭), the floor
   (층) and the room type. Empty list if the user did not name a specific room.
@@ -54,26 +44,17 @@ Always answer with a single JSON object, no prose, no markdown fences.
 Examples:
 
 User: 현우방만 탐색해줘
-{"mode":"patrol","target_rooms":["002_012"],"room_types":[],"floors":[],"scope":"room","return_home":true}
+{"target_rooms":["002_012"],"room_types":[],"floors":[],"scope":"room","return_home":true}
 
 User: 2층 전부 순찰해줘
-{"mode":"patrol","target_rooms":[],"room_types":[],"floors":[2],"scope":"floor","return_home":true}
+{"target_rooms":[],"room_types":[],"floors":[2],"scope":"floor","return_home":true}
 
 User: 집 전체 돌면서 사람 있는지 확인해줘
-{"mode":"patrol","target_rooms":[],"room_types":[],"floors":[],"scope":"building","return_home":true}
+{"target_rooms":[],"room_types":[],"floors":[],"scope":"building","return_home":true}
 
 User: 3층 화장실들 확인해줘
-{"mode":"patrol","target_rooms":[],"room_types":["bathroom"],"floors":[3],"scope":"floor","return_home":true}
-
-User: 거실 소파 찾아줘
-{"mode":"find","target_rooms":[],"room_types":[],"floors":[],"scope":"","return_home":false}
+{"target_rooms":[],"room_types":["bathroom"],"floors":[3],"scope":"floor","return_home":true}
 """
-
-# Korean words that force a patrol regardless of what the LLM decided.
-PATROL_KW = ("순찰", "탐색", "둘러", "살펴", "수색", "정찰", "돌아봐", "돌면서",
-             "확인해", "점검", "patrol", "sweep", "scan")
-# ...and words that force object-find (an object query mentioning "확인해줘").
-FIND_KW = ("찾아", "어디", "가져", "find", "where")
 
 _FLOOR_RE = re.compile(r"(\d+)\s*층")
 _UP_WORDS = ("위층", "윗층", "위 층", "upstairs")
@@ -82,7 +63,6 @@ _DOWN_WORDS = ("아래층", "아랫층", "아래 층", "downstairs", "1층")
 
 @dataclass
 class PatrolIntent:
-    mode: str = "find"                      # "patrol" | "find"
     target_rooms: List[str] = field(default_factory=list)
     room_types: List[str] = field(default_factory=list)
     floors_kr: List[int] = field(default_factory=list)  # as the user says them
@@ -91,32 +71,15 @@ class PatrolIntent:
     raw: dict = field(default_factory=dict)
     raw_text: str = ""
 
-    @property
-    def is_patrol(self) -> bool:
-        return self.mode == "patrol"
-
 
 def parse_patrol(llm, user_text: str, index: Dict[str, RoomInfo],
                  max_new_tokens: int = 200) -> PatrolIntent:
-    """LLM patrol routing, with keyword overrides for the mode decision."""
+    """Ask the LLM which area to patrol. Resolution happens in resolve_rooms."""
     system = f"{PATROL_SYSTEM_PROMPT}\n{room_directory_text(index)}\n"
     gen = llm.generate(system, user_text, max_new_tokens=max_new_tokens)
     data = _extract_json(gen)
 
-    mode = str(data.get("mode", "")).strip().lower()
-    low = user_text.lower()
-    # The 3B model happily calls a bare "현우방만 탐색해줘" a "find". Korean verb
-    # keywords are unambiguous here, so they win — but an explicit object query
-    # ("소파 찾아줘") stays a find even if it also says "확인해줘".
-    if any(k in low for k in FIND_KW):
-        mode = "find"
-    elif any(k in low for k in PATROL_KW):
-        mode = "patrol"
-    elif mode not in ("patrol", "find"):
-        mode = "find"
-
     return PatrolIntent(
-        mode=mode,
         target_rooms=[r for r in map(_coerce_room_id,
                                      _as_list(data.get("target_rooms"))) if r],
         room_types=[str(t).strip().lower()
@@ -143,8 +106,14 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
     floors = _resolve_floors(intent, raw_text, index)
     offset = next(iter(index.values())).floor_offset if index else 1
 
-    # 1. explicit room ids from the LLM
-    picked = [index[r] for r in intent.target_rooms if r in index]
+    # 1. explicit room ids from the LLM — but only ones the TEXT backs up.
+    #    Asked something off-topic ("냉장고 찾아줘"), the 3B model still fills
+    #    target_rooms with plausible-looking ids. Silently patrolling three
+    #    invented rooms is worse than admitting we did not understand, so a id
+    #    only counts if its code, one of its aliases, or its type/floor shows
+    #    up in what the user actually wrote.
+    picked = [index[r] for r in intent.target_rooms
+              if r in index and _text_backs_room(index[r], text, floors)]
     if picked:
         return _dedup(picked)[:max_rooms], "방 코드 지정"
 
@@ -190,13 +159,30 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
 
 # ------------------------------------------------------------------- internals
 
+def _text_backs_room(room: RoomInfo, text: str, floors: Sequence[int]) -> bool:
+    """Is there anything in the user's words pointing at this room?"""
+    if room.room_name in text or room.room_name.split("_")[-1] in text:
+        return True
+    if any(a.lower() in text for a in room.aliases):
+        return True
+    if room.floor in floors:
+        return True
+    for kw, rt in ROOM_KW_MAP.items():
+        if rt == room.room_type and kw in text:
+            return True
+    return False
+
+
 def _resolve_floors(intent: PatrolIntent, raw_text: str,
                     index: Dict[str, RoomInfo]) -> List[int]:
     """LLM floors + a "N층 / 위층 / 아래층" scan -> 0-based floor indices."""
     offset = next(iter(index.values())).floor_offset if index else 1
     available = sorted({r.floor for r in index.values()})
-    kr = list(intent.floors_kr)
-    kr += [int(m) for m in _FLOOR_RE.findall(raw_text)]
+    # An explicit "N층" in the text WINS over the LLM's list — it is not merged
+    # with it. The 3B model answers [1, 2] to "2층 전부 순찰해줘" often enough
+    # that a union quietly doubles the mission.
+    spelled = [int(m) for m in _FLOOR_RE.findall(raw_text)]
+    kr = spelled if spelled else list(intent.floors_kr)
     floors = sorted({k - offset for k in kr})
     floors = [f for f in floors if f in available]
     if floors:
@@ -239,11 +225,11 @@ def _coerce_room_id(v) -> Optional[str]:
 
 
 def _extract_json(text: str) -> dict:
-    """First {...} block of a generation. Near-twin of
-    `patrol.llm_base._extract_json`, but with a different failure contract, so
-    it stays its own function: a failed parse degrades to {} — the keyword
-    fallbacks then carry the query — where llm_base reports {"_parse_error":...}
-    because a find query has nothing to fall back on.
+    """First {...} block of a generation, or {} if there is none.
+
+    Failure is deliberately quiet: an unparseable answer degrades to an empty
+    dict and the five resolution tiers below carry the query on the raw text
+    alone. Raising here would turn a model hiccup into a dead query.
     """
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", (text or "").strip(),
                   flags=re.MULTILINE).strip()

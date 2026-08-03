@@ -4,11 +4,8 @@
 사전계산된 3D 디텍션에서 방을 해석한 뒤 → 드론이 Unity 시뮬레이터에서 경로를
 날며 방마다 360° 스캔하고 → 사람을 찾으면 알리고 → 순찰 보고서가 나온다.
 
-두 모드가 프롬프트마다 자동으로 갈린다.
-
-- **PATROL** (`현우방만 탐색해줘`) — 구역을 돌며 360° 스캔, 사람 탐지 시 반응,
-  마지막에 순찰 보고서 생성.
-- **FIND** (`거실 소파로 가줘`) — 물체 하나를 찾아 1순위 후보로 비행.
+명령은 한 종류다 — **어디를 순찰할지** 고르는 것. `현우방만 탐색해줘`,
+`2층 전부 순찰해줘`, `집 전체 돌면서 사람 있는지 확인해줘` 처럼.
 
 구성 요소:
 
@@ -260,28 +257,26 @@ python patrol/server.py --sim --unity-host 127.0.0.1 \
 ```
 
 ```
-query> 현우방만 탐색해줘        # 별칭 → 002_012 (PATROL)
+query> 현우방만 탐색해줘        # 별칭 → 002_012
 query> 2층 전부 순찰해줘        # 층 전체
+query> 화장실 전부 확인해줘      # 방 종류
 query> 집 전체 돌면서 사람 있는지 확인해줘
-query> 거실에 있는 소파로 가줘   # 물체 하나 (FIND)
-query> go to the refrigerator
 ```
 
-**PATROL 흐름**: 방 해석 → **이륙 1회** → 방마다 A* 이동 + 제자리 360° 스캔 →
+**흐름**: 방 해석 → **이륙 1회** → 방마다 A* 이동 + 제자리 360° 스캔 →
 사람 탐지 시 **정지 → 라이트 온 → 사진 기록 → 알림** → 복귀·착륙 →
 `patrol/out/reports/<ts>_patrol/` 에 `report.md` / `report.html` /
 `report.json` + `events/*.jpg` 생성.
 
-**FIND 흐름**: 의도 분석 → 후보 랭킹 → **1순위 후보로 바로** 드론 현 위치에서
-A* → 비행 → 착륙. 다음 쿼리는 드론이 선 자리에서 이어진다.
+다음 쿼리는 드론이 선 자리에서 이어진다.
 
 > **확인 단계는 없다.** 예전에는 Unity 화면의 [이동]/[다음 후보] 버튼을
 > 기다렸는데, 순찰 구역을 웹 평면도에서 이륙 전에 고르게 되면서 날고 있는 드론
 > 앞에서 다시 물어볼 게 없어졌다.
 
-탐색 물체 (ScanNet-20, wall/floor 제외): `cabinet bed chair sofa table door window
-bookshelf picture counter desk curtain refrigerator "shower curtain" toilet sink
-bathtub otherfurniture` (tv/모니터 등 → otherfurniture).
+구역을 못 집으면 아무 방도 안 고르고 이유를 돌려준다. LLM이 그럴듯한 방 코드를
+지어내는 일이 있어서, **사용자가 실제로 쓴 말이 뒷받침하지 않는 방은 버린다**
+(방 번호·별칭·방 종류·층 중 하나가 문장에 있어야 한다).
 
 | REPL 명령 | 동작 |  | Unity 키 | 동작 |
 |---|---|---|---|---|
@@ -370,16 +365,14 @@ API.md                       # 그 계약 — 콘솔의 어느 함수에서 뭘 
 
 patrol/                      # 두뇌 (파이썬, torch 없음)
 ├── server.py                # 디버그 REPL (LLM→LitePT→plan→fly)
-├── llm_base.py              # 프롬프트·스키마·JSON 정제 + parse()
 ├── remote_llm.py            # 유일한 generate() 구현 — HTTP (urllib만)
-├── patrol_intent.py         # FIND/PATROL 라우팅 + 방 해석
+├── patrol_intent.py         # 순찰 구역 해석 (LLM + 별칭·타입·층 5단 폴백)
 ├── patrol_mission.py        # 순찰 실행 (구간 비행·스캔 지휘·탐지 반응, on_progress)
 ├── patrol_report.py         # 보고서 md/html/json
 ├── detect_events.py         # UDP 9004 탐지 수신 (외부 디텍터용, 기본 경로 아님)
-├── litept_backend.py        # detections.json 로드/랭킹, 포인트 병합, 홈
+├── litept_backend.py        # detections.json 로드, 포인트 병합, 홈
 ├── room_index.py            # 방 인덱스·별칭·스캔 포즈·웹 id 변환
 ├── planner.py               # A* / RRT* (복셀 그리드)
-├── sdk_export.py            # Tello SDK 커맨드 프로그램 기록 (out/)
 └── room_aliases.json        # 방 별칭 ("현우방" → 002_012)
 
 simulator/                   # 시뮬 (Unity + 브리지)

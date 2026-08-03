@@ -1,31 +1,17 @@
-"""patrol — terminal NL → LitePT detection → sim flight.
+"""patrol — 자연어 한 줄 → 구역 순찰 → 보고서 (터미널 디버그 경로).
 
-Two modes, chosen per query by the LLM (patrol.patrol_intent):
+    "현우방만 탐색해줘"
+        -> 순찰 구역 해석         (patrol_intent + room_index)
+        -> 방마다 A* 구간 비행 + 360° 스캔     (patrol_mission)
+        -> 사람 탐지 시 정지 -> 라이트 온 -> 사진 기록 -> 알림
+        -> 복귀·착륙
+        -> 순찰 보고서 md/html/json           (patrol_report)
 
-FIND (물체 찾기) — single-object search:
+확인 단계는 없다: 순찰 구역은 웹 평면도에서 이륙 전에 고른다.
 
-    natural-language command
-        -> LLM intent parse                        (patrol.remote_llm)
-        -> LitePT precomputed detection match      (patrol.litept_backend)
-        -> A* / RRT* path from the drone's position    (patrol.planner)
-        -> Tello SDK command program written to out/   (patrol.sdk_export)
-        -> the drone flies the path in the simulator   (simulator/bridge)
-
-PATROL (구역 순찰) — "현우방만 탐색해줘":
-
-    -> rooms resolved from aliases/type/floor   (patrol_intent + room_index)
-        -> per room: A* leg -> 360° scan
-        -> a person detection triggers
-           hover -> light on -> record photo -> notify   (patrol_mission)
-        -> return home, land
-        -> 순찰 보고서 md/html/json written to out/reports (patrol_report)
-
-There is no in-flight confirmation step: the operator picks the areas on the
-web floor plan before launch, so the drone just executes the plan.
-
-Detections come from `data/final_npy` (LitePT ScanNet-20 instance centers,
-see litept_backend). Continuous mission: each query starts from the drone's
-current simulator position (fallback: previous goal, then home).
+방 정보는 `data/final_npy` 에서 읽는다 (LitePT 사전계산 결과, litept_backend).
+연속 미션이라 각 쿼리는 드론의 **현재 시뮬 위치**에서 시작한다 (상태 수신 실패
+시 직전 목표 → 홈 순으로 폴백).
 
 The model is NEVER loaded here — it lives behind an OpenAI-compatible endpoint
 (`llm_server/serve.py` on the GPU box, or anything else that speaks the same
@@ -55,7 +41,7 @@ _THIS = Path(__file__).resolve()
 sys.path.insert(0, str(_THIS.parents[1]))  # repo root
 
 from patrol import (patrol_intent, patrol_mission, patrol_report,  # noqa: E402
-                    planner, room_index, sdk_export)
+                    planner, room_index)
 from patrol.detect_events import DetectionListener  # noqa: E402
 from patrol.litept_backend import LitePTBackend  # noqa: E402
 from patrol.remote_llm import RemoteLLMParser  # noqa: E402  (stdlib only)
@@ -88,16 +74,13 @@ def main() -> None:
     ap.add_argument("--point-stride", type=int, default=4,
                     help="Stride when merging the per-room coord.npy clouds.")
     ap.add_argument("--rrt-iter", type=int, default=8000)
-    # tello / output
-    ap.add_argument("--tello-speed", type=int, default=40)
     ap.add_argument("--home-xyz", type=float, nargs=3, default=None,
                     metavar=("X", "Y", "Z"),
                     help="World-meter launch point. Default: first room's "
                          "centroid, 1 m above its floor.")
-    ap.add_argument("--out-dir", default=str(_THIS.parent / "out"))
     # Unity simulator link (simulator/bridge; see README.md §4)
     ap.add_argument("--sim", action="store_true",
-                    help="Preview + fly in the Unity Tello simulator.")
+                    help="Fly in the Unity Tello simulator.")
     ap.add_argument("--unity-host", default=None,
                     help="IP of the machine running Unity (required with --sim).")
     ap.add_argument("--unity-port", type=int, default=9000)
@@ -301,110 +284,12 @@ def main() -> None:
 
     # ------------------------------------------------------------- per-query run
     def run_query(user_text: str) -> None:
-        # 0. patrol or find?
         status(f"의도 분석 중... ({user_text})")
         p_intent = patrol_intent.parse_patrol(llm, user_text, rooms_index)
-        print(f"[route] mode={p_intent.mode} rooms={p_intent.target_rooms} "
+        print(f"[route] rooms={p_intent.target_rooms} "
               f"types={p_intent.room_types} floors={p_intent.floors_kr} "
               f"scope={p_intent.scope!r}")
-        if p_intent.is_patrol:
-            run_patrol_query(user_text, p_intent)
-            return
-
-        # 1. LLM intent parse (object find)
-        t1 = time.time()
-        intent = llm.parse(user_text,
-                           room_directory=backend.room_directory_text())
-        t_llm = time.time() - t1
-        print(f"[intent] object={intent.target_object!r} "
-              f"room={intent.target_room or intent.location_hint or 'any'} "
-              f"action={intent.action} return_home={intent.return_home} "
-              f"({t_llm:.2f}s)")
-
-        # 2. Detection match (LitePT closed-set)
-        label = backend.resolve_label(intent.target_object, user_text)
-        if label is None:
-            status(f"'{intent.target_object}' 는 인식 가능한 물체가 아닙니다")
-            print(f"[query] unresolvable target {intent.target_object!r} — "
-                  f"classes: {', '.join(backend_classes())}")
-            return
-        room_name, room_type = backend.resolve_room(
-            intent.target_room, intent.location_hint, user_text)
-        if intent.scope == "building":
-            room_name = room_type = None
-        status(f"'{label}' 탐색 중 (LitePT detection)...")
-        cands = backend.candidates(label, room_name, room_type)
-        if not cands:
-            status(f"'{label}' 를 찾지 못했습니다")
-            return
-        if (room_name or room_type) and not cands[0].room_match:
-            status("요청한 방에는 없어 건물 전체에서 찾았습니다")
-        print(f"[detect] {len(cands)} candidate(s) for '{label}'"
-              + (f" (room={room_name or room_type})" if room_name or room_type
-                 else ""))
-
-        # 3. Take the top-ranked candidate. There is no confirm step any more:
-        #    the operator picks patrol areas on the web floor plan before the
-        #    drone ever launches, so a second in-flight confirmation had nothing
-        #    left to decide.
-        det = cands[0]
-        goal_world = det.center + np.array([0.0, 0.0, 0.5])  # hover above it
-        print(f"[target] {det.describe()} -> goal={np.round(goal_world, 2)}")
-
-        # 4. Path plan from the drone's current position
-        status("경로 계산 중...")
-        start_world = drone_world_pos()
-        t2 = time.time()
-        path, info, _ = planner.plan_path(
-            points_world, start_world, goal_world, algo=args.algo,
-            resolution=args.resolution, margin=args.margin, sample=args.sample,
-            rrt_iter=args.rrt_iter, gm=gm)
-        t_plan = time.time() - t2
-        if path is None:
-            status("경로 계산 실패")
-            print(f"[plan] {args.algo} FAILED ({info.get('reason', '?')}, "
-                  f"{t_plan:.2f}s) — no path saved.")
-            return
-        print(f"[plan] {args.algo}: {info['n_waypoints']} waypoints, "
-              f"{info['length_m']:.2f} m ({t_plan:.2f}s)")
-
-        # 5. Emit Tello SDK program
-        ts = time.strftime("%Y%m%d_%H%M%S")
-        program = sdk_export.build_tello_program(
-            path, action=intent.action, return_home=intent.return_home,
-            home_world=home, start_world=start_world, goal_world=goal_world,
-            target_object=label, clip_prompt=intent.clip_prompt,
-            query=user_text, algo=args.algo, building=args.building,
-            speed=args.tello_speed, timestamp=ts)
-        out_path = sdk_export.save_program(program, args.out_dir)
-        print(f"[sdk] {len(program['commands'])} commands -> {out_path}")
-
-        # 6. Fly in the simulator
-        if bridge is not None and sim_tf is not None:
-            wps_unity = sim_tf.mosaic_to_unity(np.asarray(path, dtype=float))
-            length_u = float(np.linalg.norm(
-                np.diff(wps_unity, axis=0), axis=1).sum())
-            status(f"비행 중... ({info['length_m']:.1f} m)")
-            print(f"[sim] flying {length_u:.1f} u at {args.sim_speed} u/s "
-                  f"(~{length_u / max(1e-3, args.sim_speed):.0f}s) ...")
-            res = follow_path.fly_mission(
-                bridge, [tuple(p) for p in wps_unity],
-                setpos_start=False,  # continuous mission: fly from where it is
-                max_speed=float(args.sim_speed),
-                rc_limit=int(args.sim_rc_limit),
-                timeout_sec=(args.sim_timeout or None), on_status=status)
-            status("도착 — 착륙 완료" if res.success
-                   else f"비행 중단 ({res.reason})")
-            print(f"[sim] {res.reason}: err={res.final_error_u:.2f}u "
-                  f"collisions={res.collision_count} rc={res.rc_commands_sent} "
-                  f"{res.duration_s:.0f}s")
-            if not res.success:
-                return  # keep last_goal where the mission actually is
-        state["last_goal"] = goal_world
-
-    def backend_classes():
-        from patrol.litept_backend import INSTANCE_CLASSES
-        return INSTANCE_CLASSES
+        run_patrol_query(user_text, p_intent)
 
     # ----------------------------------------------------------------- REPL
     print("\n" + "=" * 68)

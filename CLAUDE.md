@@ -87,8 +87,8 @@ python simulator/bridge/fake_unity_sim.py --detect-per-scan 1 &
 python patrol/server.py --sim --unity-host 127.0.0.1 --llm-url http://127.0.0.1:8000/v1
 
 # 모듈 자가 테스트
-python patrol/litept_backend.py "거실 소파"      # 매칭·랭킹 + home 좌표
-python patrol/remote_llm.py --llm-url http://<host>:8000/v1 "거실 소파 찾아줘"
+python patrol/litept_backend.py                  # 방별 인스턴스 수 + home 좌표
+python patrol/remote_llm.py --llm-url http://<host>:8000/v1 "2층 전부 순찰해줘"
 python -m patrol.room_index --list               # 방 목록/별칭 (cwd = repo root)
 python -m patrol.detect_events --emit --label person --conf 0.9 --image /abs/x.jpg
 
@@ -137,14 +137,13 @@ python simulator/bridge/calibrate_transform.py --building 00809_Qpor2mEya8F \
   갈라놨다. 새 진행 단계를 추가하면 `progress()` 한 줄과 `API.md` 표 한 줄.
 
 - **LLM 인스턴스는 하나다.** server가 파서를 하나 만들어
-  `patrol_intent`(FIND/PATROL 라우팅·방 해석)와 `patrol_report`(보고서 문장)에
-  주입한다. 새 LLM 호출을 추가할 때 모델을 또 로드하지 말 것.
+  `patrol_intent`(순찰 구역 해석)와 `patrol_report`(보고서 문장)에 주입한다.
+  이 둘이 파이프라인의 LLM 호출 전부다.
 
 - **LLM 접점은 `generate(system, user) -> str` 하나뿐이고, 거기서 기계가
-  갈린다.** `llm_base.BaseLLMParser` 가 프롬프트·스키마·JSON 정제와 `parse()` 를
-  들고 있고(torch 안 씀), 유일한 구현이 `remote_llm.RemoteLLMParser`(HTTP,
-  urllib만). 모델 자체는 `llm_server/local_llm.py` 에 있고 **저장소에서 torch를
-  import하는 파일은 그거 하나**다.
+  갈린다.** 클라이언트는 `remote_llm.RemoteLLMParser` 하나(HTTP, urllib만)이고
+  프롬프트는 각 호출부가 들고 있다. 모델 자체는 `llm_server/local_llm.py` 에
+  있고 **저장소에서 torch를 import하는 파일은 그거 하나**다.
 
   `llm_server/` 는 `patrol/` 을 import하지 않는다 — 서버는 완성된 system/user
   텍스트를 받아 모델만 돌리므로 프롬프트도 방 목록도 필요 없다. 그래서 그

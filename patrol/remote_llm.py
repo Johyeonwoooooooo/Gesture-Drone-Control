@@ -1,20 +1,20 @@
 """LLM client — talks to an OpenAI-compatible server instead of loading a model.
 
-The only `generate()` implementation on this side, so
-`server.py`, `patrol_intent.py` and `patrol_report.py` cannot tell the
-difference. Lets the laptop that runs Unity also run the whole patrol
-pipeline, with only the LLM left on the GPU box.
+The whole LLM surface of this side is `generate(system, user) -> str`. Both
+callers (`patrol_intent` for the patrol area, `patrol_report` for the report
+prose) sit on top of it, so the model can live on another machine and nothing
+else notices.
 
-    llm = RemoteLLMParser("http://166.104.223.32:8000/v1", "Qwen/Qwen2.5-3B-Instruct")
-    llm.parse("거실 소파 찾아줘")
+    llm = RemoteLLMParser("http://166.104.223.32:8000/v1")
+    llm.generate("Answer in JSON.", "2층 전부 순찰해줘")
 
-Deliberately **stdlib only** (urllib) — the laptop side of the split should
-need nothing beyond numpy, so don't reach for `requests` or the `openai` SDK
-here. The server can be `llm_server/serve.py` or any OpenAI-compatible
-runtime (vLLM, Ollama, llama.cpp); the wire format is the same.
+Deliberately **stdlib only** (urllib) — the PC running Unity should need
+nothing beyond numpy, so don't reach for `requests` or the `openai` SDK here.
+The server can be `llm_server/serve.py` or any OpenAI-compatible runtime
+(vLLM, Ollama, llama.cpp); the wire format is the same.
 
-Self-test:
-    python patrol/remote_llm.py --llm-url http://<host>:8000/v1 "거실 소파 찾아줘"
+Self-test (needs data/ for the room directory):
+    python patrol/remote_llm.py --llm-url http://<host>:8000/v1 "2층 전부 순찰해줘"
 """
 from __future__ import annotations
 
@@ -28,8 +28,6 @@ from typing import List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root
 
-from patrol.llm_base import BaseLLMParser  # noqa: E402
-
 DEFAULT_TIMEOUT = 60.0
 DEFAULT_RETRIES = 2
 
@@ -38,7 +36,7 @@ class RemoteLLMError(RuntimeError):
     pass
 
 
-class RemoteLLMParser(BaseLLMParser):
+class RemoteLLMParser:
     def __init__(
         self,
         base_url: str,
@@ -159,6 +157,9 @@ def main() -> None:
     ap.add_argument("--llm-model", default="Qwen/Qwen2.5-3B-Instruct")
     ap.add_argument("--llm-api-key", default=None)
     ap.add_argument("--llm-timeout", type=float, default=DEFAULT_TIMEOUT)
+    ap.add_argument("--data-dir",
+                    default=str(Path(__file__).resolve().parents[1]
+                                / "data" / "final_npy"))
     args = ap.parse_args()
 
     llm = RemoteLLMParser(args.llm_url, args.llm_model,
@@ -166,10 +167,16 @@ def main() -> None:
     served = llm.ping()
     print(f"[llm] server ok, models={served or '(no /models route)'}")
 
+    from patrol import patrol_intent, room_index
+    from patrol.litept_backend import LitePTBackend
+    rooms = room_index.build_room_index(LitePTBackend(args.data_dir), None)
+
     t0 = time.time()
-    intent = llm.parse(" ".join(args.query))
+    intent = patrol_intent.parse_patrol(llm, " ".join(args.query), rooms)
+    picked, why = patrol_intent.resolve_rooms(intent, rooms, " ".join(args.query))
     print(f"[llm] parsed in {time.time() - t0:.2f}s")
     print(json.dumps(intent.__dict__, ensure_ascii=False, indent=2))
+    print(f"[rooms] {why}: " + ", ".join(r.display for r in picked))
 
 
 if __name__ == "__main__":
