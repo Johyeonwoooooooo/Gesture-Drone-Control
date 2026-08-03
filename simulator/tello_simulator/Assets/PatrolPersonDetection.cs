@@ -1,6 +1,7 @@
 using UnityEngine;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
 using System.Text;
@@ -8,6 +9,9 @@ using System.Threading.Tasks;
 
 public class PatrolPersonDetection : MonoBehaviour
 {
+    private const float EndScanCaptureGuardDegrees = 2.0f;
+    private const string SavedLogPrefix = "__PATROL_SAVED_LOG__\n";
+
     [Header("Detector TCP")]
     public string detectorHost = "127.0.0.1";
     public int detectorPort = 9100;
@@ -40,6 +44,7 @@ public class PatrolPersonDetection : MonoBehaviour
     [Header("Detected Frame Save")]
     public bool saveNewPersonFrames = true;
     public string saveDirectory = "../../bridge/detection_frames";
+    public float minSavedFrameAngularSeparationDeg = 60f;
 
     [Header("360 Scan")]
     public bool scanOnStart = false;
@@ -67,6 +72,8 @@ public class PatrolPersonDetection : MonoBehaviour
     private float pauseRotationUntil;
     private bool personDetectionLatched;
     private int consecutiveNoPersonResponses;
+    private readonly List<float> savedDetectionAngles = new List<float>();
+    private readonly HashSet<string> savedPersonIds = new HashSet<string>();
 
     [Serializable]
     private class DetectionResponse
@@ -87,6 +94,8 @@ public class PatrolPersonDetection : MonoBehaviour
         public float y1;
         public float x2;
         public float y2;
+        public float cx;
+        public float cy;
     }
 
     private void Awake()
@@ -271,6 +280,8 @@ public class PatrolPersonDetection : MonoBehaviour
         pauseRotationUntil = 0f;
         personDetectionLatched = false;
         consecutiveNoPersonResponses = 0;
+        savedDetectionAngles.Clear();
+        savedPersonIds.Clear();
 
         while (scanned < 360f)
         {
@@ -281,7 +292,8 @@ public class PatrolPersonDetection : MonoBehaviour
 
             ProcessCompletedDetection(ref nextDetectionAlertTime);
 
-            if (!requestInFlight && Time.time >= nextFrameTime)
+            bool canCaptureFrame = scanned < 360f - EndScanCaptureGuardDegrees;
+            if (canCaptureFrame && !requestInFlight && Time.time >= nextFrameTime)
             {
                 nextFrameTime = Time.time + frameInterval;
                 byte[] jpg = CaptureJpeg();
@@ -386,8 +398,11 @@ public class PatrolPersonDetection : MonoBehaviour
             personDetectionLatched = true;
             if (saveNewPersonFrames && jpg != null)
             {
-                string path = SaveDetectedFrame(jpg, scanAngle);
-                Debug.Log($"[PatrolDetection] saved detected person frame: {path}");
+                string path = SaveDetectedFrame(jpg, scanAngle, response);
+                if (!string.IsNullOrEmpty(path))
+                {
+                    Debug.Log($"[PatrolDetection] saved detected person frame: {path}");
+                }
             }
 
             nextDetectionAlertTime = Time.time + detectionAlertCooldownSeconds;
@@ -405,14 +420,319 @@ public class PatrolPersonDetection : MonoBehaviour
         return false;
     }
 
-    private string SaveDetectedFrame(byte[] jpg, float scanAngle)
+    private string SaveDetectedFrame(byte[] jpg, float scanAngle, DetectionResponse response)
     {
+        List<PersonTarget> detectedTargets = FindDetectedPersonTargets(response);
+        bool hasResolvedTarget = detectedTargets.Count > 0;
+        bool hasNewResolvedTarget = false;
+        foreach (PersonTarget target in detectedTargets)
+        {
+            if (target != null && !savedPersonIds.Contains(target.PersonId))
+            {
+                hasNewResolvedTarget = true;
+                break;
+            }
+        }
+
+        bool duplicateResolvedTarget = hasResolvedTarget && !hasNewResolvedTarget;
+        bool duplicateUnresolvedTarget = !hasResolvedTarget && IsDuplicateSavedAngle(scanAngle);
+        if (duplicateResolvedTarget || duplicateUnresolvedTarget)
+        {
+            Debug.LogWarning(
+                $"[PatrolDetection] skipped duplicate person frame angle={scanAngle:F1} " +
+                (hasResolvedTarget ? "(same PersonTarget)" : "(angle fallback)"));
+            return "";
+        }
+
         string root = Path.GetFullPath(Path.Combine(Application.dataPath, saveDirectory));
         Directory.CreateDirectory(root);
         string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss_fff");
         string path = Path.Combine(root, $"patrol_person_detected_angle_{scanAngle:000}_{stamp}.jpg");
         File.WriteAllBytes(path, jpg);
+        savedDetectionAngles.Add(NormalizeAngle(scanAngle));
+        foreach (PersonTarget target in detectedTargets)
+        {
+            if (target != null)
+            {
+                savedPersonIds.Add(target.PersonId);
+            }
+        }
+        string savedLog = BuildSavedDetectionLog(response, scanAngle);
+        LogSavedDetectionBoxes(savedLog);
+        _ = SendSavedDetectionLogAsync(savedLog);
+
+        string annotatedPath = Path.Combine(root, $"patrol_person_detected_angle_{scanAngle:000}_{stamp}_annotated.jpg");
+        if (SaveAnnotatedDetectedFrame(jpg, response, annotatedPath))
+        {
+            Debug.Log($"[PatrolDetection] saved annotated detected person frame: {annotatedPath}");
+        }
         return path;
+    }
+
+    private List<PersonTarget> FindDetectedPersonTargets(DetectionResponse response)
+    {
+        List<PersonTarget> targets = new List<PersonTarget>();
+        if (response == null || response.detections == null)
+        {
+            return targets;
+        }
+
+        foreach (DetectionBox detection in response.detections)
+        {
+            if (detection == null || detection.confidence < detectionConfidenceThreshold)
+            {
+                continue;
+            }
+
+            PersonTarget target = FindPersonTargetForDetection(detection);
+            if (target != null && !targets.Contains(target))
+            {
+                targets.Add(target);
+            }
+        }
+        return targets;
+    }
+
+    private PersonTarget FindPersonTargetForDetection(DetectionBox detection)
+    {
+        if (captureCamera == null || detection == null)
+        {
+            return null;
+        }
+
+        float cx = detection.cx;
+        float cy = detection.cy;
+        if (Mathf.Approximately(cx, 0f) && Mathf.Approximately(cy, 0f))
+        {
+            cx = (detection.x1 + detection.x2) * 0.5f;
+            cy = (detection.y1 + detection.y2) * 0.5f;
+        }
+
+        float boxWidth = Mathf.Max(1f, detection.x2 - detection.x1);
+        float boxHeight = Mathf.Max(1f, detection.y2 - detection.y1);
+        Vector2[] samples =
+        {
+            new Vector2(cx, cy),
+            new Vector2(cx - boxWidth * 0.18f, cy),
+            new Vector2(cx + boxWidth * 0.18f, cy),
+            new Vector2(cx, cy - boxHeight * 0.18f),
+            new Vector2(cx, cy + boxHeight * 0.18f)
+        };
+
+        PersonTarget closestTarget = null;
+        float closestDistance = float.MaxValue;
+        foreach (Vector2 sample in samples)
+        {
+            float viewportX = Mathf.Clamp01(sample.x / Mathf.Max(1f, imageWidth));
+            float viewportY = 1f - Mathf.Clamp01(sample.y / Mathf.Max(1f, imageHeight));
+            Ray ray = captureCamera.ViewportPointToRay(new Vector3(viewportX, viewportY, 0f));
+            RaycastHit[] hits = Physics.RaycastAll(
+                ray,
+                Mathf.Max(captureCamera.farClipPlane, 100f),
+                Physics.AllLayers,
+                QueryTriggerInteraction.Collide);
+
+            foreach (RaycastHit hit in hits)
+            {
+                PersonTarget target = hit.collider != null
+                    ? hit.collider.GetComponentInParent<PersonTarget>()
+                    : null;
+                if (target != null && hit.distance < closestDistance)
+                {
+                    closestTarget = target;
+                    closestDistance = hit.distance;
+                }
+            }
+        }
+        return closestTarget;
+    }
+
+    private bool IsDuplicateSavedAngle(float scanAngle)
+    {
+        if (minSavedFrameAngularSeparationDeg <= 0f)
+        {
+            return false;
+        }
+
+        float normalized = NormalizeAngle(scanAngle);
+        foreach (float savedAngle in savedDetectionAngles)
+        {
+            if (CircularAngleDistance(normalized, savedAngle) < minSavedFrameAngularSeparationDeg)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static float NormalizeAngle(float angle)
+    {
+        angle %= 360f;
+        if (angle < 0f)
+        {
+            angle += 360f;
+        }
+        return angle;
+    }
+
+    private static float CircularAngleDistance(float a, float b)
+    {
+        float diff = Mathf.Abs(NormalizeAngle(a) - NormalizeAngle(b));
+        return Mathf.Min(diff, 360f - diff);
+    }
+
+    private string BuildSavedDetectionLog(DetectionResponse response, float scanAngle)
+    {
+        StringBuilder builder = new StringBuilder();
+        if (response == null)
+        {
+            builder.AppendLine($"[PatrolDetection] saved frame angle={scanAngle:F1}, but detector response is null");
+            return builder.ToString();
+        }
+        if (response.detections == null || response.detections.Length == 0)
+        {
+            builder.AppendLine(
+                $"[PatrolDetection] saved frame angle={scanAngle:F1} confidence={response.best_confidence:F2}, " +
+                "but detector returned no boxes");
+            return builder.ToString();
+        }
+
+        builder.AppendLine($"[PatrolDetection] saved frame angle={scanAngle:F1} confidence={response.best_confidence:F2}");
+        foreach (DetectionBox detection in response.detections)
+        {
+            if (detection == null || detection.confidence < detectionConfidenceThreshold)
+            {
+                continue;
+            }
+
+            float cx = detection.cx;
+            float cy = detection.cy;
+            if (Mathf.Approximately(cx, 0f) && Mathf.Approximately(cy, 0f))
+            {
+                cx = (detection.x1 + detection.x2) * 0.5f;
+                cy = (detection.y1 + detection.y2) * 0.5f;
+            }
+
+            builder.AppendLine(
+                $"[PatrolDetection] bbox=({detection.x1:F1}, {detection.y1:F1}, {detection.x2:F1}, {detection.y2:F1}) " +
+                $"center=({cx:F1}, {cy:F1}) confidence={detection.confidence:F2}");
+        }
+
+        return builder.ToString();
+    }
+
+    private void LogSavedDetectionBoxes(string savedLog)
+    {
+        if (string.IsNullOrEmpty(savedLog))
+        {
+            return;
+        }
+
+        foreach (string line in savedLog.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            Debug.LogWarning(line);
+        }
+    }
+
+    private bool SaveAnnotatedDetectedFrame(byte[] jpg, DetectionResponse response, string path)
+    {
+        if (response == null || response.detections == null || response.detections.Length == 0)
+        {
+            return false;
+        }
+
+        Texture2D texture = new Texture2D(2, 2, TextureFormat.RGB24, false);
+        try
+        {
+            if (!texture.LoadImage(jpg))
+            {
+                return false;
+            }
+
+            foreach (DetectionBox detection in response.detections)
+            {
+                if (detection == null || detection.confidence < detectionConfidenceThreshold)
+                {
+                    continue;
+                }
+
+                DrawDetectionOverlay(texture, detection);
+            }
+
+            texture.Apply();
+            File.WriteAllBytes(path, texture.EncodeToJPG(jpegQuality));
+            return true;
+        }
+        finally
+        {
+            Destroy(texture);
+        }
+    }
+
+    private void DrawDetectionOverlay(Texture2D texture, DetectionBox detection)
+    {
+        int x1 = Mathf.RoundToInt(detection.x1);
+        int y1 = Mathf.RoundToInt(detection.y1);
+        int x2 = Mathf.RoundToInt(detection.x2);
+        int y2 = Mathf.RoundToInt(detection.y2);
+        int cx = Mathf.RoundToInt(detection.cx);
+        int cy = Mathf.RoundToInt(detection.cy);
+
+        if (cx == 0 && cy == 0)
+        {
+            cx = Mathf.RoundToInt((detection.x1 + detection.x2) * 0.5f);
+            cy = Mathf.RoundToInt((detection.y1 + detection.y2) * 0.5f);
+        }
+
+        Color boxColor = Color.green;
+        Color centerColor = Color.red;
+        int lineWidth = 4;
+        int centerSize = 12;
+
+        for (int offset = 0; offset < lineWidth; offset++)
+        {
+            DrawHorizontalLineTopLeft(texture, x1, x2, y1 + offset, boxColor);
+            DrawHorizontalLineTopLeft(texture, x1, x2, y2 - offset, boxColor);
+            DrawVerticalLineTopLeft(texture, x1 + offset, y1, y2, boxColor);
+            DrawVerticalLineTopLeft(texture, x2 - offset, y1, y2, boxColor);
+        }
+
+        for (int offset = -lineWidth; offset <= lineWidth; offset++)
+        {
+            DrawHorizontalLineTopLeft(texture, cx - centerSize, cx + centerSize, cy + offset, centerColor);
+            DrawVerticalLineTopLeft(texture, cx + offset, cy - centerSize, cy + centerSize, centerColor);
+        }
+    }
+
+    private void DrawHorizontalLineTopLeft(Texture2D texture, int xStart, int xEnd, int yTopLeft, Color color)
+    {
+        if (yTopLeft < 0 || yTopLeft >= texture.height)
+        {
+            return;
+        }
+
+        int minX = Mathf.Clamp(Mathf.Min(xStart, xEnd), 0, texture.width - 1);
+        int maxX = Mathf.Clamp(Mathf.Max(xStart, xEnd), 0, texture.width - 1);
+        int textureY = texture.height - 1 - yTopLeft;
+        for (int x = minX; x <= maxX; x++)
+        {
+            texture.SetPixel(x, textureY, color);
+        }
+    }
+
+    private void DrawVerticalLineTopLeft(Texture2D texture, int xTopLeft, int yStart, int yEnd, Color color)
+    {
+        if (xTopLeft < 0 || xTopLeft >= texture.width)
+        {
+            return;
+        }
+
+        int minY = Mathf.Clamp(Mathf.Min(yStart, yEnd), 0, texture.height - 1);
+        int maxY = Mathf.Clamp(Mathf.Max(yStart, yEnd), 0, texture.height - 1);
+        for (int y = minY; y <= maxY; y++)
+        {
+            texture.SetPixel(xTopLeft, texture.height - 1 - y, color);
+        }
     }
 
     private byte[] CaptureJpeg()
@@ -501,6 +821,40 @@ public class PatrolPersonDetection : MonoBehaviour
         catch (Exception e)
         {
             return Error(e.Message);
+        }
+    }
+
+    private async Task SendSavedDetectionLogAsync(string savedLog)
+    {
+        if (string.IsNullOrEmpty(savedLog))
+        {
+            return;
+        }
+
+        try
+        {
+            using (TcpClient client = new TcpClient())
+            {
+                Task connect = client.ConnectAsync(detectorHost, detectorPort);
+                if (await Task.WhenAny(connect, Task.Delay(connectTimeoutMs)) != connect)
+                {
+                    Debug.LogWarning("[PatrolDetection] saved log notify timeout");
+                    return;
+                }
+
+                client.ReceiveTimeout = responseTimeoutMs;
+                client.SendTimeout = responseTimeoutMs;
+                using (NetworkStream stream = client.GetStream())
+                {
+                    byte[] payload = Encoding.UTF8.GetBytes(SavedLogPrefix + savedLog);
+                    await WriteFrame(stream, payload);
+                    await ReadFrame(stream, responseTimeoutMs);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[PatrolDetection] saved log notify failed: {e.Message}");
         }
     }
 

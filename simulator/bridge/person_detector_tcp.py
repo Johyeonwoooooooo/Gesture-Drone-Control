@@ -29,6 +29,7 @@ from typing import Any
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 PERSON_CLASS_ID = 0
+SAVED_LOG_PREFIX = b"__PATROL_SAVED_LOG__\n"
 
 
 def recv_exact(conn: socket.socket, count: int) -> bytes | None:
@@ -57,6 +58,18 @@ def send_frame(conn: socket.socket, payload: bytes) -> None:
     conn.sendall(struct.pack("!I", len(payload)) + payload)
 
 
+def handle_control_frame(conn: socket.socket, payload: bytes) -> bool:
+    if not payload.startswith(SAVED_LOG_PREFIX):
+        return False
+
+    text = payload[len(SAVED_LOG_PREFIX):].decode("utf-8", errors="replace")
+    for line in text.splitlines():
+        if line.strip():
+            print(line)
+    send_frame(conn, json.dumps({"ok": True}).encode("utf-8"))
+    return True
+
+
 @dataclass
 class Detection:
     label: str
@@ -65,6 +78,8 @@ class Detection:
     y1: float
     x2: float
     y2: float
+    cx: float
+    cy: float
 
 
 class PersonDetector:
@@ -115,6 +130,8 @@ class PersonDetector:
                         "y1": 0.0,
                         "x2": float(width),
                         "y2": float(height),
+                        "cx": float(width) / 2.0,
+                        "cy": float(height) / 2.0,
                     }
                 ],
                 "error": "",
@@ -149,6 +166,8 @@ class PersonDetector:
             for box in boxes:
                 conf = float(box.conf[0])
                 xyxy = [float(v) for v in box.xyxy[0]]
+                cx = (xyxy[0] + xyxy[2]) / 2.0
+                cy = (xyxy[1] + xyxy[3]) / 2.0
                 best = max(best, conf)
                 detections.append(
                     Detection(
@@ -158,6 +177,8 @@ class PersonDetector:
                         y1=xyxy[1],
                         x2=xyxy[2],
                         y2=xyxy[3],
+                        cx=cx,
+                        cy=cy,
                     )
                 )
 
@@ -187,13 +208,55 @@ class SaveLimiter:
             return True
 
 
-def save_image(save_dir: str, image: bytes) -> str:
+def save_image(save_dir: str, image: bytes, detections: list[dict[str, Any]]) -> tuple[str, str]:
     os.makedirs(save_dir, exist_ok=True)
     stamp = time.strftime("%Y%m%d_%H%M%S")
-    path = os.path.join(save_dir, f"frame_{stamp}_{time.time_ns() % 1_000_000_000:09d}.jpg")
+    stem = f"frame_{stamp}_{time.time_ns() % 1_000_000_000:09d}"
+    path = os.path.join(save_dir, f"{stem}.jpg")
     with open(path, "wb") as f:
         f.write(image)
-    return path
+
+    annotated_path = ""
+    if detections:
+        annotated_path = os.path.join(save_dir, f"{stem}_annotated.jpg")
+        save_annotated_image(annotated_path, image, detections)
+    return path, annotated_path
+
+
+def save_annotated_image(path: str, image: bytes, detections: list[dict[str, Any]]) -> None:
+    from PIL import Image, ImageDraw
+
+    annotated = Image.open(io.BytesIO(image)).convert("RGB")
+    draw = ImageDraw.Draw(annotated)
+    for detection in detections:
+        x1 = float(detection["x1"])
+        y1 = float(detection["y1"])
+        x2 = float(detection["x2"])
+        y2 = float(detection["y2"])
+        cx = float(detection.get("cx", (x1 + x2) / 2.0))
+        cy = float(detection.get("cy", (y1 + y2) / 2.0))
+        conf = float(detection["confidence"])
+
+        draw.rectangle((x1, y1, x2, y2), outline=(0, 255, 0), width=4)
+        draw.line((cx - 12, cy, cx + 12, cy), fill=(255, 0, 0), width=4)
+        draw.line((cx, cy - 12, cx, cy + 12), fill=(255, 0, 0), width=4)
+        draw.text((x1, max(0.0, y1 - 14.0)), f"person {conf:.2f} center=({cx:.1f},{cy:.1f})", fill=(0, 255, 0))
+
+    annotated.save(path, quality=90)
+
+
+def log_saved_detections(addr: tuple[str, int], response: dict[str, Any]) -> None:
+    print(
+        f"[person-detector] saved person frame from {addr[0]} "
+        f"confidence={response.get('best_confidence', 0):.2f}"
+    )
+    for detection in response.get("detections", []):
+        print(
+            "[person-detector] bbox="
+            f"({detection['x1']:.1f}, {detection['y1']:.1f}, {detection['x2']:.1f}, {detection['y2']:.1f}) "
+            f"center=({detection['cx']:.1f}, {detection['cy']:.1f}) "
+            f"confidence={detection['confidence']:.2f}"
+        )
 
 
 def handle_client(
@@ -209,17 +272,21 @@ def handle_client(
             image = recv_frame(conn)
             if image is None:
                 return
+            if handle_control_frame(conn, image):
+                return
             started = time.time()
             response = detector.detect(image)
             response["elapsed_ms"] = round((time.time() - started) * 1000.0, 1)
             response["saved_path"] = ""
+            response["saved_annotated_path"] = ""
             if save_dir and (save_all or response.get("person_detected")) and save_limiter.should_save():
-                response["saved_path"] = save_image(save_dir, image)
-            if response.get("person_detected"):
-                print(
-                    f"[person-detector] person detected from {addr[0]} "
-                    f"confidence={response.get('best_confidence', 0):.2f}"
+                response["saved_path"], response["saved_annotated_path"] = save_image(
+                    save_dir,
+                    image,
+                    response.get("detections", []),
                 )
+                if response.get("person_detected"):
+                    log_saved_detections(addr, response)
             send_frame(conn, json.dumps(response).encode("utf-8"))
         except Exception as exc:
             payload = {

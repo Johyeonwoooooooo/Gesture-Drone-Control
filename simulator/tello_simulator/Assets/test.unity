@@ -1340,6 +1340,7 @@ MonoBehaviour:
   onboardFlashlightColor: {r: 1, g: 0.94, b: 0.82, a: 1}
   saveNewPersonFrames: 1
   saveDirectory: ../../bridge/detection_frames
+  minSavedFrameAngularSeparationDeg: 60
   scanOnStart: 0
   scanKey: 112
   holdDroneWhileScanning: 1
