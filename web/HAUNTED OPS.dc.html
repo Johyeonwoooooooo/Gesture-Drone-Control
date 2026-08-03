@@ -297,6 +297,7 @@ input[type=range]{accent-color:#ef4444}
         </div>
         <div style="margin-top:8px;font-size:11px;color:#8a7478">순찰한 구역 수</div>
         <div style="display:flex;gap:8px;margin-top:24px;justify-content:center;flex-wrap:wrap">
+          <button onClick="{{goReport}}" style="height:42px;padding:0 22px;border:1px solid #4ade80;border-radius:8px;background:#0e1a14;color:#6ee7b7;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif;box-shadow:0 0 18px #4ade8033" style-hover="background:#14261b">순찰 보고서 보기</button>
           <button onClick="{{goCreate}}" style="height:42px;padding:0 22px;border:1px solid #ef4444;border-radius:8px;background:#450a0a;color:#fecaca;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#7f1d1d">새 순찰 지정</button>
           <button onClick="{{goRecords}}" style="height:38px;padding:0 16px;border:1px solid #3a161c;border-radius:8px;background:#170a0d;color:#cfc2c5;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">순찰 기록</button>
           <button onClick="{{goLobby}}" style="height:38px;padding:0 16px;border:1px solid #3a161c;border-radius:8px;background:#170a0d;color:#a8969a;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">로비로</button>
@@ -319,6 +320,101 @@ input[type=range]{accent-color:#ef4444}
             </div>
           </sc-for>
         </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- 순찰 보고서. 순찰 완료 화면에서 들어온다. 자료는 순찰 계획 + 탐지 통보
+       + 작전 시각뿐이고, 모르는 값(방별 도착 시각 등)은 만들지 않는다. -->
+  <sc-if value="{{isReport}}" hint-placeholder-val="{{false}}">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;background:radial-gradient(ellipse at 50% 0%,#12070a 0%,#0a0405 72%)">
+      <div style="flex:none;height:52px;display:flex;align-items:center;gap:14px;padding:0 18px;background:#10070a;border-bottom:1px solid #2a1015">
+        <button onClick="{{backSuccess}}" style="height:30px;padding:0 12px;border:1px solid #3a161c;border-radius:7px;background:#170a0d;color:#a8969a;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">← 순찰 완료</button>
+        <div style="font-family:'East Sea Dokdo',cursive;font-size:24px;color:#ef4444">순찰 보고서</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.2em">OPERATION REPORT</div>
+        <div style="flex:1;min-width:0;font-size:12px;color:#cfc2c5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center">"{{repCmd}}"</div>
+        <div style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5f4a4e">{{repIssued}}</div>
+      </div>
+      <div style="flex:1;min-height:0;display:flex;gap:14px;padding:14px 18px">
+        <div style="width:380px;flex:none;display:flex;flex-direction:column;gap:10px;overflow-y:auto">
+          <div style="display:flex;align-items:center;gap:14px;border:1px solid #2a1015;background:#10070ae6;border-radius:11px;padding:13px 16px">
+            <span style="width:56px;height:56px;flex:none;display:grid;place-items:center;border:2px solid {{repHeadC}};border-radius:50%;font-family:'East Sea Dokdo',cursive;font-size:34px;color:{{repHeadC}}">{{repHeadN}}</span>
+            <span style="display:flex;flex-direction:column;gap:3px">
+              <span style="font-size:14px;font-weight:700;color:{{repHeadC}}">{{repHeadTxt}}</span>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.14em">SURVIVORS DETECTED</span>
+            </span>
+          </div>
+          <div style="border:1px solid #2a1015;background:#10070ae6;border-radius:11px;padding:13px 16px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;letter-spacing:.18em;margin-bottom:9px">순찰 개요</div>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:12px">
+              <sc-for list="{{repRows}}" as="r" hint-placeholder-count="8">
+                <span style="color:#8a7478">{{r.k}}</span><span style="color:{{r.c}};font-family:'IBM Plex Mono',monospace;text-align:right">{{r.v}}</span>
+              </sc-for>
+            </div>
+          </div>
+          <div style="border:1px solid #2a1015;background:#0d0608;border-radius:11px;padding:11px 14px">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;letter-spacing:.18em;margin-bottom:8px">작전 타임라인</div>
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <sc-for list="{{repLog}}" as="l" hint-placeholder-count="3">
+                <div style="display:flex;gap:10px;font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:1.6">
+                  <span style="flex:none;color:#5f4a4e">{{l.t}}</span><span style="flex:1;min-width:0;color:{{l.c}}">{{l.txt}}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:0;display:flex;gap:14px">
+          <div style="width:330px;flex:none;display:flex;flex-direction:column;border:1px solid #2a1015;background:#10070ae6;border-radius:11px;padding:13px 15px;min-height:0">
+            <div style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;letter-spacing:.18em;margin-bottom:9px">구역별 탐색 결과</div>
+            <div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
+              <sc-for list="{{repAreas}}" as="a" hint-placeholder-count="5">
+                <div style="display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid {{a.border}};border-radius:7px;background:{{a.bg}}">
+                  <span style="width:17px;height:17px;flex:none;border-radius:50%;background:#10070a;border:1px solid {{a.border}};display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;color:{{a.resultC}}">{{a.order}}</span>
+                  <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                    <span style="font-size:11px;color:#e8dde0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{a.name}}</span>
+                    <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478">{{a.sub}}</span>
+                  </span>
+                  <span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;color:{{a.resultC}}">{{a.result}}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;border:1px solid #7f1d1d;background:#10070ae6;border-radius:11px;padding:13px 15px;min-height:0">
+            <div style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:9px;color:#fca5a5;letter-spacing:.18em;margin-bottom:9px">발견된 생존자</div>
+            <sc-if value="{{repNone}}" hint-placeholder-val="{{false}}">
+              <div style="flex:1;display:grid;place-items:center;font-size:12px;color:#5f4a4e;text-align:center;line-height:1.9">순찰 구역에서 사람이 발견되지 않았습니다.<br>탐지는 지정 구역 도착 시에만 수행됩니다.</div>
+            </sc-if>
+            <sc-if value="{{repAny}}" hint-placeholder-val="{{true}}">
+            <div style="flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;align-content:start">
+              <sc-for list="{{repSurvivors}}" as="s" hint-placeholder-count="0">
+                <div style="border:1px solid #7f1d1d;background:#150a0d;border-radius:9px;overflow:hidden">
+                  <sc-if value="{{s.hasPhoto}}" hint-placeholder-val="{{true}}">
+                    <img src="{{s.photo}}" style="display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#000">
+                  </sc-if>
+                  <sc-if value="{{s.noPhoto}}" hint-placeholder-val="{{false}}">
+                    <div style="display:grid;place-items:center;width:100%;aspect-ratio:16/9;background:repeating-linear-gradient(135deg,#0d0608 0 12px,#120709 12px 24px);font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5f4a4e">NO FRAME · 화면 공유 꺼짐</div>
+                  </sc-if>
+                  <div style="display:flex;align-items:center;gap:7px;padding:8px 10px;border-top:1px solid #2a1015">
+                    <span style="width:19px;height:19px;flex:none;border-radius:50%;background:#450a0a;border:1px solid #7f1d1d;display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;color:#fca5a5">{{s.n}}</span>
+                    <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                      <span style="font-size:11px;font-weight:600;color:#e8dde0">{{s.label}}</span>
+                      <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{s.room}}</span>
+                    </span>
+                    <span style="flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:1px;font-family:'IBM Plex Mono',monospace;font-size:9px">
+                      <span style="color:#fca5a5">{{s.time}}</span><span style="color:#8a7478">{{s.conf}}</span>
+                    </span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            </sc-if>
+          </div>
+        </div>
+      </div>
+      <div style="flex:none;display:flex;gap:8px;justify-content:center;padding:0 18px 16px">
+        <button onClick="{{goCreate}}" style="height:38px;padding:0 20px;border:1px solid #ef4444;border-radius:8px;background:#450a0a;color:#fecaca;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#7f1d1d">새 순찰 지정</button>
+        <button onClick="{{goRecords}}" style="height:38px;padding:0 16px;border:1px solid #3a161c;border-radius:8px;background:#170a0d;color:#cfc2c5;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">순찰 기록</button>
+        <button onClick="{{goLobby}}" style="height:38px;padding:0 16px;border:1px solid #3a161c;border-radius:8px;background:#170a0d;color:#a8969a;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">로비로</button>
       </div>
     </div>
   </sc-if>
@@ -765,6 +861,7 @@ class Component extends DCLogic {
   // 화면 자체가 전면 레이아웃이라 보이는 결과는 거의 같고, 버튼으로 다시 켤 수 있다.
   startMission() {
     this.clearDetections();          // 새 순찰이면 지난 탐지는 지운다
+    this.patrolStart = Date.now(); this.patrolEnd = null;
     this.setState({ screen: 'unity', over: null }, () => {
       requestAnimationFrame(() => {
         const el = this.stageRef.current;
@@ -775,7 +872,12 @@ class Component extends DCLogic {
 
   finishPatrol() {
     if (!this.live) { this.toast('진행 중인 순찰이 없습니다'); return; }
+    this.patrolEnd = Date.now();
     this.setState({ screen: 'success' });
+  }
+  hms(ms) {
+    const d = new Date(ms || Date.now());
+    return [d.getHours(), d.getMinutes(), d.getSeconds()].map(v => String(v).padStart(2, '0')).join(':');
   }
   abortPatrol(cause) {
     this.setState({ over: { cause: cause || '작전 중단' }, screen: 'gameover' });
@@ -855,7 +957,7 @@ class Component extends DCLogic {
       ...base,
       isLobby: scr === 'lobby', isCreate: scr === 'create', isBriefing: scr === 'briefing',
       isSuccess: scr === 'success', isOver: scr === 'gameover', isRecords: scr === 'records',
-      isUnity: scr === 'unity',
+      isUnity: scr === 'unity', isReport: scr === 'report',
       briefCmd: st.cmd.trim() || this.DEFAULT_CMD,
     };
 
@@ -993,6 +1095,59 @@ class Component extends DCLogic {
         { k: '복귀', v: live && live.returnHome ? '홈 복귀 완료' : '복귀 없음', c: live && live.returnHome ? '#4ade80' : '#8a7478' },
       ];
       vals.doneTargets = targetRows;
+      vals.goReport = () => this.go('report');
+    }
+    // ── 순찰 보고서 ───────────────────────────────────────────────
+    // 새 자료를 받지 않는다. 브리핑 때 확정된 순찰 계획(live) + 탐지 통보
+    // (state.detections) + 작전 시작·완료 시각만으로 만든다. 시간은 실제로
+    // 찍힌 것만 쓰고, 방별 도착 시각처럼 모르는 값은 지어내지 않는다.
+    if (scr === 'report') {
+      const dets = st.detections;
+      const wpsAll = this.liveWps();
+      const distM = live && live.dist ? live.dist : (wpsAll ? this.pathLen(wpsAll) : 0);
+      const floorsHit = live ? [...new Set(live.targets.map(t => t.floor))].sort() : [];
+      const dur = (this.patrolStart && this.patrolEnd) ? (this.patrolEnd - this.patrolStart) / 1000 : 0;
+      const found = t => dets.filter(d => d.room === t.name || d.room === t.room);
+      vals.repIssued = `${this.hms(this.patrolEnd)} 발행`;
+      vals.repCmd = st.cmd.trim() || this.DEFAULT_CMD;
+      vals.repHeadN = `${dets.length}`;
+      vals.repHeadC = dets.length ? '#ef4444' : '#4ade80';
+      vals.repHeadTxt = dets.length ? '생존자 발견' : '발견 없음';
+      vals.repRows = [
+        { k: '순찰 범위', v: live ? live.scope : '—', c: '#e8dde0' },
+        { k: '순찰한 층', v: floorsHit.length ? floorsHit.map(f => this.FLOORS[f]).join(' · ') : '—', c: '#57c4b8' },
+        { k: '순찰한 구역', v: live ? `${live.targets.length}개` : '0개', c: '#fca5a5' },
+        { k: '비행 거리', v: `${distM.toFixed(1)} m`, c: '#e8dde0' },
+        { k: '층 이동', v: live && live.floorChanges ? `${live.floorChanges}회 (계단 경유)` : '없음', c: '#fbbf24' },
+        { k: '경로 생성 엔진', v: live ? live.engine : '—', c: '#a5b4fc' },
+        { k: '작전 시각', v: this.patrolStart ? `${this.hms(this.patrolStart)} → ${this.hms(this.patrolEnd)}` : '—', c: '#a8969a' },
+        { k: '소요 시간', v: dur ? this.mmss(dur) : '—', c: '#a8969a' },
+        { k: '복귀', v: live && live.returnHome ? '홈 복귀 완료' : '복귀 없음', c: live && live.returnHome ? '#4ade80' : '#8a7478' },
+      ];
+      vals.repAreas = (live ? live.targets : []).map(t => {
+        const f = found(t);
+        return {
+          key: t.room, order: `${t.order}`, name: t.name,
+          sub: `${t.room} · ${this.FLOORS[t.floor]}`,
+          result: f.length ? `생존자 ${f.length}명` : '이상 없음',
+          resultC: f.length ? '#fca5a5' : '#6ee7b7',
+          border: f.length ? '#7f1d1d' : '#1e3a2a',
+          bg: f.length ? '#170f11' : '#0e1a14',
+        };
+      });
+      vals.repLog = [
+        ...(this.patrolStart ? [{ key: 'a', t: this.hms(this.patrolStart), txt: `순찰 시작 · ${live ? live.targets.length : 0}구역 · 계획 ${distM.toFixed(1)} m`, c: '#a8969a' }] : []),
+        ...dets.map(d => ({ key: `d${d.n}`, t: d.time, txt: `${d.label} 발견 — ${d.room} (신뢰도 ${d.conf.toFixed(1)}%)`, c: '#fca5a5' })),
+        ...(this.patrolEnd ? [{ key: 'z', t: this.hms(this.patrolEnd), txt: `순찰 완료${live && live.returnHome ? ' · 홈 복귀' : ''}`, c: '#4ade80' }] : []),
+      ];
+      vals.repNone = dets.length === 0;
+      vals.repAny = dets.length > 0;
+      vals.repSurvivors = dets.map(d => ({
+        key: d.n, n: `${d.n}`, label: d.label, room: d.room, time: d.time,
+        conf: `신뢰도 ${d.conf.toFixed(1)}%`,
+        hasPhoto: !!d.photo, noPhoto: !d.photo, photo: d.photo || '',
+      }));
+      vals.backSuccess = () => this.go('success');
     }
     if (scr === 'gameover' && st.over) {
       const floorsHit = live ? [...new Set(live.targets.map(t => t.floor))].sort() : [];
