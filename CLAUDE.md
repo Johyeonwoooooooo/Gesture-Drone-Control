@@ -28,9 +28,13 @@ simulator needs. The gesture/voice control layer, the Mosaic3D/UniDet3D research
 code, the viser web apps, and the DJI Tello real-drone path were removed — they
 live on `main`, `gyucheol*`, `minyeong*`, `jiyun-simul`.
 
-The web console itself (`web/`, HAUNTED OPS) lives on `origin/hyeonwoo` and is
-owned by a teammate; **which branch absorbs which is still undecided.** `API.md`
-is the contract between it and `api_server.py`, and is written to hold either way.
+The web console (`web/`, HAUNTED OPS) is a teammate's, written on
+`origin/hyeonwoo`, and came in here as `6e8298f` with the API wiring added on top
+(`runSearch` → `/api/intent`, `startMission` → `/api/patrol/start`, the event
+poll, abort). **The same files still live on `origin/hyeonwoo`**, so the next
+merge collides — and the wiring exists only on this side, so their version
+overwriting ours drops it silently. `API.md` is the contract and is written to
+hold either way; keep editing that when the interface moves.
 
 `README.md` is the run guide. `patrol/README.md` documents the Python modules.
 `llm_server/README.md` covers the GPU-box half. `docs/patrol-agent.md` describes

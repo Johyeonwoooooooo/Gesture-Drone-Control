@@ -3,13 +3,17 @@
 `api_server.py` 가 노출하는 계약. 웹 콘솔(`web/`, HAUNTED OPS)이 붙을 자리다.
 
 ```bash
-# 로컬 PC (Unity 옆). 8000 포트에 web/ 정적 + API 가 같이 뜬다.
-python api_server.py --llm-url http://<GPU서버>:8000/v1 --llm-api-key <토큰>
+# 로컬 PC (Unity 옆). 한 포트에 web/ 정적 + API 가 같이 뜬다.
+python api_server.py --port 8123 --llm-url http://<GPU서버>:8000/v1 --llm-api-key <토큰>
 ```
 
-살아있는 규격서는 **`http://localhost:8000/docs`** (FastAPI 자동 생성). 이
+살아있는 규격서는 **`http://localhost:8123/docs`** (FastAPI 자동 생성). 이
 문서는 그걸로는 안 보이는 것 — 각 엔드포인트를 콘솔의 어느 함수에서 부르면
 되는지 — 를 적는다.
+
+> 포트는 `--port` 로 정한다. 기본값 8000은 로컬에서 이미 쓰이는 일이 잦아
+> 권하지 않는다 (README §0 참고). 콘솔이 API를 **상대 경로**로 부르므로 포트를
+> 바꿔도 프론트는 손댈 게 없다.
 
 ## 왜 한 프로세스인가
 
@@ -105,9 +109,8 @@ GET /api/rooms
 
 ### 2. 순찰 실행 · `POST /api/patrol/start`
 
-붙일 자리는 **`HAUNTED OPS.dc.html` 의 `startMission()`**. 지금은 화면 전환과
-전체화면 요청만 하고 **아무 데도 요청을 안 보낸다** — 여기가 비행이 시작되는
-지점이 된다.
+붙는 자리는 **`HAUNTED OPS.dc.html` 의 `startMission()`** — 화면 전환만 하던
+자리에 `startPatrolFeed()` 가 붙어 있다. 여기가 실제 비행이 시작되는 지점이다.
 
 ```
 POST /api/patrol/start
@@ -200,6 +203,8 @@ POST /api/patrol/abort → {"ok": true}
   더 열어야 한다.
 - **`scan` verb 를 구현한 Unity 빌드.** 아직 `PatrolPersonDetection.cs` 가 이
   브랜치에 없다. 그 전까지 서버는 `scan` 무응답을 감지해 rc 회전으로 내려가고,
-  그 경로에는 탐지가 없다(외부 디텍터를 UDP 9004 로 띄우면 있다).
+  그 경로에는 탐지가 없다(외부 디텍터를 UDP 9004 로 띄우면 있다). **실제
+  Unity로 돌리면 `detect` 가 한 건도 안 온다** — 배선을 확인하려면
+  `simulator/bridge/fake_unity_sim.py --detect-per-scan 1` 을 쓴다.
 - **경로 엔진.** `/plan` 은 지금 A\* 다. 콘솔이 기대하던 SAC 정책(`rl_planner`)과
   통일할지는 아직 결정 전 — 응답 `engine` 필드가 어느 쪽이 답했는지 알려준다.

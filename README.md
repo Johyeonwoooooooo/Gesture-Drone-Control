@@ -13,8 +13,9 @@
   건물 00809). GPU 추론·CLIP 캐시 불필요, 읽기만 한다.
 - **시뮬레이터**: Unity 6 Tello 시뮬레이터. 3인칭(이동방향 뒤) / 1인칭 카메라, C키 전환.
   **360° 스캔과 사람 탐지(YOLO)를 Unity가 직접 한다.**
-- **웹 콘솔**: HAUNTED OPS (`web/`, 팀원 소유). 평면도에서 구역 선택 → 브리핑 →
-  작전 화면 → 보고서. 붙는 규격은 **`API.md`**.
+- **웹 콘솔**: HAUNTED OPS (`web/`). 평면도에서 구역 선택 → 브리핑 → 작전 화면 →
+  보고서. 붙는 규격은 **`API.md`**. 원본은 팀원의 `origin/hyeonwoo` 이고 여기엔
+  API 배선을 얹어 들어와 있다 (§10).
 
 ## 어디서 무엇이 도는가
 
@@ -25,30 +26,32 @@ import하는 파일은 `llm_server/local_llm.py` 하나다. 나머지는 numpy�
 ```
 [GPU 서버 (Linux)]                    [로컬 PC (Windows/macOS)]
 llm_server/serve.py                    브라우저 — 웹 콘솔 (web/)
- Qwen2.5-3B                              ↕ HTTP :8000
- /v1/chat/completions  ←── HTTPS ──    api_server.py  (patrol/ 두뇌)
+ Qwen2.5-3B                              ↕ HTTP :8123
+ /v1/chat/completions  ◀── TCP 8000 ── api_server.py  (patrol/ 두뇌)
  (torch는 여기만)                          ↕ UDP localhost 9000 / 9002
                                         Unity 시뮬레이터 (Play 중)
-                                           ↕ TCP 9100
-                                        person_detector_tcp.py (YOLO)
 ```
 
 Unity와 파이프라인이 같은 PC라 **UDP가 전부 localhost가 되고 relay가 필요
-없다.** 망을 타는 건 로컬→서버 TCP 하나뿐인데, NAT는 나가는 연결을 막지 않는다
+없다.** 망을 타는 건 로컬→서버 TCP 하나뿐이고, 그것도 순찰 한 번에 **LLM 호출
+2회**(구역 해석 · 보고서 문장)가 전부다. NAT는 나가는 연결을 막지 않는다
 (실측: 노트북 `10.100.130.17` → 서버 `166.104.223.32` TCP 8000/8080/8443 도달).
 
 | 방향 | 포트 | 내용 |
 |---|---|---|
 | 로컬 → 서버 | TCP **8000** | LLM `/v1/chat/completions` (OpenAI 호환) |
-| 브라우저 → API | HTTP **8000** | 웹 콘솔 ↔ `api_server.py` (`API.md`) |
+| 브라우저 → API | HTTP **8123** | 웹 콘솔 ↔ `api_server.py` (`API.md`). `--port` 로 정한다 |
 | API → Unity | UDP **9000** | `command`/`takeoff`/`land`/`rc`/`setpos`/`msg`/`light`/`scan`/`scan_stop` |
 | Unity → API | (9000 응답) | 각 명령에 `"ok"` (API는 9001 바인딩) |
 | Unity → API | UDP **9002** | 상태 JSON 20 Hz + 이벤트 `scan_started`/`scan_done`/`detect` |
-| Unity → 디텍터 | TCP **9100** | JPEG → 사람 탐지 JSON |
 | (선택) 외부 디텍터 → API | UDP **9004** | 별도 프로세스를 쓸 때만 (`docs/patrol-agent.md`) |
 
-> 로컬 포트 8000이 둘로 보이는 건 서버의 LLM 포트와 우연히 같아서다. 서로 다른
-> 기계이므로 충돌하지 않는다. 헷갈리면 `api_server.py --port 8080` 으로 바꿔도 된다.
+> **API 서버 포트는 8000이 기본이지만 그대로 쓰지 않기를 권한다.** 8000·8080은
+> 로컬에서 이미 쓰이고 있을 확률이 높다 — 특히 **VS Code Remote-SSH**는 서버에서
+> 열린 포트를 감지해 같은 번호로 맥/윈도우에 자동 포워딩한다. 그러면
+> `localhost:8000` 이 로컬 API가 아니라 **GPU 서버로 가는데도 겉보기엔 잘 도는
+> 것처럼 보인다.** 이 문서는 그래서 `--port 8123` 을 쓴다. 겹치면
+> `lsof -nP -iTCP:8123 -sTCP:LISTEN` 으로 확인하고 다른 번호를 고르면 된다.
 
 ---
 
@@ -59,31 +62,52 @@ Unity와 파이프라인이 같은 PC라 **UDP가 전부 localhost가 되고 rel
 | 위치 | 할 일 | 참고 |
 |---|---|---|
 | 서버 | `git clone` → conda 환경 + `llm_server/requirements.txt` | §1 |
-| 로컬 | 파이썬 환경 + `requirements.txt` (**torch 불필요**) | §2 |
+| 로컬 | `git clone` → 파이썬 환경 + `requirements.txt` (**torch 불필요**) | §2 |
 | 로컬 | `data/final_npy/` 필요한 부분만 내려받기 (약 90 MB) | §2 |
 | 로컬 | Unity Hub + 에디터 `6000.3.12f1`, `simulator/tello_simulator` 열기 | §3 |
 | 로컬 | **test.unity** 에 00809(Qpor) 배치 확인 → 콜라이더 → 저장 | §8 |
 | (선택) | 씬을 새로 배치했으면 좌표 캘리브레이션 재실행 | §8 |
+
+웹 콘솔(`web/`)과 집 모델(`Qpor2mEya8F.glb`, 67 MB)은 **git에 들어 있다** —
+클론하면 같이 온다. 따로 받아야 하는 건 `data/final_npy/` 뿐이다.
 
 ### B. 매번 다시 실행
 
 ```
 [서버]  ① python llm_server/serve.py --port 8000 --llm-device cuda:1 --api-key <토큰>
         (한 번 띄우면 계속 켜둔다. nohup/tmux 로 떼어놔도 된다 — §1)
+        → curl http://127.0.0.1:8000/health 가 답할 때까지 30초쯤 기다린다
 
 [로컬]  ② Unity ▶ Play → Console "[Tello] UDP server listening on 9000"(초록)
-        ③ python simulator/bridge/person_detector_tcp.py --port 9100   (탐지 쓸 때)
-        ④ python simulator/bridge/smoke.py --unity-host 127.0.0.1      # 'ok' 게이트
-        ⑤ python api_server.py --llm-url http://<서버IP>:8000/v1 --llm-api-key <토큰>
-        ⑥ 브라우저 http://localhost:8000
+        ③ python simulator/bridge/smoke.py --unity-host 127.0.0.1      # 'ok' 게이트
+        ④ python api_server.py --port 8123 \
+              --llm-url http://<서버IP>:8000/v1 --llm-api-key <토큰>
+        ⑤ 브라우저 http://localhost:8123
 ```
 
-**순서 핵심**: ②Unity(9000 열림) → **④에서 'ok' 확인(게이트)** → ⑤파이프라인.
-④가 통과 안 되면 무조건 ②(Unity 9000) 문제 → 뒤로.
+**게이트가 둘이다. 하나씩 통과시키고 넘어가야 원인이 어디인지 안다.**
 
-> 웹 콘솔 없이 터미널로 쓰려면 ⑤ 대신
+- **③ `-> 'ok'`** 가 안 나오면 무조건 ②(Unity 9000) 문제다. 뒤로 가라.
+- **④의 `[llm] server ok`** 가 안 나오면 ①(서버) 또는 방화벽 문제다.
+  로컬에서 `curl http://<서버IP>:8000/health` 로 갈라볼 것.
+
+④가 뜨면 이 세 줄이 순서대로 나온다:
+
+```
+[llm] server ok, models=[...]                 ← 서버까지 뚫림
+[sim] Unity 127.0.0.1:9000 -> 'ok'            ← Unity까지 뚫림
+[api] http://127.0.0.1:8123   (규격: /docs)
+```
+
+> 웹 콘솔 없이 터미널로 쓰려면 ④ 대신
 > `python patrol/server.py --sim --unity-host 127.0.0.1 --llm-url ...` (§5).
 > **둘을 동시에 띄우면 안 된다** — UDP 브리지를 서로 뺏는다.
+
+> **지금은 탐지가 안 뜬다.** Unity 쪽 `PatrolPersonDetection.cs` 가 이 브랜치에
+> 없어서 `scan` verb를 모르고, 파이프라인이 rc 회전 폴백을 탄다. 비행과 360°
+> 회전은 정상이지만 `detect` 이벤트가 하나도 안 온다 → 콘솔의 탐지 목록·경보·
+> 보고서 사진이 전부 빈다. 배선만 확인하려면 §4 「Unity 없이 스텁으로」가
+> 탐지까지 흉내낸다.
 
 ---
 
@@ -100,10 +124,16 @@ python llm_server/serve.py --port 8000 --llm-device cuda:1 --api-key <토큰>
 
 ✅ `[llm-serve] Qwen/Qwen2.5-3B-Instruct on cuda:1, listening on 0.0.0.0:8000`
 
-확인:
+**모델 로딩에 30초쯤 걸린다.** 바로 다음 단계로 넘어가면 연결 실패로 보인다.
+두 곳에서 확인하고 넘어갈 것:
+
 ```bash
-curl http://<서버IP>:8000/health          # {"status":"ok","model":"..."}
+curl http://127.0.0.1:8000/health         # [서버에서] {"status":"ok","model":"..."}
+curl http://<서버IP>:8000/health          # [로컬에서] 여기가 뚫려야 파이프라인이 붙는다
 ```
+
+로컬에서만 실패하면 방화벽이다 → 서버에서 `sudo ufw allow 8000/tcp`.
+`--llm-device` 는 비어 있는 GPU면 아무거나 (`nvidia-smi` 로 확인).
 
 **터미널을 붙들고 있을 필요 없다.**
 
@@ -159,10 +189,11 @@ scp -r <계정>@<서버IP>:/data1/.../data/final_npy ./data/
 Get-ChildItem -Recurse .\data\final_npy -Include color.npy,normal.npy | Remove-Item
 ```
 
-Unity 씬에 쓸 `Qpor2mEya8F.glb`(65 MB)도 같이 받아둔다 (§8).
-
 없으면 `minyeong-3d` 브랜치 `litept_indoor/` (`infer_centers.py` → `export_json.py`)로
 생성한다. 이 브랜치에는 생성 파이프라인이 없다 — 결과만 읽는다.
+
+**나머지는 클론에 다 들어 있다.** Unity 씬의 집 모델 `Qpor2mEya8F.glb`(67 MB)와
+웹 콘솔 `web/` 은 git에 커밋돼 있어서 따로 받을 필요가 없다.
 
 ## 3. Unity — 설치·씬은 (최초 1회), Play는 (매번)
 
@@ -172,6 +203,10 @@ Unity 씬에 쓸 `Qpor2mEya8F.glb`(65 MB)도 같이 받아둔다 (§8).
    최초 임포트는 수 분 + 인터넷 필요(git URL 패키지).
 3. **씬 확인** (§8) — 최초 1회.
 4. `Assets/test.unity` → ▶ Play → Console `[Tello] UDP server listening on 9000` 확인.
+
+C# 파일들은 리눅스에서 텍스트로 편집되는 일이 있다. **에디터에서 처음 열 때는
+Play 전에 Console에 빨간 컴파일 에러가 없는지부터 본다** — 있으면 Play 자체가
+안 된다.
 
 방화벽은 **필요 없다.** 파이프라인이 같은 PC에서 돌아 전부 localhost다.
 (맥에서 첫 Play 때 "수신 연결 허용" 팝업이 뜨면 허용.)
@@ -193,34 +228,46 @@ pkill -f api_server.py ; pkill -f 'patrol/server.py'
 ❌ 빨강 `address already in use` → `lsof -i :9000` → `kill -9 <PID>` → 재Play.
 **여기 통과 못 하면 뒤가 전부 안 됨.**
 
-**③ 로컬 — 사람 탐지기** (탐지를 쓸 때만)
-```bash
-python simulator/bridge/person_detector_tcp.py --host 127.0.0.1 --port 9100
-```
-`pip install ultralytics` 가 필요하다. 안 띄우면 스캔은 돌되 탐지가 없다.
-
-**④ 로컬 — 경로 게이트**
+**③ 로컬 — 경로 게이트**
 ```bash
 python simulator/bridge/smoke.py --unity-host 127.0.0.1
 ```
 ✅ `command -> 'ok'` + `state pos=...`.
-❌ `timeout` → ②의 Unity 9000 문제. **'ok' 나와야 ⑤ 진행.**
+❌ `timeout` → ②의 Unity 9000 문제. **'ok' 나와야 ④ 진행.**
 
-**⑤ 로컬 — API 서버**
+건너뛰지 말 것. 여길 안 보면 나중에 "드론이 안 움직인다"로 나타나는데 원인이 두
+단계 앞이라 찾기 어렵다.
+
+**④ 로컬 — API 서버**
 ```bash
-python api_server.py --llm-url http://<서버IP>:8000/v1 --llm-api-key <토큰>
+python api_server.py --port 8123 \
+    --llm-url http://<서버IP>:8000/v1 --llm-api-key <토큰>
 ```
 ✅ `[llm] server ok, models=[...]` → `[sim] Unity 127.0.0.1:9000 -> 'ok'` →
-`[api] http://127.0.0.1:8000   (규격: /docs)`
+`[api] http://127.0.0.1:8123   (규격: /docs)` → `Uvicorn running on ...`
 
-**⑥ 브라우저** — `http://localhost:8000`. 규격서는 `http://localhost:8000/docs`
-와 `API.md`.
+❌ `[Errno 48] address already in use` → 그 포트를 누가 쓰고 있다.
+`lsof -nP -iTCP:<포트> -sTCP:LISTEN` 로 확인:
+
+- **`api_server.py` 가 또 떠 있으면** 포트만 바꿔 도망가면 안 된다. 그 프로세스가
+  UDP 브리지(9001)도 쥐고 있어 둘이 Unity를 두고 다툰다. `pkill -f api_server.py`
+  후 다시.
+- **다른 앱**(VS Code 등)이면 `--port` 를 다른 번호로. 콘솔은 API를 **상대
+  경로**로 부르므로 프론트는 손댈 게 없다 — 브라우저 주소만 바뀐다.
+
+**⑤ 브라우저** — `http://localhost:8123`. 규격서는 `/docs` 와 `API.md`.
+
+평면도에서 방을 고르거나 검색창에 자연어를 넣고 → 「순찰 시작」 → 브리핑 →
+「작전 시작」. 여기서 실제 비행이 시작된다.
 
 ### Unity 없이 스텁으로
 
+물리도 화면도 없지만 좌표와 이벤트를 정직하게 흉내낸다. **탐지까지 흉내내므로
+지금은 이쪽이 웹 배선을 끝까지 확인할 수 있는 유일한 경로다.**
+
 ```bash
 python simulator/bridge/fake_unity_sim.py --detect-per-scan 1 &
-python api_server.py --llm-url http://<서버IP>:8000/v1
+python api_server.py --port 8123 --llm-url http://<서버IP>:8000/v1
 #   --no-scan 을 주면 scan verb 없는 구버전을 흉내내 rc 회전 폴백을 탄다
 ```
 
@@ -246,7 +293,7 @@ python api_server.py --llm-url http://<서버IP>:8000/v1
 ---
 ## 5. 사용법
 
-평소에는 **웹 콘솔**에서 쓴다 (`http://localhost:8000`) — 평면도에서 순찰할
+평소에는 **웹 콘솔**에서 쓴다 (`http://localhost:8123`) — 평면도에서 순찰할
 구역을 클릭으로 고르고 「순찰 시작」. 콘솔이 어느 API를 부르는지는 `API.md`.
 
 터미널에서 직접 쓰려면 REPL을 띄운다 (API 서버와 **동시에는 안 된다**):
@@ -293,8 +340,7 @@ query> 집 전체 돌면서 사람 있는지 확인해줘
 ### 360° 스캔과 사람 탐지
 
 **Unity가 직접 한다.** 서버가 `scan <deg/s> <turns>` 를 보내면 Unity가 제자리로
-돌면서 자기 카메라 프레임을 TCP 9100의 YOLO에 넘기고, 찾으면 상태 채널로
-알린다:
+돌면서 자기 카메라 프레임을 YOLO에 넘기고, 찾으면 상태 채널로 알린다:
 
 ```json
 {"event":"detect","label":"person","conf":0.87,
@@ -303,13 +349,22 @@ query> 집 전체 돌면서 사람 있는지 확인해줘
 ```
 
 `box` 는 **프레임 대비 %** 다 — 웹 콘솔이 박스를 그리는 단위와 같아서 중간에서
-아무도 환산하지 않는다.
+아무도 환산하지 않는다. 픽셀→% 나눗셈은 자기 캡처 해상도를 아는 Unity가 한다.
+
+> **⚠ 탐지 쪽 Unity 컴포넌트가 이 브랜치에 아직 없다.**
+> `PatrolPersonDetection.cs` 와 `person_detector_tcp.py` 는
+> `origin/feature/drone-camera-person-detection` 에만 있다. 합류시키려면 그
+> 컴포넌트가 `TelloSimulator.ReportDetection(label, conf, l, t, w, h, imagePath)`
+> 를 부르게 하면 된다. 그 전까지는 아래 폴백을 탄다.
 
 > **구버전 Unity 폴백.** 모르는 verb도 `ok` 로 acked 되므로 ack만으로는 그
 > 빌드가 `scan` 을 구현했는지 알 수 없다. 그래서 Unity가 `scan_started` 로 즉시
 > 답하게 했고, 그게 3초 안에 안 오면 파이프라인이 구버전으로 판정해 **rc 회전**
 > 으로 내려간다(`--scan-mode auto|unity|rc`). 그 경로에서는 탐지가 없다 —
 > 외부 디텍터를 UDP 9004로 띄우면 있다 (`docs/patrol-agent.md`).
+>
+> 조용한 방은 `scan_done` 까지 아무것도 안 보내므로 "아무 이벤트나 기다리기"로는
+> 판별이 안 된다. `scan_started` 를 따로 두는 이유가 이것이다.
 
 주요 인자: `--scan-mode auto`, `--hover-height 1.2`, `--scan-deg-per-sec 50`,
 `--max-rooms 12`, `--room-aliases`, `--no-light`,
@@ -392,7 +447,6 @@ simulator/                   # 시뮬 (Unity + 브리지)
     ├── calibrate_transform.py  # 좌표 캘리브레이션
     ├── follow_path.py       # PID rc 추종, fly_mission
     ├── fake_unity_sim.py    # Unity 없는 테스트 스텁 (--detect-per-scan/--no-scan)
-    ├── person_detector_tcp.py  # TCP 9100 YOLO 사람 탐지 (Unity가 프레임을 보낸다)
     ├── relay.py             # NAT 우회 UDP-over-TCP 릴레이 (레거시, §4 부록)
     ├── smoke.py             # 연결 점검
     └── transforms/*.json    # 건물별 좌표 변환
@@ -566,14 +620,16 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 
 ## 10. Future work
 
-- **웹 콘솔 연동 마무리** — 프론트에서 `runSearch()` / `startMission()` /
-  진행 로그 폴링을 붙여야 실제로 순찰이 시작된다 (`API.md`).
 - **Unity `PatrolPersonDetection.cs` 합류** — `origin/feature/drone-camera-person-detection`
   의 컴포넌트가 `TelloSimulator.ReportDetection(...)` 를 부르게 하면 실제 YOLO
-  탐지가 파이프라인까지 올라온다. 지금은 스캔만 돌고 탐지가 비어 있다.
+  탐지가 파이프라인까지 올라온다. **지금 제일 큰 구멍** — 실제 Unity로 돌리면
+  스캔만 돌고 탐지가 비어 있다.
+- **`web/` 병합 방향 정리** — 콘솔은 이 브랜치로 들어왔지만(`web-api`) 원본은
+  `origin/hyeonwoo` 에도 그대로 있다. 같은 파일이 두 브랜치에 있어 다음 병합에서
+  충돌한다. 특히 `startMission()`/`runSearch()` 의 API 배선은 이쪽에만 있어서,
+  저쪽 버전이 덮이면 조용히 사라진다.
 - **경로 플래너 통일** — 웹 브리핑은 SAC 정책(`rl_planner`, `origin/hyeonwoo`)을
   기대하고 여기 `/plan` 은 A\* 다. 교체 지점은 `patrol_mission.fly_leg` 한 곳.
-- **밑판 브랜치 결정** — `web/` 을 이쪽으로 가져올지, `patrol/` 을 그쪽에 올릴지.
 - **탐지 사진 서빙** — Unity가 저장한 프레임은 로컬 절대경로라 브라우저가 못
   읽는다. 지금은 웹이 화면 공유에서 직접 캡처한다(공유가 꺼져 있으면 `NO FRAME`).
 - 다층(cross-floor) 경로 개선 (A* max_iters 한계).
@@ -583,7 +639,9 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 
 | 증상 | 원인 / 해결 |
 |---|---|
-| 시작 시 `cannot reach the LLM server at ...` | 서버 `llm_server/serve.py`(§1)가 안 떠 있거나 포트가 막힘. `curl http://<서버IP>:8000/health` 로 갈라볼 것 — 응답 오면 `--llm-url` 오타, 안 오면 서버/방화벽 |
+| `[Errno 48] address already in use` (API 서버) | 그 포트를 누가 쓴다. `lsof -nP -iTCP:<포트> -sTCP:LISTEN`. 범인이 `api_server.py` 면 포트를 바꾸지 말고 죽여라 — UDP 브리지까지 쥐고 있다. 다른 앱이면 `--port` 를 옮긴다 (§4 ④) |
+| `localhost:<포트>` 가 로컬이 아니라 서버로 감 | **VS Code Remote-SSH 자동 포트 포워딩.** 서버에서 열린 포트를 같은 번호로 로컬에 포워딩해서, 겉보기엔 잘 도는데 딴 기계로 간다. PORTS 패널 → *Stop Forwarding Port*, 또는 안 겹치는 `--port` 사용 |
+| 시작 시 `cannot reach the LLM server at ...` | 서버 `llm_server/serve.py`(§1)가 안 떠 있거나 포트가 막힘. `curl http://<서버IP>:8000/health` 로 갈라볼 것 — 응답 오면 `--llm-url` 오타, 안 오면 서버/방화벽. **띄운 직후면 30초쯤 기다릴 것** (모델 로딩) |
 | `LLM server returned HTTP 401` | `--api-key` 를 걸어놓고 `--llm-api-key` 를 안 줬거나 값이 다름 |
 | `LLM server returned HTTP 404` | `--llm-url` 이 `/v1` 까지여야 한다. `http://<IP>:8000` 도 받아주지만 그 외 경로면 404 |
 | `ModuleNotFoundError: No module named 'torch'` (로컬) | 로컬엔 torch가 없는 게 정상이다. `patrol/` 이나 `api_server.py` 가 torch를 끌어온다면 그건 버그 — `llm_server/` 를 import하는 코드가 새로 생긴 것이다 |
@@ -591,7 +649,7 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 | `smoke`/시작 시 `-> 'timeout'` | Unity가 9000을 안 듣는 중 (§4 ②). Console에 `listening on 9000` 초록 확인 |
 | Unity Console 빨강 `address already in use` | 9000 점유 — `lsof -i :9000` → `kill -9 <PID>` → 재Play. **API 서버와 REPL을 같이 띄우면 이렇게 된다** |
 | 명령 보내도 드론 안 움직임 / 배너 안 뜸 | Unity 경로 끊김. §4 ④ smoke로 'ok' 확인부터 |
-| 스캔은 도는데 탐지가 0건 | ③ 탐지기(TCP 9100)가 안 떠 있거나, `scan` 없는 구버전이라 rc 폴백을 탄 것. 로그에 `Unity 쪽 scan 응답 없음` 이 있는지 확인 (§5) |
+| 스캔은 도는데 탐지가 0건 | **실제 Unity면 지금은 정상이다** — `PatrolPersonDetection.cs` 가 이 브랜치에 없어 rc 폴백을 탄다 (§5). 로그의 `Unity 쪽 scan 응답 없음` 으로 확인. 배선만 볼 거면 `fake_unity_sim.py --detect-per-scan 1` |
 | 순찰 시작이 `409` | 이미 순찰이 돌고 있다. `POST /api/patrol/abort` 로 멈추고 다시 |
 | `/plan` 목표가 엉뚱한 층 | 보낸 `goal` 의 z가 그 방 범위 밖 — 응답의 `goal` 이 실제로 쓰인 스냅 좌표다 (`API.md`) |
 | Play해도 드론이 씬 기본위치 그대로 | `TelloSimulator` 의 `spawnAtHome` 이 꺼졌거나 `spawnPosition` 이 다른 건물 값 (§5) |
