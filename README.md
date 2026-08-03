@@ -47,6 +47,7 @@
 |---|---|---|
 | `patrol/server.py` | GPU 서버 | 노트북 (Unity 옆) |
 | LLM | 같은 프로세스 (`--llm-device cuda:1`) | 서버의 `patrol/llm_serve.py` 에 `--llm-url` 로 접속 |
+| 서버 상주 프로세스 | 2개 (relay + 파이프라인 REPL) | 1개 (`llm_serve`, 떼어놓고 로그아웃 가능) |
 | 노트북 준비물 | Unity만 | Unity + numpy + `data/final_npy` (약 240 MB) |
 | **relay** | **필수** — 서버→노트북 UDP가 NAT에 막힌다 | **불필요** — UDP가 전부 노트북 안 localhost |
 | 네트워크 | 서버→노트북 UDP + 노트북→서버 TCP | 노트북→서버 TCP 하나 |
@@ -301,6 +302,42 @@ python patrol/server.py --sim --unity-host 127.0.0.1 \
   그대로 맞는다 — 방식 A에서 공유 마운트가 필요했던 부분.
 - LLM 서버는 요청을 **한 번에 하나씩** 처리한다(GPU 하나, 모델 하나). 노트북
   여러 대가 붙으면 순서대로 기다린다.
+
+**서버 터미널을 붙들고 있을 필요는 없다.** `llm_serve.py` 는 상주 프로세스지만
+터미널에 묶일 이유가 없으니 떼어놓고 로그아웃하면 된다.
+
+```bash
+# nohup — SSH를 끊어도 남는다
+nohup python patrol/llm_serve.py --port 8000 --llm-device cuda:1 \
+    > ~/llm_serve.log 2>&1 &
+
+# 또는 tmux — 나중에 로그를 다시 보고 싶으면
+tmux new -d -s llm 'conda activate patrol && python patrol/llm_serve.py --port 8000 --llm-device cuda:1'
+tmux attach -t llm          # 볼 때만 붙는다
+
+curl http://166.104.223.32:8000/v1/models   # 살아있나
+pkill -f patrol/llm_serve.py                # 내리기
+```
+
+서버에 **상주해야 하는 프로세스는 방식 A의 2개(relay + 파이프라인 REPL)에서
+방식 B의 1개(llm_serve)로 줄고**, 사람이 서버 앞에 앉아 있을 일은 없어진다
+(REPL이 노트북으로 갔으므로). 다만 `llm_serve` 는 모델을 GPU에 올린 채 대기하니
+(3B fp16 기준 6 GB 남짓) 안 쓸 땐 내려도 된다 — 다시 띄우는 데 30초쯤 걸린다.
+
+**서버를 아예 안 쓰는 방법도 있다.** `remote_llm.py` 는 OpenAI 호환 프로토콜만
+알지 상대가 무엇인지는 모른다(`llm_serve.py` 가 아닌 다른 구현으로도 동작 확인).
+그래서 Apple Silicon 맥이면 LLM까지 노트북에서 돌릴 수 있다:
+
+```bash
+ollama pull qwen2.5:3b-instruct
+ollama serve                                  # 127.0.0.1:11434
+python patrol/server.py --sim --unity-host 127.0.0.1 \
+    --llm-url http://127.0.0.1:11434/v1 --llm-model qwen2.5:3b-instruct
+```
+
+> **이 조합은 아직 검증하지 않았다.** Ollama는 양자화 모델이라 fp16 서버와 의도
+> 파싱 품질이 다를 수 있다 — 방 코드(`002_012`)나 `scope` 를 놓치기 시작하면
+> 프롬프트를 손봐야 한다. 서버 GPU를 쓸 수 있으면 그쪽이 안전하다.
 
 **Unity 없이 로컬만 테스트**:
 ```bash
