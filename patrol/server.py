@@ -5,7 +5,7 @@ Two modes, chosen per query by the LLM (patrol.patrol_intent):
 FIND (물체 찾기) — single-object search:
 
     natural-language command
-        -> local LLM intent parse                  (patrol.llm_parser)
+        -> LLM intent parse       (patrol.llm_parser / patrol.remote_llm)
         -> LitePT precomputed detection match      (patrol.litept_backend)
         -> Unity camera previews the candidate; the user clicks [이동] to
            confirm or [다음 후보] to cycle candidates   (simulator/bridge)
@@ -30,8 +30,13 @@ Detections come from `data/final_npy` (LitePT ScanNet-20 instance centers,
 see litept_backend). Continuous mission: each query starts from the drone's
 current simulator position (fallback: previous goal, then home).
 
-Run from the repo root (see requirements.txt / README.md §1):
+Run from the repo root (see requirements.txt / README.md §1). The model can
+load here, or live on another machine behind patrol/llm_serve.py — everything
+else in this file is identical either way:
+
     python patrol/server.py --sim --unity-host 127.0.0.1 --llm-device cuda:1
+    python patrol/server.py --sim --unity-host 127.0.0.1 \
+        --llm-url http://166.104.223.32:8000/v1      # no torch needed here
 """
 from __future__ import annotations
 
@@ -47,8 +52,8 @@ import numpy as np
 _THIS = Path(__file__).resolve()
 sys.path.insert(0, str(_THIS.parents[1]))  # repo root
 
-from patrol.llm_parser import LocalLLMParser  # noqa: E402
-
+# NOTE: patrol.llm_parser is imported lazily in main() — it pulls in torch, and
+# under --llm-url this process is meant to run on a machine that has none.
 from patrol import (patrol_intent, patrol_mission, patrol_report,  # noqa: E402
                     planner, room_index, sdk_export)
 from patrol.detect_events import DetectionListener  # noqa: E402
@@ -63,6 +68,18 @@ def main() -> None:
     ap.add_argument("--building", default="00809_Qpor2mEya8F",
                     help="Building id (transform lookup + program metadata).")
     ap.add_argument("--llm-model", default="Qwen/Qwen2.5-3B-Instruct")
+    # With --llm-url the model is NOT loaded here — this process then needs no
+    # torch at all, which is what lets the laptop run the pipeline next to
+    # Unity while the GPU box only serves the LLM (patrol/llm_serve.py).
+    ap.add_argument("--llm-url", default=None,
+                    help="OpenAI-compatible endpoint, e.g. "
+                         "http://166.104.223.32:8000/v1 . Omit to load the "
+                         "model in-process (needs a local GPU + torch).")
+    ap.add_argument("--llm-api-key", default=None,
+                    help="Bearer token, if the LLM server requires one.")
+    ap.add_argument("--llm-timeout", type=float, default=60.0,
+                    help="Per-request timeout for --llm-url, seconds.")
+    # Below here: in-process mode only, ignored with --llm-url.
     ap.add_argument("--llm-device", default="cuda:1")
     ap.add_argument("--llm-dtype", default="float16",
                     choices=["float16", "bfloat16", "float32"])
@@ -142,9 +159,19 @@ def main() -> None:
     print(f"[patrol] {len(backend.detections)} detections, "
           f"{len(backend.room_dirs)} rooms")
 
-    llm_device = args.llm_device if args.llm_device_map is None else "cuda:0"
-    llm = LocalLLMParser(model_id=args.llm_model, device=llm_device,
-                         dtype=args.llm_dtype, device_map=args.llm_device_map)
+    # One LLM handle for the whole session, remote or local — patrol_intent and
+    # patrol_report reuse it rather than making their own.
+    if args.llm_url:
+        from patrol.remote_llm import RemoteLLMParser  # noqa: E402  (no torch)
+        llm = RemoteLLMParser(args.llm_url, model_id=args.llm_model,
+                              api_key=args.llm_api_key, timeout=args.llm_timeout)
+        served = llm.ping()   # fail here, not on the user's first query
+        print(f"[llm] server ok, models={served or '(no /models route)'}")
+    else:
+        from patrol.llm_parser import LocalLLMParser  # noqa: E402  (needs torch)
+        llm_device = args.llm_device if args.llm_device_map is None else "cuda:0"
+        llm = LocalLLMParser(model_id=args.llm_model, device=llm_device,
+                             dtype=args.llm_dtype, device_map=args.llm_device_map)
 
     # ---------------- Unity simulator link (lazy: only with --sim) ----------
     bridge = None

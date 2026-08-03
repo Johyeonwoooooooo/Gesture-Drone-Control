@@ -1,9 +1,10 @@
 """Patrol intent parsing — "어디를 순찰할까" (vs. "무엇을 찾을까").
 
-`patrol/llm_parser.py` answers the object-finding question and its
-SYSTEM_PROMPT is shared with the v1 webapp, so it is left untouched. This module
-adds a SECOND prompt over the SAME loaded model (`LocalLLMParser.generate`) that
-answers the patrol question, and resolves its answer to concrete `RoomInfo`s.
+`patrol/llm_base.py` answers the object-finding question and its SYSTEM_PROMPT
+is shared with the v1 webapp, so it is left untouched. This module adds a
+SECOND prompt over the SAME parser handle (`BaseLLMParser.generate`, whether
+that runs the model in-process or over HTTP) and resolves its answer to
+concrete `RoomInfo`s.
 
     "현우방만 탐색해줘"     -> mode=patrol, rooms=[002_012]
     "2층 전부 순찰해줘"     -> mode=patrol, rooms=[all floor-1 rooms]
@@ -238,10 +239,11 @@ def _coerce_room_id(v) -> Optional[str]:
 
 
 def _extract_json(text: str) -> dict:
-    """First {...} block of a generation. Same contract as
-    `patrol.llm_parser._extract_json`, duplicated on purpose so this module
-    stays importable without torch (that one lives next to `import torch`).
-    A failed parse degrades to {} — the keyword fallbacks then carry the query.
+    """First {...} block of a generation. Near-twin of
+    `patrol.llm_base._extract_json`, but with a different failure contract, so
+    it stays its own function: a failed parse degrades to {} — the keyword
+    fallbacks then carry the query — where llm_base reports {"_parse_error":...}
+    because a find query has nothing to fall back on.
     """
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", (text or "").strip(),
                   flags=re.MULTILINE).strip()

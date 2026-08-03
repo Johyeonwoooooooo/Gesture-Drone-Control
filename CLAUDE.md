@@ -52,10 +52,15 @@ Detections are **read**, never computed here: `data/final_npy/` (gitignored,
 ## Common commands
 
 ```bash
-# 전체 실행 (릴레이 3단계는 README.md §4)
+# 방식 A — 전부 서버에서 (릴레이 3단계는 README.md §4)
 python simulator/bridge/relay.py server                      # 서버, 계속 켜둠
 python simulator/bridge/smoke.py --unity-host 127.0.0.1      # 연결 게이트: 'ok' 필수
 python patrol/server.py --sim --unity-host 127.0.0.1 --llm-device cuda:1
+
+# 방식 B — LLM만 서버, 나머지는 노트북 (릴레이 없음, README.md §4-B)
+python patrol/llm_serve.py --port 8000 --llm-device cuda:1   # [서버] 계속 켜둠
+python patrol/server.py --sim --unity-host 127.0.0.1 \
+    --llm-url http://166.104.223.32:8000/v1                  # [노트북] torch 불필요
 
 # Unity 없이 프로토콜 스텁으로
 python simulator/bridge/fake_unity_sim.py --auto-next 1 --auto-confirm-sec 3 &
@@ -63,6 +68,7 @@ python patrol/server.py --sim --unity-host 127.0.0.1
 
 # 모듈 자가 테스트
 python patrol/litept_backend.py "거실 소파"      # 매칭·랭킹 + home 좌표
+python patrol/remote_llm.py --llm-url http://<host>:8000/v1 "거실 소파 찾아줘"
 python -m patrol.room_index --list               # 방 목록/별칭 (cwd = repo root)
 python -m patrol.detect_events --emit --label person --conf 0.9 --image /abs/x.jpg
 
@@ -99,9 +105,25 @@ python simulator/bridge/calibrate_transform.py --building 00809_Qpor2mEya8F \
   각 쿼리는 드론의 **현재 시뮬 위치**에서 계획한다 — 상태 수신 실패 시 직전
   목표 → 홈 순으로 폴백.
 
-- **LLM 인스턴스는 하나다.** `llm_parser.LocalLLMParser` 를 server가 만들어
+- **LLM 인스턴스는 하나다.** server가 파서를 하나 만들어
   `patrol_intent`(FIND/PATROL 라우팅·방 해석)와 `patrol_report`(보고서 문장)에
   주입한다. 새 LLM 호출을 추가할 때 모델을 또 로드하지 말 것.
+
+- **그 파서는 두 종류이고 접점은 `generate(system, user) -> str` 하나다.**
+  `llm_base.BaseLLMParser` 가 프롬프트·스키마·JSON 정제와 `parse()` 를 들고 있고
+  (torch 안 씀), `generate()` 만 둘로 갈린다 — `llm_parser.LocalLLMParser`(모델을
+  이 프로세스에 올림)와 `remote_llm.RemoteLLMParser`(`--llm-url` 로 HTTP 호출).
+  덕분에 **`patrol/` 전체에서 torch를 import하는 파일은 `llm_parser.py` 뿐**이고,
+  server.py 는 그걸 **지연 import** 한다. 이 지연을 top-level import로 되돌리면
+  torch 없는 노트북에서 파이프라인이 뜨지 않는다. LLM 관련 코드를 추가할 때는
+  `generate()` 위에 얹을 것 — 새 torch 의존을 다른 파일에 심으면 분리가 깨진다.
+
+- **배치 축이 두 개다.** 방식 A는 전부 GPU 서버(+relay로 노트북 Unity 제어),
+  방식 B는 LLM만 서버(`llm_serve.py`, OpenAI 호환 HTTP)이고 파이프라인은 Unity
+  옆 노트북. B에서는 UDP가 전부 노트북 안 localhost라 relay가 필요 없다 — NAT는
+  나가는 연결을 막지 않으므로 노트북→서버 TCP 하나만 뚫리면 된다 (실측: 노트북
+  10.100.130.17 → 166.104.223.32 TCP 8000/8080/8443 도달). 노트북엔
+  `requirements-local.txt` (numpy/scipy/pillow) + `data/final_npy` 약 240 MB 필요.
 
 - **탐지 이벤트는 ARM 상태에서만 채택된다** (`detect_events.DetectionListener`).
   순찰 중 **방 안에서 스캔할 때만** ARM 하고 이동 중엔 DISARM 이라, 늦게 도착한

@@ -35,7 +35,28 @@
 | 노트북 → 서버 | UDP **9002** | 드론 상태 JSON 20 Hz + 버튼 이벤트(`{"event":"confirm"\|"next"}`) |
 | 2D 디텍터 → 서버 | UDP **9004** | 사람 탐지 JSON 한 줄 (별도 프로세스, `docs/patrol-agent.md`) |
 
-> 프롬프트는 **서버 터미널**에서 입력. Unity 화면엔 상태 배너 + 확인 버튼이 표시된다.
+> 프롬프트는 파이프라인이 도는 터미널에서 입력. Unity 화면엔 상태 배너 + 확인
+> 버튼이 표시된다.
+
+### 배치 방식 두 가지
+
+파이프라인에서 GPU가 필요한 건 LLM 의도 파서 하나뿐이다(3D 인식은 사전계산
+결과를 읽기만 한다). 그래서 파이프라인을 어디서 돌릴지 고를 수 있다.
+
+|  | **방식 A — 서버 실행** (기존) | **방식 B — 로컬 실행** |
+|---|---|---|
+| `patrol/server.py` | GPU 서버 | 노트북 (Unity 옆) |
+| LLM | 같은 프로세스 (`--llm-device cuda:1`) | 서버의 `patrol/llm_serve.py` 에 `--llm-url` 로 접속 |
+| 노트북 준비물 | Unity만 | Unity + numpy + `data/final_npy` (약 240 MB) |
+| **relay** | **필수** — 서버→노트북 UDP가 NAT에 막힌다 | **불필요** — UDP가 전부 노트북 안 localhost |
+| 네트워크 | 서버→노트북 UDP + 노트북→서버 TCP | 노트북→서버 TCP 하나 |
+| `--viz-dir` 경로 시각화 | 공유 마운트 없으면 불가 | 그냥 됨 |
+| 탐지 사진 `image_path` | 공유 마운트 없으면 불가 | 그냥 됨 |
+
+방식 B가 통하는 이유는 **NAT가 나가는 연결은 막지 않기** 때문이다. 지금 relay가
+필요한 건 서버→노트북 방향이 막혀서인데, B에서 망을 타는 건 노트북→서버 TCP
+하나뿐이라 그 문제 자체가 없어진다. (실측: 노트북 `10.100.130.17` → 서버
+`166.104.223.32` TCP 8000/8080/8443 도달 확인.)
 
 ---
 
@@ -56,6 +77,8 @@
 
 ### B. 매번 다시 실행 — 이 순서 그대로 (§4가 상세)
 
+**방식 A — 서버 실행 (기존)**
+
 ```
 ① [서버]   python simulator/bridge/relay.py server          # relay 서버, 계속 켜둠
 ② [노트북] Unity ▶ Play → Console "listening on 9000"(초록) 확인
@@ -71,6 +94,21 @@
 > 서버·노트북이 같은 LAN이라 직접 UDP가 되면 릴레이(①③④) 없이 §4의 직접 방식 사용.
 > 노트북이 Wi-Fi/VPN NAT 뒤면(대부분) 릴레이 필수.
 
+**방식 B — 로컬 실행 (relay 없음, §4-B가 상세)**
+
+```
+① [서버]   python patrol/llm_serve.py --port 8000 --llm-device cuda:1   # 계속 켜둠
+② [노트북] Unity ▶ Play → Console "listening on 9000"(초록) 확인
+③ [노트북] python simulator/bridge/smoke.py --unity-host 127.0.0.1      # 'ok' 게이트
+④ [노트북] python patrol/server.py --sim --unity-host 127.0.0.1 \
+               --llm-url http://<서버IP>:8000/v1
+⑤ [노트북] query> 자연어 입력.
+```
+
+**순서 핵심**: ①LLM서버 → ②Unity → **③에서 'ok' 확인(게이트) → ④파이프라인**.
+③이 통과 안 되면 Unity(9000) 문제지 네트워크 문제가 아니다 — 같은 PC 안이니까.
+④가 `cannot reach ...` 로 죽으면 ①이 안 떠 있거나 포트가 막힌 것(§11).
+
 ---
 
 ## 1. 서버 (Linux GPU) 준비 — 설치는 (최초 1회)
@@ -83,6 +121,9 @@ git checkout patrol-mvp
 **파이썬 환경** — 필요한 건 `requirements.txt` 가 전부다 (numpy, scipy, pillow,
 torch, transformers). GPU는 LLM 의도 파서에만 쓴다. 컴파일된 3D 스택
 (spconv·MinkowskiEngine·mmdet3d)은 하나도 필요 없어서 설치가 pip 한 줄이다.
+
+> 방식 B(§4-B)에서도 **서버 쪽은 이 환경 그대로**다 — `llm_serve.py` 는 표준
+> 라이브러리만 더 쓴다. 노트북 쪽은 `requirements-local.txt`(torch 없음).
 
 ```bash
 conda create -n patrol python=3.10 -y && conda activate patrol
@@ -191,6 +232,82 @@ python simulator/bridge/fake_unity_sim.py --auto-next 1 --auto-confirm-sec 3 &
 python patrol/server.py --sim --unity-host 127.0.0.1
 ```
 
+---
+
+## 4-B. 로컬 실행 (방식 B) — relay 없이
+
+파이프라인을 노트북에서 돌리고 **LLM만** 서버에 남긴다. relay(①③)가 통째로
+빠지고, Unity와 주고받는 UDP는 전부 노트북 안 `127.0.0.1` 이 된다.
+
+**최초 1회 — 노트북 준비**
+
+```bash
+git clone <repo> && cd Gesture-Drone-Control && git checkout patrol-mvp
+pip install -r requirements-local.txt        # numpy/scipy/pillow. torch 없음
+```
+
+디텍션 데이터를 받아온다. `.glb` 는 Unity 프로젝트에 이미 있으니 제외 —
+방별 `.npy` + `detections.json` 만 **약 240 MB**.
+
+```bash
+rsync -av --exclude='*.glb' \
+  <서버계정>@166.104.223.32:/data1/workspaces/jgshin22/Gesture-Drone-Control/data/final_npy/ \
+  data/final_npy/
+```
+
+**① 서버 — LLM 서버** `[서버 터미널, 계속 켜둠]`
+```bash
+conda activate patrol
+python patrol/llm_serve.py --port 8000 --llm-device cuda:1
+```
+✅ `[llm-serve] Qwen/Qwen2.5-3B-Instruct on cuda:1, listening on 0.0.0.0:8000`
+
+노트북에서 도달 확인 (여기서 막히면 뒤가 다 막힌다):
+```bash
+curl http://166.104.223.32:8000/v1/models
+```
+
+**② 노트북 — Unity** ▶ Play → Console `listening on 9000` 확인.
+
+**③ 노트북 — 경로 게이트**
+```bash
+python simulator/bridge/smoke.py --unity-host 127.0.0.1
+```
+✅ `command -> 'ok'`. ❌ `timeout` → ②의 Unity 문제 (같은 PC라 망 문제일 수 없다).
+
+**④ 노트북 — 파이프라인**
+```bash
+python patrol/server.py --sim --unity-host 127.0.0.1 \
+    --llm-url http://166.104.223.32:8000/v1 \
+    --viz-dir simulator/tello_simulator/Assets/Resources
+```
+✅ `[llm] remote http://...:8000/v1/chat/completions` + `[llm] server ok, models=[...]`
+
+`--llm-url` 이 있으면 이 프로세스는 모델을 안 올리므로 **torch가 필요 없다**.
+`--llm-device` / `--llm-dtype` / `--llm-device-map` 은 이때 무시된다.
+
+**참고**
+- 포트는 8000/8080/8443 셋 다 열려 있는 걸 확인했다. 바꾸려면 서버 `--port` 와
+  노트북 `--llm-url` 을 같이 바꾼다.
+- 포트가 막힌 망이면 SSH 터널로 우회한다. outbound라 NAT·방화벽과 무관하다:
+  ```bash
+  ssh -N -L 8000:localhost:8000 <서버계정>@166.104.223.32   # 노트북에서
+  python patrol/server.py --sim --unity-host 127.0.0.1 --llm-url http://127.0.0.1:8000/v1
+  ```
+  이때 서버는 `--host 127.0.0.1` 로 띄워 외부 노출을 막아도 된다.
+- 공용 망에 열어야 하면 `--api-key <문자열>` (서버) + `--llm-api-key <같은 문자열>`
+  (노트북). 인증 없이 열어두면 누구나 GPU를 쓸 수 있다.
+- 2D 디텍터(`docs/patrol-agent.md`)도 노트북에서 돌리면 `image_path` 절대경로가
+  그대로 맞는다 — 방식 A에서 공유 마운트가 필요했던 부분.
+- LLM 서버는 요청을 **한 번에 하나씩** 처리한다(GPU 하나, 모델 하나). 노트북
+  여러 대가 붙으면 순서대로 기다린다.
+
+**Unity 없이 로컬만 테스트**:
+```bash
+python simulator/bridge/fake_unity_sim.py --auto-next 1 --auto-confirm-sec 3 &
+python patrol/server.py --sim --unity-host 127.0.0.1 --llm-url http://166.104.223.32:8000/v1
+```
+
 ## 5. 사용법
 
 `query>` 프롬프트에 자연어 입력 (한국어/영어):
@@ -292,7 +409,10 @@ unity = ( -5·x,  5·z + 15.5,  -5·y )      # 디텍션 (x,y,z)
 ```
 patrol/                      # 두뇌 (파이썬)
 ├── server.py                # 메인 REPL (LLM→LitePT→confirm→plan→fly)
-├── llm_parser.py            # 로컬 HF LLM — 의도 JSON 파싱 (FIND/PATROL 공용)
+├── llm_base.py              # 프롬프트·스키마·JSON 정제 (torch 안 씀, 양쪽 공용)
+├── llm_parser.py            # 로컬 HF LLM — 모델을 이 프로세스에 올린다 (torch)
+├── remote_llm.py            # 원격 LLM 클라이언트 (--llm-url, urllib만)
+├── llm_serve.py             # OpenAI 호환 LLM 서버 (GPU 서버에서 띄움, §4-B)
 ├── patrol_intent.py         # FIND/PATROL 라우팅 + 방 해석
 ├── patrol_mission.py        # 순찰 실행 (구간 비행·360° 스캔·탐지 반응)
 ├── patrol_report.py         # 보고서 md/html/json
@@ -504,6 +624,10 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 |---|---|
 | `RuntimeError: Numpy is not available` | numpy 2.x + 구 torch(2.1/2.2) 조합. `patrol` env를 쓰거나, 굳이 `unidet3d` env를 쓸 거면 numpy를 2 미만으로 (§1) |
 | `relay client`: `Connection refused` | 서버 relay server(§4 ①)가 안 떠 있음. ping은 되는데 refused면 리스너 없음 |
+| (방식 B) 시작 시 `cannot reach the LLM server at ...` | 서버 `llm_serve.py`(§4-B ①)가 안 떠 있거나 포트가 막힘. `curl http://<서버IP>:8000/v1/models` 로 갈라볼 것 — 응답 오면 `--llm-url` 오타, 안 오면 서버/방화벽 |
+| (방식 B) `ModuleNotFoundError: No module named 'torch'` | `--llm-url` 을 안 줘서 모델을 이 프로세스에 올리려는 중. 노트북에는 torch가 없다 (§4-B ④) |
+| (방식 B) `LLM server returned HTTP 404` | `--llm-url` 이 `/v1` 까지여야 한다. `http://<IP>:8000` 도 받아주지만 그 외 경로면 404 |
+| (방식 B) 첫 쿼리가 느림 / 타임아웃 | LLM 서버가 요청을 하나씩 처리한다. 다른 사람이 쓰는 중이면 대기. 늘리려면 `--llm-timeout` |
 | `smoke`/서버 시작: `-> 'timeout'` | Unity가 9000을 안 듣는 중 (§4 ②). Console에 `listening on 9000` 초록 확인 |
 | Unity Console 빨강 `address already in use` | 9000 점유 — `lsof -i :9000` → `kill -9 <PID>` → 재Play |
 | 명령 보내도 드론 안 움직임 / 배너 안 뜸 | 서버→Unity 경로 끊김. §4 ④ smoke로 'ok' 확인부터 |
