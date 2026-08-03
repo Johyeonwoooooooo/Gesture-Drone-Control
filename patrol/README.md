@@ -4,7 +4,7 @@
 
 ```
 terminal query
-  → LLM 의도 파싱          (llm_base.py + llm_parser.py 또는 remote_llm.py)
+  → LLM 의도 파싱          (llm_base.py + remote_llm.py → GPU 서버의 llm_server/)
   → FIND / PATROL 라우팅              (patrol_intent.py)
   ├ FIND:   LitePT 디텍션 매칭·랭킹    (litept_backend.py)
   │           → Unity 프리뷰 → [이동] 확인 → A*/RRT* (planner.py) → 비행
@@ -22,10 +22,8 @@ terminal query
 | 파일 | 역할 |
 |---|---|
 | `server.py` | 메인 REPL. 모든 인자·상태(드론 위치, 마지막 순찰)를 들고 있다 |
-| `llm_base.py` | 프롬프트·`ParsedIntent`·JSON 정제 + `parse()`. `generate()` 만 추상. **torch를 안 쓴다** |
-| `llm_parser.py` | `generate()` 를 HF 모델로 구현 — 모델을 이 프로세스에 올린다. `patrol/` 에서 torch를 import하는 **유일한** 파일 |
-| `remote_llm.py` | `generate()` 를 HTTP로 구현 — `--llm-url` 의 OpenAI 호환 서버에 물어본다. urllib만 씀 |
-| `llm_serve.py` | 그 서버 쪽. `LocalLLMParser` 를 `/v1/chat/completions` 로 노출 (GPU 박스에서 실행) |
+| `llm_base.py` | 프롬프트·`ParsedIntent`·JSON 정제 + `parse()`. `generate()` 만 추상 |
+| `remote_llm.py` | 유일한 `generate()` 구현 — `--llm-url` 의 OpenAI 호환 서버에 HTTP로 물어본다. urllib만 씀 |
 | `patrol_intent.py` | FIND/PATROL 라우팅 + 방 지정 해석 (별칭·타입·층) |
 | `litept_backend.py` | `detections.json` 로드, 쿼리 매칭·랭킹, 방별 포인트 병합, 홈 좌표 |
 | `room_index.py` | 방 인덱스(코드·타입·중심·바닥높이) + 별칭 + 스캔 포즈. `out/room_index.json` 캐시 |
@@ -38,12 +36,10 @@ terminal query
 
 ## 주요 인자
 
-**LLM (로컬 로드)** `--llm-model Qwen/Qwen2.5-3B-Instruct` `--llm-device cuda:1`
-`--llm-dtype float16` `--llm-device-map`(멀티 GPU 분산)
-
-**LLM (원격)** `--llm-url http://<host>:8000/v1` — 주면 모델을 안 올린다.
-이때 이 프로세스는 **torch가 필요 없다** (위 3개 인자는 무시). 함께:
-`--llm-api-key` `--llm-timeout 60`. 서버는 `llm_serve.py`, 루트 README §4-B.
+**LLM** `--llm-url http://<host>:8000/v1` (**필수**) `--llm-model
+Qwen/Qwen2.5-3B-Instruct` `--llm-api-key` `--llm-timeout 60`.
+모델은 이 프로세스에 절대 올라오지 않는다 — **`patrol/` 은 torch를 안 쓴다.**
+서버 쪽은 `llm_server/`.
 
 **플래너** `--algo astar|rrt` `--resolution 0.15`(복셀 크기 m) `--margin 1`(장애물
 팽창 셀) `--point-stride 4`(포인트 병합 스트라이드) `--rrt-iter 8000`
@@ -71,7 +67,7 @@ python patrol/litept_backend.py "거실 소파"   # 매칭·랭킹 + home 좌표
 python -m patrol.room_index --list             # 방 목록/별칭 (cwd = repo root)
 python -m patrol.detect_events --emit --label person --conf 0.9 --image /abs/x.jpg
 
-# 원격 LLM 왕복만 점검 (llm_serve.py 가 떠 있어야 함)
+# LLM 왕복만 점검 (llm_server/serve.py 가 떠 있어야 함)
 python patrol/remote_llm.py --llm-url http://<host>:8000/v1 "거실 소파 찾아줘"
 ```
 

@@ -1,6 +1,6 @@
 """LLM client — talks to an OpenAI-compatible server instead of loading a model.
 
-Drop-in for `LocalLLMParser`: same `generate` / `parse` surface, so
+The only `generate()` implementation on this side, so
 `server.py`, `patrol_intent.py` and `patrol_report.py` cannot tell the
 difference. Lets the laptop that runs Unity also run the whole patrol
 pipeline, with only the LLM left on the GPU box.
@@ -10,7 +10,7 @@ pipeline, with only the LLM left on the GPU box.
 
 Deliberately **stdlib only** (urllib) — the laptop side of the split should
 need nothing beyond numpy, so don't reach for `requests` or the `openai` SDK
-here. The server can be `patrol/llm_serve.py` or any OpenAI-compatible
+here. The server can be `llm_server/serve.py` or any OpenAI-compatible
 runtime (vLLM, Ollama, llama.cpp); the wire format is the same.
 
 Self-test:
@@ -84,16 +84,16 @@ class RemoteLLMParser(BaseLLMParser):
                 time.sleep(0.5 * (attempt + 1))
         raise RemoteLLMError(
             f"{last}\nIs the LLM server up on that host? Start it with\n"
-            f"    python patrol/llm_serve.py --port <port> --llm-device cuda:1\n"
+            f"    python llm_server/serve.py --port <port> --llm-device cuda:1\n"
             f"and check --llm-url."
         )
 
     # -------------------------------------------------------------- public --
     def generate(self, system: str, user: str, max_new_tokens: int = 256) -> str:
-        """Same contract as LocalLLMParser.generate — one system+user turn.
+        """One system+user turn — the same contract `llm_server` implements.
 
-        temperature 0 mirrors the local `do_sample=False`, so a query gives the
-        same answer whichever side of the split it runs on.
+        temperature 0 mirrors the server's `do_sample=False`, so the answer does
+        not depend on which side of the split you look from.
         """
         data = self._post(self.endpoint, {
             "model": self.model_id,

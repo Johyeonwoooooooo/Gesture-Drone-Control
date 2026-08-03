@@ -1,0 +1,19 @@
+# GPU 서버 쪽 의존성 — 이 폴더(llm_server/)만 돌리는 데 필요한 전부.
+#
+#   conda create -n patrol python=3.10 -y && conda activate patrol
+#   pip install -r llm_server/requirements.txt
+#   python llm_server/serve.py --port 8000 --llm-device cuda:1
+#
+# HTTP 서버는 표준 라이브러리(http.server)라 웹 프레임워크가 없다.
+# 순찰 파이프라인 쪽 의존성은 저장소 루트의 requirements.txt 를 쓴다 —
+# 그쪽엔 torch 가 없고, 이쪽엔 numpy 조차 필요 없다.
+
+torch>=2.3                 # 2.3부터 numpy 2 지원. 기본 휠이 CUDA 런타임을 동봉한다
+transformers>=4.40         # 이 서버는 transformers 5.14 로 검증됐다
+accelerate>=0.30           # --llm-device-map 으로 모델을 여러 GPU에 분산할 때만
+
+# vLLM 으로 갈아탈 거면 여기 얹지 말고 **별도 env** 를 만들 것. vLLM 은 자기 torch
+# 버전을 고정하므로 이 env 를 망가뜨린다. 프로토콜이 OpenAI 호환이라 클라이언트의
+# --llm-url 은 그대로다:
+#   conda create -n vllm python=3.10 -y && pip install vllm
+#   vllm serve Qwen/Qwen2.5-3B-Instruct --port 8000

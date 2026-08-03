@@ -1,10 +1,10 @@
 """OpenAI-compatible LLM server — the GPU-box half of the split deployment.
 
-Loads the intent model once and serves it over HTTP so that
-`patrol/server.py --llm-url ...` can run somewhere else (typically the laptop
-that runs Unity, next to the simulator and the 2D detector).
+Loads the intent model once and serves it over HTTP so that the patrol
+pipeline can run somewhere else (the PC that runs Unity and the web console),
+with no torch installed there.
 
-    python patrol/llm_serve.py --port 8000 --llm-device cuda:1
+    python llm_server/serve.py --port 8000 --llm-device cuda:1
 
 Routes (the subset `patrol/remote_llm.py` uses):
 
@@ -13,10 +13,14 @@ Routes (the subset `patrol/remote_llm.py` uses):
     GET  /health                -> {"status":"ok"}
 
 Stdlib `http.server` on purpose: this runs in the existing `patrol` conda env
-with nothing extra to install, and it only ever serves one REPL. If you
+with nothing extra to install, and it only ever serves one operator. If you
 outgrow it, any OpenAI-compatible runtime (vLLM, Ollama, llama.cpp) speaks the
 same wire format and `--llm-url` does not change — but install those in their
 OWN env, since they pin their own torch and would disturb this one.
+
+Nothing here imports `patrol/`: the client sends the prompt, this side only
+runs the model. That is what makes this folder copyable to another GPU box on
+its own. Keep it that way.
 
 Generation is serialized behind a lock: one model on one GPU, and
 `transformers.generate` is not safe to call concurrently on it.
@@ -32,11 +36,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # llm_server/
 
-from patrol.llm_parser import LocalLLMParser  # noqa: E402
+from local_llm import DEFAULT_MODEL, LocalLLM  # noqa: E402
 
-_LLM: Optional[LocalLLMParser] = None
+_LLM: Optional[LocalLLM] = None
 _LOCK = threading.Lock()
 _API_KEY: Optional[str] = None
 
@@ -155,7 +159,7 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--api-key", default=None,
                     help="If set, require `Authorization: Bearer <key>`.")
-    ap.add_argument("--llm-model", default="Qwen/Qwen2.5-3B-Instruct")
+    ap.add_argument("--llm-model", default=DEFAULT_MODEL)
     ap.add_argument("--llm-device", default="cuda:1")
     ap.add_argument("--llm-dtype", default="float16",
                     choices=["float16", "bfloat16", "float32"])
@@ -164,14 +168,13 @@ def main() -> None:
 
     _API_KEY = args.api_key
     device = args.llm_device if args.llm_device_map is None else "cuda:0"
-    _LLM = LocalLLMParser(model_id=args.llm_model, device=device,
-                          dtype=args.llm_dtype, device_map=args.llm_device_map)
+    _LLM = LocalLLM(model_id=args.llm_model, device=device,
+                    dtype=args.llm_dtype, device_map=args.llm_device_map)
 
     srv = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"[llm-serve] {args.llm_model} on {_LLM.device}, "
           f"listening on {args.host}:{args.port}", flush=True)
-    print(f"[llm-serve] client: python patrol/server.py --sim "
-          f"--unity-host 127.0.0.1 --llm-url http://<this-host>:{args.port}/v1",
+    print(f"[llm-serve] client: --llm-url http://<this-host>:{args.port}/v1",
           flush=True)
     try:
         srv.serve_forever()

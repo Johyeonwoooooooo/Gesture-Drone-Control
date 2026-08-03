@@ -1,14 +1,14 @@
 """The torch-free half of the intent parser: prompt, schema, JSON coercion.
 
-`parse()` is written entirely in terms of `generate(system, user)`, so the two
-parsers share it:
+`parse()` is written entirely in terms of `generate(system, user)`, and the one
+implementation of `generate()` — `remote_llm.RemoteLLMParser` — POSTs to an
+OpenAI-compatible endpoint. The model itself lives in `llm_server/`, on the GPU
+box, and this side never imports torch.
 
-    LocalLLMParser   (patrol/llm_parser.py)  — generate() runs the model here
-    RemoteLLMParser  (patrol/remote_llm.py)  — generate() POSTs to an LLM server
-
-That split is the whole point of this module. Nothing here imports torch, so a
-laptop with only numpy can run `patrol/server.py --llm-url ...` and drive the
-pipeline against a GPU box that serves the model. See README §4-B.
+That is the whole point of this module: a PC with only numpy runs the entire
+pipeline next to Unity, and the only thing crossing the network is one HTTP
+request per LLM call. Add new LLM uses on top of `generate()` — putting a torch
+import anywhere in `patrol/` would break the split.
 """
 from __future__ import annotations
 
