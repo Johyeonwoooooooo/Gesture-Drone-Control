@@ -389,10 +389,14 @@ def build_app(scene: Scene) -> FastAPI:
             raise HTTPException(400, f"모르는 구역: {', '.join(unknown)}")
         if not rooms:
             raise HTTPException(400, "targets 가 비어 있습니다")
+        # Read the cursor BEFORE the mission thread can append to it. The
+        # console polls `since=seq`, so a seq read afterwards would silently
+        # skip whatever the thread already emitted — mission_start included.
+        seq0 = log.seq
         mission_id = mission.start(rooms, req.returnHome)
         return {"missionId": mission_id,
                 "rooms": [r.room_name for r in rooms],
-                "seq": log.seq}
+                "seq": seq0}
 
     @app.get("/api/patrol/events")
     def api_patrol_events(since: int = 0) -> dict:
