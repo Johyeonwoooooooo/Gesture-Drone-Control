@@ -65,14 +65,6 @@ public class HorrorAtmosphere : MonoBehaviour
     public float fillRange = 30f;
     public Color fillColor = new Color(0.7f, 0.78f, 1f, 1f);
 
-    [Header("Preview Highlight")]
-    [Tooltip("Light up the candidate during a `preview` command — without it the " +
-             "target is too dark to judge the [이동]/[다음 후보] buttons.")]
-    public bool lightPreviewTarget = true;
-    public float previewLightRange = 14f;
-    public float previewLightIntensity = 6f;
-    public Color previewLightColor = new Color(1f, 0.85f, 0.55f, 1f);
-
     [Header("Post Processing (URP Volume)")]
     public bool postProcessing = true;
     [Tooltip("Negative values darken the image on top of the lighting. Keep it near 0 " +
@@ -91,7 +83,6 @@ public class HorrorAtmosphere : MonoBehaviour
     private Light sun;
     private Light flashlight;
     private Light fill;
-    private Light previewLight;
     private Volume volume;
     private VolumeProfile profile;
     private ColorAdjustments colorAdjust;
@@ -180,7 +171,6 @@ public class HorrorAtmosphere : MonoBehaviour
             Debug.Log($"[Horror] brightness = {brightness:F2}");
         }
 
-        UpdatePreviewLight();
     }
 
     // The Directional Light already in test.unity — dimmed rather than deleted so
@@ -257,16 +247,6 @@ public class HorrorAtmosphere : MonoBehaviour
             fill.shadows = LightShadows.None;
             fill.enabled = false;
         }
-
-        GameObject pgo = new GameObject("PreviewLight");
-        pgo.transform.SetParent(transform, false);
-        previewLight = pgo.AddComponent<Light>();
-        previewLight.type = LightType.Point;
-        previewLight.range = previewLightRange;
-        previewLight.intensity = previewLightIntensity;
-        previewLight.color = previewLightColor;
-        previewLight.shadows = LightShadows.None;
-        previewLight.enabled = false;
     }
 
     // Built in code instead of a .asset so the settings live in a readable diff
@@ -378,7 +358,6 @@ public class HorrorAtmosphere : MonoBehaviour
             if (volume != null) volume.enabled = false;
             if (flashlight != null) flashlight.enabled = false;
             if (fill != null) fill.enabled = false;
-            if (previewLight != null) previewLight.enabled = false;
         }
 
         if (audioRig != null) audioRig.SetActive(on);
@@ -397,19 +376,6 @@ public class HorrorAtmosphere : MonoBehaviour
         if (colorAdjust != null) colorAdjust.postExposure.Override(postExposure);
     }
 
-    void UpdatePreviewLight()
-    {
-        if (previewLight == null) return;
-        bool want = horrorEnabled && lightPreviewTarget && sim != null && sim.previewActive;
-        if (want)
-        {
-            previewLight.transform.position = sim.previewTarget;
-        }
-        if (previewLight.enabled != want)
-        {
-            previewLight.enabled = want;
-        }
-    }
 
     // Same dual-backend guard as CameraFollow.TogglePressed — the project ships
     // the Input System package, so UnityEngine.Input alone throws at runtime.

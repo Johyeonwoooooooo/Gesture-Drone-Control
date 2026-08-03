@@ -334,14 +334,13 @@ public class HorrorAudio : MonoBehaviour
     {
         if (heartbeatSource.clip == null) return;
 
+        // The heartbeat used to swell as the drone closed on a preview
+        // candidate. There are no candidates any more (the operator picks areas
+        // on the web floor plan before launch), so it is idle until something
+        // drives it — the scan is the obvious hook.
         float t = 0f;
-        if (sim != null && sim.previewActive)
-        {
-            float d = Vector3.Distance(sim.transform.position, sim.previewTarget);
-            t = Mathf.InverseLerp(heartbeatFarDistance, heartbeatNearDistance, d);
-        }
 
-        // Ease toward the target so the swell is not a step when preview toggles.
+        // Ease toward the target so the swell is not a step.
         heartbeatSource.volume = Mathf.Lerp(heartbeatSource.volume,
                                             t * heartbeatMaxVolume,
                                             Time.deltaTime * 2f);

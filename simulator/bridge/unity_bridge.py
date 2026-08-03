@@ -1,5 +1,26 @@
 """
 UDP bridge for the Unity-based Tello simulator.
+
+Two channels, both UDP:
+
+    server -> Unity, port 9000   verbs (command/takeoff/land/rc/setpos/msg/
+                                 light/scan), each acked with "ok"
+    Unity -> server, port 9002   20 Hz state JSON, plus events — a packet with
+                                 an "event" key is an event, not a state:
+
+        {"event": "scan_done", "degrees": 360.0}
+        {"event": "detect", "label": "person", "conf": 0.87,
+         "box": {"l": 21.0, "t": 33.0, "w": 16.0, "h": 40.0},
+         "image_path": "/abs/detection_frames/x.jpg"}
+
+`box` is in **percent of the camera frame**, which is what the web console's
+`window.__patrolDetect` wants, so nothing on the way has to rescale it. Unity
+knows its own capture resolution; the pixel→percent division belongs there.
+
+Unknown verbs are logged and still acked "ok" by both Unity and
+`fake_unity_sim.py`, so adding one is backward compatible — but that also means
+an ack does NOT prove the verb was implemented. Where that matters (`scan`) the
+caller waits for the answering event and falls back if it never comes.
 """
 
 from __future__ import annotations
@@ -10,7 +31,7 @@ import socket
 import threading
 import time
 from dataclasses import dataclass
-from typing import Optional
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -124,28 +145,14 @@ class UnityTelloBridge:
         """
         return self.send_command(f"light {'on' if on else 'off'}")
 
-    # ------------------------------------------------------ preview / confirm
-    def preview(self, x: float, y: float, z: float, label: str = "") -> str:
-        """Point the simulator camera at a candidate target (drone stays put).
-
-        Unity shows the on-screen [이동]/[다음 후보] buttons while a preview is
-        active and answers them as events on the state channel.
-        """
-        cmd = f"preview {x} {y} {z}"
-        if label:
-            cmd += f" {label}"
-        return self.send_command(cmd)
-
-    def preview_off(self) -> str:
-        return self.send_command("preview_off")
-
+    # ------------------------------------------------------------- events ---
     def drain_events(self) -> None:
-        """Discard queued user events (call before waiting on a fresh preview)."""
+        """Discard queued events (call before waiting on a fresh one)."""
         with self._event_lock:
             self._events.clear()
 
     def wait_for_event(self, timeout: float) -> Optional[str]:
-        """Next user event name ("confirm" / "next"), or None on timeout."""
+        """Next event name from the simulator, or None on timeout."""
         deadline = time.time() + timeout
         while time.time() < deadline:
             with self._event_lock:

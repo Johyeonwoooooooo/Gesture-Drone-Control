@@ -90,14 +90,6 @@ public class TelloSimulator : MonoBehaviour
     private string statusMessage = "";
     private float statusMessageTime = -1f;
 
-    // Candidate-preview state (set by the "preview" UDP command). CameraFollow
-    // switches to its Preview mode while previewActive; OnGUI shows the
-    // [이동]/[다음 후보] buttons whose answers go back over the state channel.
-    [NonSerialized] public bool previewActive = false;
-    [NonSerialized] public Vector3 previewTarget;
-    [NonSerialized] public string previewLabel = "";
-    private GameObject previewMarker;
-
     // Read by CamcorderHUD (battery drains faster in flight).
     public bool IsFlying => isFlying;
 
@@ -305,34 +297,6 @@ public class TelloSimulator : MonoBehaviour
             return;
         }
 
-        if (cmd.StartsWith("preview "))
-        {
-            // "preview x y z [label…]" — point the camera at a candidate target.
-            // Parsed from `raw` so the optional label keeps its original
-            // (e.g. Korean) casing. The drone does NOT move.
-            string[] parts = raw.Split(' ');
-            if (parts.Length >= 4
-                && float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float vx)
-                && float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float vy)
-                && float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out float vz))
-            {
-                previewTarget = new Vector3(vx, vy, vz);
-                previewLabel = parts.Length > 4 ? string.Join(" ", parts, 4, parts.Length - 4) : "";
-                previewActive = true;
-                ShowPreviewMarker(previewTarget);
-            }
-            else
-            {
-                Debug.LogWarning($"[Tello] Failed to parse preview command: '{raw}'");
-            }
-            return;
-        }
-
-        if (cmd == "preview_off")
-        {
-            EndPreview();
-            return;
-        }
 
         if (cmd == "command")
         {
@@ -473,8 +437,9 @@ public class TelloSimulator : MonoBehaviour
         }
     }
 
-    // User-interaction event (confirm / next) back to the pipeline. Shares the
-    // state channel (statePort); the bridge tells the two apart by the "event" key.
+    // Event back to the pipeline (scan_done, detect, ...). Shares the state
+    // channel (statePort); the bridge tells the two apart by the "event" key.
+    // `body` is raw JSON appended inside the object, or null for a bare event.
     void SendEvent(string name)
     {
         if (udpServer == null || lastRemoteEndPoint == null)
@@ -494,31 +459,6 @@ public class TelloSimulator : MonoBehaviour
         }
     }
 
-    void ShowPreviewMarker(Vector3 position)
-    {
-        if (previewMarker == null)
-        {
-            previewMarker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            previewMarker.name = "PreviewMarker";
-            previewMarker.transform.localScale = Vector3.one * 1.5f;
-            Destroy(previewMarker.GetComponent<Collider>());
-            Renderer rend = previewMarker.GetComponent<Renderer>();
-            rend.material = new Material(Shader.Find("Sprites/Default"));
-            rend.material.color = new Color(1f, 0.85f, 0.1f, 0.95f);
-        }
-        previewMarker.transform.position = position;
-    }
-
-    void EndPreview()
-    {
-        previewActive = false;
-        previewLabel = "";
-        if (previewMarker != null)
-        {
-            Destroy(previewMarker);
-            previewMarker = null;
-        }
-    }
 
     void OnControllerColliderHit(ControllerColliderHit hit)
     {
@@ -639,41 +579,6 @@ public class TelloSimulator : MonoBehaviour
             // y=72, not 12: on a narrow Game view the centered banner reaches far
             // enough left to sit on top of CamcorderHUD's REC block.
             GUI.Box(new Rect((Screen.width - width) / 2f, 72f, width, 44f), statusMessage, banner);
-        }
-
-        // Candidate-preview UI: label + [이동]/[다음 후보] buttons, bottom-center.
-        if (previewActive)
-        {
-            float panelW = Mathf.Min(Screen.width - 40f, 560f);
-            float panelX = (Screen.width - panelW) / 2f;
-            float panelY = Screen.height - 130f;
-
-            if (!string.IsNullOrEmpty(previewLabel))
-            {
-                GUIStyle labelBox = new GUIStyle(GUI.skin.box);
-                labelBox.fontSize = 20;
-                labelBox.alignment = TextAnchor.MiddleCenter;
-                labelBox.wordWrap = true;
-                GUI.color = Color.white;
-                GUI.Box(new Rect(panelX, panelY, panelW, 40f), previewLabel, labelBox);
-            }
-
-            GUIStyle button = new GUIStyle(GUI.skin.button);
-            button.fontSize = 22;
-            float btnW = (panelW - 20f) / 2f;
-            float btnY = panelY + 48f;
-            GUI.color = new Color(0.35f, 1f, 0.45f);
-            if (GUI.Button(new Rect(panelX, btnY, btnW, 52f), "이동", button))
-            {
-                // The pipeline answers with preview_off; keep the preview up
-                // until then so a slow link doesn't flicker the UI.
-                SendEvent("confirm");
-            }
-            GUI.color = new Color(1f, 0.8f, 0.3f);
-            if (GUI.Button(new Rect(panelX + btnW + 20f, btnY, btnW, 52f), "다음 후보", button))
-            {
-                SendEvent("next");
-            }
         }
 
         // Raw telemetry readout. Off by default — CamcorderHUD owns the top-left

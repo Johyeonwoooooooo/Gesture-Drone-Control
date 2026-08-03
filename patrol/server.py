@@ -1,14 +1,12 @@
-"""patrol — terminal NL → LitePT detection → user confirm → sim flight.
+"""patrol — terminal NL → LitePT detection → sim flight.
 
 Two modes, chosen per query by the LLM (patrol.patrol_intent):
 
 FIND (물체 찾기) — single-object search:
 
     natural-language command
-        -> LLM intent parse       (patrol.llm_parser / patrol.remote_llm)
+        -> LLM intent parse                        (patrol.remote_llm)
         -> LitePT precomputed detection match      (patrol.litept_backend)
-        -> Unity camera previews the candidate; the user clicks [이동] to
-           confirm or [다음 후보] to cycle candidates   (simulator/bridge)
         -> A* / RRT* path from the drone's position    (patrol.planner)
         -> Tello SDK command program written to out/   (patrol.sdk_export)
         -> the drone flies the path in the simulator   (simulator/bridge)
@@ -16,15 +14,14 @@ FIND (물체 찾기) — single-object search:
 PATROL (구역 순찰) — "현우방만 탐색해줘":
 
     -> rooms resolved from aliases/type/floor   (patrol_intent + room_index)
-        -> one preview/confirm of the plan          (Unity [이동]/[다음 후보])
-        -> per room: A* leg -> 360° scan, detector ARMED only inside the room
-        -> a person detection (UDP 9004, patrol.detect_events) triggers
+        -> per room: A* leg -> 360° scan
+        -> a person detection triggers
            hover -> light on -> record photo -> notify   (patrol_mission)
         -> return home, land
         -> 순찰 보고서 md/html/json written to out/reports (patrol_report)
 
-The 2D person detector and the Unity→Python photo transport run as a SEPARATE
-process owned by another team member; docs/patrol-agent.md is the contract.
+There is no in-flight confirmation step: the operator picks the areas on the
+web floor plan before launch, so the drone just executes the plan.
 
 Detections come from `data/final_npy` (LitePT ScanNet-20 instance centers,
 see litept_backend). Continuous mission: each query starts from the drone's
@@ -117,10 +114,7 @@ def main() -> None:
                     help="Flight timeout seconds; 0 = auto from path length.")
     ap.add_argument("--sim-no-status", action="store_true",
                     help="Do not push status text to the Unity banner.")
-    ap.add_argument("--confirm-timeout", type=float, default=120.0,
-                    help="Seconds to wait for the user's [이동]/[다음 후보] "
-                         "click per candidate.")
-    # Patrol mode (docs/patrol-agent.md)
+    # Patrol mode
     ap.add_argument("--patrol-port", type=int, default=9004,
                     help="UDP port the 2D detector pushes detection JSON to.")
     ap.add_argument("--patrol-labels", nargs="*", default=["person"],
@@ -141,9 +135,6 @@ def main() -> None:
     ap.add_argument("--report-dir", default=str(_THIS.parent / "out" / "reports"))
     ap.add_argument("--no-light", action="store_true",
                     help="Do not send the `light on/off` verb on detection.")
-    ap.add_argument("--no-patrol-confirm", action="store_true",
-                    help="Start patrolling immediately, without the Unity "
-                         "[이동] confirmation.")
     ap.add_argument("--viz-dir", default=None,
                     help="Write planned_path_3d.json / flight_trajectory_3d.json "
                          "here. Point at simulator/tello_simulator/Assets/Resources "
@@ -251,74 +242,7 @@ def main() -> None:
 
     teleport_home()
 
-    # ---------------------------------------------------------- confirm stage
-    def confirm_candidate(cands) -> Optional[int]:
-        """Preview candidates until the user confirms one. Returns the index
-        into `cands`, or None on timeout/cancel."""
-        n = len(cands)
-        i = 0
-        seen = 0
-        while True:
-            det = cands[i]
-            tag = f"{det.label_kr} ({i + 1}/{n}) — {det.room_kr} {det.room_name}"
-            status(f"후보 {i + 1}/{n}: {det.label_kr} @ {det.room_kr} "
-                   f"{det.room_name} — [이동] 또는 [다음 후보]를 눌러주세요")
-            print(f"[confirm] {det.describe()}")
-            if bridge is not None and sim_tf is not None:
-                cu = sim_tf.mosaic_to_unity(det.center)
-                bridge.drain_events()
-                bridge.preview(float(cu[0]), float(cu[1]), float(cu[2]),
-                               label=tag)
-                ev = bridge.wait_for_event(args.confirm_timeout)
-                if ev == "confirm":
-                    bridge.preview_off()
-                    return i
-                if ev == "next":
-                    i = (i + 1) % n
-                    seen += 1
-                    continue
-                bridge.preview_off()
-                status("확인 시간 초과 — 쿼리를 취소했습니다")
-                return None
-            # terminal-only fallback (no Unity)
-            try:
-                ans = input("[이동=y / 다음=n / 취소=q] > ").strip().lower()
-            except (EOFError, KeyboardInterrupt):
-                return None
-            if ans in ("y", "yes", "이동"):
-                return i
-            if ans in ("q", "quit", "취소"):
-                return None
-            i = (i + 1) % n
-
     # ---------------------------------------------------------- patrol stage
-    def confirm_patrol(rooms) -> bool:
-        """Preview the patrol plan in Unity; [이동] starts it, [다음 후보]
-        previews the next room in the planned order, timeout cancels."""
-        if args.no_patrol_confirm or bridge is None or sim_tf is None:
-            return True
-        n = len(rooms)
-        i = 0
-        while True:
-            room = rooms[i]
-            tag = f"순찰 {i + 1}/{n} — {room.display}"
-            status(f"순찰 계획 {i + 1}/{n}: {room.display} — "
-                   f"[이동]=순찰 시작 / [다음 후보]=다음 구역 미리보기")
-            goal = room_index.scan_pose(room, args.hover_height, gm)
-            cu = sim_tf.mosaic_to_unity(goal)
-            bridge.drain_events()
-            bridge.preview(float(cu[0]), float(cu[1]), float(cu[2]), label=tag)
-            ev = bridge.wait_for_event(args.confirm_timeout)
-            if ev == "confirm":
-                bridge.preview_off()
-                return True
-            if ev == "next":
-                i = (i + 1) % n
-                continue
-            bridge.preview_off()
-            status("확인 시간 초과 — 순찰을 취소했습니다")
-            return False
-
     def run_patrol_query(user_text: str, intent) -> None:
         rooms, why = patrol_intent.resolve_rooms(
             intent, rooms_index, user_text, max_rooms=args.max_rooms)
@@ -335,8 +259,6 @@ def main() -> None:
 
         if bridge is None or sim_tf is None:
             print("[patrol] --sim 없이는 비행할 수 없습니다 (계획만 출력).")
-            return
-        if not confirm_patrol(rooms):
             return
 
         out_dir = patrol_report.report_dir_for(args.report_dir)
@@ -413,11 +335,11 @@ def main() -> None:
               + (f" (room={room_name or room_type})" if room_name or room_type
                  else ""))
 
-        # 3. User confirm (Unity preview + buttons)
-        idx = confirm_candidate(cands)
-        if idx is None:
-            return
-        det = cands[idx]
+        # 3. Take the top-ranked candidate. There is no confirm step any more:
+        #    the operator picks patrol areas on the web floor plan before the
+        #    drone ever launches, so a second in-flight confirmation had nothing
+        #    left to decide.
+        det = cands[0]
         goal_world = det.center + np.array([0.0, 0.0, 0.5])  # hover above it
         print(f"[target] {det.describe()} -> goal={np.round(goal_world, 2)}")
 
@@ -479,8 +401,7 @@ def main() -> None:
     # ----------------------------------------------------------------- REPL
     print("\n" + "=" * 68)
     print("  patrol — type a drone command (Korean/English).")
-    print("  Unity: 후보 프리뷰에서 [이동]=비행 시작, [다음 후보]=후보 전환,")
-    print("         C 키 = 1인칭/3인칭 카메라 전환.")
+    print("  Unity: C 키 = 1인칭/3인칭 카메라 전환.")
     print("  예시:  거실 소파 찾아줘        (물체 찾기)")
     print("         현우방만 탐색해줘       (구역 순찰 + 보고서)")
     print("  commands:  home            drone back to the launch point")

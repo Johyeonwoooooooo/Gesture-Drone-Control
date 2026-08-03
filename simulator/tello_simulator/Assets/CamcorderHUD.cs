@@ -8,8 +8,8 @@ using UnityEngine;
 // protocol, and the battery never grounds the drone.
 //
 // Bootstraps itself like HorrorAtmosphere, so no scene editing is needed. Draws
-// on top of TelloSimulator's own OnGUI (status banner top-center, confirm buttons
-// bottom-center); those areas are deliberately left empty here.
+// on top of TelloSimulator's own OnGUI (status banner, top-center); that area
+// is deliberately left empty here.
 //
 // Keys:  H = hide/show the HUD     N = night shot (green IR look)
 [DisallowMultipleComponent]
