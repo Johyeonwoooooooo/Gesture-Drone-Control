@@ -327,6 +327,27 @@ def build_app(scene: Scene) -> FastAPI:
             "path": [_xyz(p) for p in path],
         }
 
+    @app.get("/api/rooms")
+    def api_rooms() -> dict:
+        """Every room, in the console's spelling, with the names we know.
+
+        The console's own `LABELS` table is hardcoded and disagrees with
+        `room_aliases.json` — it calls 012 "채원의 금고..." where the aliases
+        (and therefore every natural-language query) call it 현우방. This is the
+        one list, so the display names can come from here instead.
+        """
+        out = {}
+        for name, r in sorted(scene.rooms.items()):
+            out[room_index.web_room_id(name)] = {
+                "roomName": name, "floor": r.floor, "type": r.room_type,
+                "typeKr": r.type_kr, "display": r.display,
+                "aliases": list(r.aliases),
+                "center": _xyz(r.centroid),
+                "scanPose": _xyz(room_index.scan_pose(
+                    r, scene.args.hover_height, scene.gm)),
+            }
+        return {"building": scene.args.building, "rooms": out}
+
     # ------------------------------------------------------------------ intent
     @app.post("/api/intent")
     def api_intent(req: IntentRequest) -> dict:
