@@ -40,7 +40,15 @@ a{color:#f87171}a:hover{color:#fca5a5}
         <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.08em">HAUNTED OPS · 00809_Qpor2mEya8F</div>
       </div>
     </div>
-    <div style="flex:1"></div>
+    <!-- 순찰 지시 검색창. 지금은 방 이름·번호 부분일치로 지도를 옮겨 줄 뿐이고,
+         자연어 해석(Qwen)이 붙으면 runSearch() 안에서 setTargets 로 바뀐다. -->
+    <div style="flex:1;display:flex;justify-content:center;min-width:0">
+      <div style="display:flex;align-items:center;gap:6px;width:100%;max-width:440px;height:34px;padding:0 6px 0 11px;background:#170a0d;border:1px solid {{searchBorder}};border-radius:9px">
+        <span style="flex:none;color:#8a7478;font-size:13px">⌕</span>
+        <input value="{{q}}" onChange="{{onQ}}" onKeyDown="{{onQKey}}" onFocus="{{onQFocus}}" onBlur="{{onQBlur}}" placeholder="{{searchPlaceholder}}" style="flex:1;min-width:0;height:100%;border:none;outline:none;background:transparent;color:#e8dde0;font-family:'IBM Plex Sans KR',sans-serif;font-size:12px">
+        <button onClick="{{onSearch}}" style="flex:none;height:24px;padding:0 12px;border:1px solid #4a1d24;border-radius:6px;background:#241014;color:#cfc2c5;font-family:'IBM Plex Sans KR',sans-serif;font-size:11px;cursor:pointer" style-hover="border-color:#ef4444;color:#f87171">검색</button>
+      </div>
+    </div>
     <div style="display:flex;align-items:center;gap:8px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px">
       <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:#101d16;border:1px solid #1e3a2a;border-radius:6px;color:#4ade80">
         <span style="width:6px;height:6px;border-radius:50%;background:#4ade80;animation:blinkDot 1.6s infinite"></span>생존 신호 확인
@@ -83,7 +91,7 @@ a{color:#f87171}a:hover{color:#fca5a5}
             <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.1em;padding:4px 2px">{{g.label}}</div>
             <div style="display:flex;flex-direction:column;gap:4px">
               <sc-for list="{{g.rooms}}" as="r" hint-placeholder-count="4">
-                <button onClick="{{r.onClick}}" style="display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid {{r.border}};border-radius:7px;background:{{r.bg}};cursor:pointer;text-align:left" style-hover="border-color:#ef4444;background:#1d0c10">
+                <button onClick="{{r.onClick}}" title="이 방으로 이동" style="display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid {{r.border}};border-radius:7px;background:{{r.bg}};cursor:pointer;text-align:left" style-hover="border-color:#ef4444;background:#1d0c10">
                   <span style="width:16px;height:16px;flex:none;border-radius:50%;background:{{r.dotBg}};border:1px solid {{r.dot}};display:grid;place-items:center;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;color:{{r.orderColor}}">{{r.orderTxt}}</span>
                   <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
                     <span style="font-size:12px;font-weight:600;color:#e8dde0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{r.name}}</span>
@@ -228,7 +236,7 @@ a{color:#f87171}a:hover{color:#fca5a5}
         <span style="color:#a8969a">{{curFloorLabel}}</span>
         <span>zoom {{zoomTxt}}</span>
         <span>{{cursorTxt}}</span>
-        <span style="margin-left:auto;color:#5f4a4e">드래그 이동 · 휠 줌 · 방 클릭 = 순찰 대상 추가/해제</span>
+        <span style="margin-left:auto;color:#5f4a4e">드래그 이동 · 휠 줌 · 평면도 방 클릭 = 순찰 대상 추가/해제 · 좌측 목록 클릭 = 이동만</span>
       </div>
     </main>
     <aside style="width:312px;flex:none;background:#10070a;border-left:1px solid #2a1015;display:flex;flex-direction:column;min-height:0">
@@ -449,6 +457,7 @@ function simVideo(extra) {
 class Component extends DCLogic {
   state = { meta: null, floor: 1, view: { tx: 0, ty: 0, s: 1 }, hoverId: null, mouse: null, cursorW: null,
             toasts: [], dragging: false, simOpen: false, simMax: false,
+            q: '', qFocus: false,   // 상단 검색창
             // ── 순찰 요청 ────────────────────────────────────────────
             targets: [],        // 방 id 배열. 배열 순서 = 방문 순서
             returnHome: true,   // 순찰 후 출발 지점으로 복귀할지
@@ -738,6 +747,22 @@ class Component extends DCLogic {
     this.setState({ view: { tx: (r.width - m.width * s) / 2, ty: (r.height - m.height * s - 20) / 2, s } });
   }
   setFloor(f) { if (f === this.state.floor) return; this.setState({ floor: f, hoverId: null }, () => this.fitView()); }
+  // ── 상단 검색 ────────────────────────────────────────────────────
+  // 자연어 순찰 지시("2층 전체 돌아줘")는 Qwen(webapp_llm/llm_parser.py)이 맡는다.
+  // 여기 붙일 때는 이 메서드 안에서 fetch 로 방 id 목록을 받아
+  //   this.setTargets(this.orderRooms(ids))
+  // 하면 나머지(순서·경로·payload)는 그대로 돈다.
+  // API 가 붙기 전까지는 방 이름/번호 부분일치로 지도를 그 방으로 옮기기만 한다.
+  runSearch() {
+    const q = this.state.q.trim(), meta = this.state.meta;
+    if (!q || !meta) return;
+    const hit = Object.keys(meta.rooms).filter(id => id.includes(q) || this.label(id).includes(q));
+    if (!hit.length) { this.toast(`"${q}" 에 맞는 구역이 없습니다 (자연어 검색은 API 연결 예정)`); return; }
+    this.focusRoom(hit[0]);
+    this.toast(hit.length > 1
+      ? `${hit.length}곳 일치 — ${this.label(hit[0])} 로 이동`
+      : `${this.label(hit[0])} 로 이동`);
+  }
   focusRoom(id) {
     const meta = this.state.meta, rm = meta.rooms[id];
     const go = () => {
@@ -802,6 +827,14 @@ class Component extends DCLogic {
       mapRef: this.mapRef,
       mapCursor: st.dragging ? 'grabbing' : 'crosshair',
       toasts: st.toasts,
+      q: st.q,
+      searchBorder: st.qFocus ? '#ef4444' : '#3a161c',
+      searchPlaceholder: '구역 검색 · 순찰 지시 (예: 2층 전체를 순찰해줘)',
+      onQ: e => this.setState({ q: e.target.value }),
+      onQFocus: () => this.setState({ qFocus: true }),
+      onQBlur: () => this.setState({ qFocus: false }),
+      onQKey: e => { if (e.key === 'Enter') this.runSearch(); },
+      onSearch: () => this.runSearch(),
       zoomIn: () => this.onWheel({ preventDefault() {}, clientX: this.mapRef.current.getBoundingClientRect().left + this.mapRef.current.clientWidth / 2, clientY: this.mapRef.current.getBoundingClientRect().top + this.mapRef.current.clientHeight / 2, deltaY: -260 }),
       zoomOut: () => this.onWheel({ preventDefault() {}, clientX: this.mapRef.current.getBoundingClientRect().left + this.mapRef.current.clientWidth / 2, clientY: this.mapRef.current.getBoundingClientRect().top + this.mapRef.current.clientHeight / 2, deltaY: 260 }),
       zoomFit: () => this.fitView(),
@@ -900,7 +933,8 @@ class Component extends DCLogic {
         const isDrone = id === droneId, ord = orderOf(id), sel = ord > 0;
         return {
           id, name: this.label(id),
-          onClick: () => { this.toggleTarget(id); this.focusRoom(id); },
+          // 목록 클릭 = 이동만. 순찰 대상 지정은 평면도 클릭 / 「이 층 전체 순찰」 담당.
+          onClick: () => this.focusRoom(id),
           furnTxt: this.summary(id, 2) || '감지된 가구 없음',
           dot: sel ? '#7f1d1d' : (isDrone ? '#1e3a2a' : '#4a3a3e'),
           dotBg: sel ? '#450a0a' : 'transparent',
