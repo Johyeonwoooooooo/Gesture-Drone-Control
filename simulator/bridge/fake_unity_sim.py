@@ -143,6 +143,8 @@ class FakeUnitySim:
         dps = max(1.0, deg_per_sec)
         print(f"[fake-sim] SCAN {dps:g} deg/s x {turns:g} ({target / dps:.1f}s)")
 
+        self._send_event({"event": "scan_started", "target": round(target, 1)})
+
         def _run(stop: threading.Event) -> None:
             turned = 0.0
             dt = 1.0 / PHYSICS_HZ

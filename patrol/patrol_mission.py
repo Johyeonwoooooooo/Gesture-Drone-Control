@@ -158,9 +158,13 @@ def _await_unity_scan(bridge, cfg: PatrolConfig,
                       ) -> tuple[bool, float, int, bool]:
     """Consume detect/scan_done while Unity sweeps. -> (..., answered).
 
-    `answered` is False when nothing at all came back in `scan_probe_sec` —
-    that build has no `scan` verb, so the caller should fall back. Once ANY
-    event arrives we know it does, and we wait out the full sweep.
+    `answered` is False when no `scan_started` came back within
+    `scan_probe_sec`: that build has no `scan` verb (it acked "ok" and dropped
+    the packet), so the caller falls back.
+
+    It has to be an explicit ack and not just "any event". A clean room emits
+    nothing at all until `scan_done` — at 50°/s that is 7 s away, so a probe
+    waiting for any event would call every quiet room a missing verb.
     """
     target_deg = 360.0 * max(0.1, cfg.scan_turns)
     full_timeout = 3.0 * target_deg / max(1.0, cfg.scan_deg_per_sec) + 10.0
@@ -180,8 +184,14 @@ def _await_unity_scan(bridge, cfg: PatrolConfig,
         ev = bridge.wait_for_event(0.2)
         if ev is None:
             continue
-        answered = True
         kind = ev.get("event")
+        if kind == "scan_started":
+            answered = True
+            continue
+        if not answered and kind in ("scan_done", "detect"):
+            # Older stub/build that answers without acking first — still proof
+            # the verb exists.
+            answered = True
         if kind == "scan_done":
             return True, float(ev.get("degrees", target_deg)), events, True
         if kind != "detect":

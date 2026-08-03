@@ -496,6 +496,11 @@ public class TelloSimulator : MonoBehaviour
         scanTurnedDeg = 0f;
         scanActive = true;
         Debug.Log($"[Tello] scan {scanDegPerSec:F0} deg/s x {turns:F1}");
+        // Ack immediately. A quiet room sends nothing until scan_done seconds
+        // later, and the pipeline has to tell "this build ignores scan" from
+        // "this room is empty" long before that.
+        SendEvent("scan_started",
+                  "\"target\":" + scanTargetDeg.ToString("F1", CultureInfo.InvariantCulture));
     }
 
     // `reason` is for the log only — the pipeline just needs the event.

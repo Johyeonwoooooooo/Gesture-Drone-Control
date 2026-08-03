@@ -298,6 +298,28 @@ def default_home(index: Dict[str, RoomInfo], hover_height: float = 1.0):
                      room.floor_z + hover_height], dtype=float), room
 
 
+# ------------------------------------------------------------- web room ids
+
+def web_room_id(room_name: str) -> str:
+    """Our room id in the web console's spelling: "002_012" -> "012".
+
+    The web floor plan (web/uploads/web_meta.json) keys rooms by the bare
+    3-digit suffix and carries the floor separately, while we keep the floor in
+    the id. Same rooms, same numbers — only the prefix differs, so this is a
+    spelling change and not a mapping table.
+    """
+    return room_name.rsplit("_", 1)[-1]
+
+
+def by_web_room_id(index: Dict[str, RoomInfo], web_id: str) -> Optional[RoomInfo]:
+    """Look a room up by the web console's id ("012")."""
+    want = str(web_id).strip().lstrip("0") or "0"
+    for name, info in index.items():
+        if web_room_id(name).lstrip("0") == want:
+            return info
+    return None
+
+
 # ------------------------------------------------------------- LLM prompt text
 
 def room_directory_text(index: Dict[str, RoomInfo]) -> str:

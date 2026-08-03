@@ -3,19 +3,27 @@
 실행 방법·접속 절차는 저장소 루트 `README.md`. 이 문서는 **모듈 내부** 설명이다.
 
 ```
-terminal query
+자연어 (웹 검색창 또는 이 REPL)
   → LLM 의도 파싱          (llm_base.py + remote_llm.py → GPU 서버의 llm_server/)
   → FIND / PATROL 라우팅              (patrol_intent.py)
   ├ FIND:   LitePT 디텍션 매칭·랭킹    (litept_backend.py)
-  │           → Unity 프리뷰 → [이동] 확인 → A*/RRT* (planner.py) → 비행
-  └ PATROL: 방 해석 (room_index.py) → [이동] 확인
+  │           → 1순위 후보로 A*/RRT* (planner.py) → 비행
+  └ PATROL: 방 해석 (room_index.py)
               → 방마다 이동 + 360° 스캔, 탐지 반응   (patrol_mission.py)
               → 복귀·착륙 → 보고서                  (patrol_report.py)
   → 비행 명령 프로그램 기록                          (sdk_export.py → out/)
 ```
 
 비행 자체는 `simulator/bridge` 가 담당한다 (UDP → Unity). 이 패키지는 좌표를
-계산해 넘기고 상태/버튼 이벤트를 기다린다.
+계산해 넘기고 상태/이벤트를 기다린다. 360° 스캔과 사람 탐지는 **Unity 가**
+한다 — 이쪽은 `scan` 을 보내고 `detect`/`scan_done` 을 받는다.
+
+**확인 단계는 없다.** 순찰 구역은 웹 콘솔의 평면도에서 이륙 전에 고르고,
+FIND 는 1순위 후보로 바로 간다.
+
+일반적인 진입점은 저장소 루트의 `api_server.py`(웹 콘솔용, `API.md`)이고
+`server.py` 의 REPL 은 디버그용이다. **둘을 동시에 띄우면 안 된다** — 브리지를
+서로 뺏는다.
 
 ## 모듈
 
@@ -28,8 +36,8 @@ terminal query
 | `litept_backend.py` | `detections.json` 로드, 쿼리 매칭·랭킹, 방별 포인트 병합, 홈 좌표 |
 | `room_index.py` | 방 인덱스(코드·타입·중심·바닥높이) + 별칭 + 스캔 포즈. `out/room_index.json` 캐시 |
 | `planner.py` | 복셀 그리드 A* / RRT*. `chaewon` 브랜치 `comparison/3D.py` 에서 가져와 순수 numpy로 정리 |
-| `patrol_mission.py` | 순찰 실행 루프 — 구간 비행, 스캔, 탐지 반응(정지·라이트·사진), 복귀 |
-| `detect_events.py` | UDP 9004 탐지 수신기. ARM/DISARM 로 구역 안 스캔 중에만 채택 |
+| `patrol_mission.py` | 순찰 실행 루프 — 구간 비행, 스캔 지휘, 탐지 반응(정지·라이트·사진), 복귀. `on_progress` 로 구조화된 진행 이벤트를 낸다 |
+| `detect_events.py` | UDP 9004 탐지 수신기 (외부 디텍터 프로세스용 — **기본 경로 아님**). ARM/DISARM 게이팅 |
 | `patrol_report.py` | 순찰 보고서 md/html/json + 이벤트 사진 |
 | `sdk_export.py` | 웨이포인트 → Tello SDK 커맨드 프로그램 JSON |
 | `room_aliases.json` | 방 별칭 ("현우방" → `002_012`), `floor_offset` |
@@ -46,11 +54,11 @@ Qwen/Qwen2.5-3B-Instruct` `--llm-api-key` `--llm-timeout 60`.
 
 **시뮬** `--sim --unity-host <IP>` `--sim-speed 2.0`(Unity u/s, 집 scale 5라
 2.0 u/s ≈ 0.4 m/s) `--sim-rc-limit 30` `--sim-transform`(기본
-`simulator/bridge/transforms/<building>.json`) `--confirm-timeout 120`
+`simulator/bridge/transforms/<building>.json`)
 
-**순찰** `--patrol-port 9004` `--patrol-labels person` `--patrol-min-conf`
+**순찰** `--scan-mode auto|unity|rc` `--patrol-labels person` `--patrol-min-conf`
 `--hover-height 1.2` `--scan-deg-per-sec 50` `--scan-turns 1` `--max-rooms 12`
-`--no-light` `--no-patrol-confirm` `--room-aliases` `--report-dir`
+`--no-light` `--room-aliases` `--report-dir` `--patrol-port 9004`(외부 디텍터)
 
 **출력** `--out-dir`(기본 `patrol/out`) `--viz-dir`(Unity `Assets/Resources` 를
 가리키면 계획 경로·궤적이 씬에 그려짐)
