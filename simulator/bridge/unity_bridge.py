@@ -66,7 +66,7 @@ class UnityTelloBridge:
         self._state_lock = threading.Lock()
         self._latest_state: Optional[DroneState] = None
         self._event_lock = threading.Lock()
-        self._events: collections.deque[str] = collections.deque(maxlen=32)
+        self._events: collections.deque[dict] = collections.deque(maxlen=64)
 
     def connect(self) -> None:
         self.command_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -145,19 +145,56 @@ class UnityTelloBridge:
         """
         return self.send_command(f"light {'on' if on else 'off'}")
 
+    # --------------------------------------------------------------- scan ---
+    def start_scan(self, deg_per_sec: float, turns: float = 1.0) -> str:
+        """Ask Unity to spin in place and run its own person detection.
+
+        The sweep, the camera capture and the YOLO round trip all live in
+        Unity (`PatrolPersonDetection.cs`); it answers with `detect` events as
+        it finds people and one `scan_done` when the sweep finishes.
+
+        The "ok" reply means the packet arrived, NOT that the verb exists — an
+        older build acks and ignores it. Wait for `scan_done` and fall back
+        (see `patrol_mission.scan_room`).
+        """
+        return self.send_command(f"scan {deg_per_sec:g} {turns:g}")
+
+    def stop_scan(self) -> str:
+        return self.send_command("scan_stop")
+
     # ------------------------------------------------------------- events ---
     def drain_events(self) -> None:
-        """Discard queued events (call before waiting on a fresh one)."""
+        """Discard queued events (call before starting something you'll wait on)."""
         with self._event_lock:
             self._events.clear()
 
-    def wait_for_event(self, timeout: float) -> Optional[str]:
-        """Next event name from the simulator, or None on timeout."""
+    def pop_events(self, name: Optional[str] = None) -> List[dict]:
+        """Take every queued event, or only those with `event == name`.
+
+        Non-blocking. Events not matching `name` stay queued in order, so a
+        scan loop can drain `detect` without losing the `scan_done` behind it.
+        """
+        with self._event_lock:
+            if name is None:
+                out = list(self._events)
+                self._events.clear()
+                return out
+            out = [e for e in self._events if e.get("event") == name]
+            keep = [e for e in self._events if e.get("event") != name]
+            self._events.clear()
+            self._events.extend(keep)
+            return out
+
+    def wait_for_event(self, timeout: float,
+                       name: Optional[str] = None) -> Optional[dict]:
+        """Next event (optionally only `name`), or None on timeout."""
         deadline = time.time() + timeout
         while time.time() < deadline:
             with self._event_lock:
-                if self._events:
-                    return self._events.popleft()
+                for i, ev in enumerate(self._events):
+                    if name is None or ev.get("event") == name:
+                        del self._events[i]
+                        return ev
             time.sleep(0.05)
         return None
 
@@ -181,9 +218,9 @@ class UnityTelloBridge:
             try:
                 payload, _ = self.state_socket.recvfrom(4096)
                 parsed = json.loads(payload.decode("utf-8"))
-                if "event" in parsed:  # user-interaction event, not a state packet
+                if "event" in parsed:  # an event, not a state packet
                     with self._event_lock:
-                        self._events.append(str(parsed["event"]))
+                        self._events.append(parsed)
                     continue
                 state = DroneState(
                     x=float(parsed["x"]),

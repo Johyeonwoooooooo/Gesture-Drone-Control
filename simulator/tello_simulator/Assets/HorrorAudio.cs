@@ -38,10 +38,7 @@ public class HorrorAudio : MonoBehaviour
     public float stingerVolume = 0.7f;
 
     [Header("Heartbeat")]
-    [Tooltip("Distance to the preview target at which the heartbeat starts to be heard.")]
-    public float heartbeatFarDistance = 40f;
-    [Tooltip("Distance at which it reaches full volume.")]
-    public float heartbeatNearDistance = 6f;
+    [Tooltip("Volume it swells to while the drone is scanning a patrol room.")]
     public float heartbeatMaxVolume = 0.6f;
 
     [Header("Drone")]
@@ -334,11 +331,11 @@ public class HorrorAudio : MonoBehaviour
     {
         if (heartbeatSource.clip == null) return;
 
-        // The heartbeat used to swell as the drone closed on a preview
-        // candidate. There are no candidates any more (the operator picks areas
-        // on the web floor plan before launch), so it is idle until something
-        // drives it — the scan is the obvious hook.
-        float t = 0f;
+        // Swells while the drone is sweeping a room. It used to key off the
+        // preview candidate's distance, but there are no candidates any more —
+        // the operator picks areas on the web floor plan before launch. The
+        // scan is the moment that actually wants tension.
+        float t = (sim != null && sim.scanActive) ? 1f : 0f;
 
         // Ease toward the target so the swell is not a step.
         heartbeatSource.volume = Mathf.Lerp(heartbeatSource.volume,

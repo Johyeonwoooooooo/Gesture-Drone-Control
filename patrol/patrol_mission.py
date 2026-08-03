@@ -2,16 +2,23 @@
 
 One mission = for each room in order:
 
-    plan A* leg  ->  fly it (detector DISARMED: no detection in transit)
-                 ->  arm the detector, spin 360° in place, disarm
+    plan A* leg  ->  fly it (no detection in transit)
+                 ->  scan the room 360°, reacting to what it finds
     ... then a final leg back home, then land.
+
+The scan itself belongs to Unity: it spins, captures its own camera frames and
+runs YOLO over TCP 9100 (`PatrolPersonDetection.cs`), then reports `detect` and
+`scan_done` events. This side sends `scan` and reacts. Older builds have no
+`scan` verb — and since unknown verbs are acked "ok", the only way to find out
+is to ask and see whether anything answers, so `scan_mode="auto"` probes once
+and falls back to driving the spin with `rc` + the UDP 9004 listener.
 
 Detection reaction (the flow's "탐지 → 정지 → 라이트 온 → 사진"):
 
     rc 0 0 0 0            hover in place, abandoning the spin
-    light on              (Unity ignores the verb today — docs/patrol-agent.md)
+    light on              (Unity ignores the verb today)
     settle                give the light a frame to land
-    record the photo      the detector already captured it and sent image_path
+    record the photo      Unity/the detector captured it and sent image_path
     notify                Unity banner + terminal
     light off, resume     finish the remaining rotation
 
@@ -49,6 +56,10 @@ class PatrolConfig:
     hover_height: float = 1.2        # meters above the room floor
     scan_deg_per_sec: float = 50.0
     scan_turns: float = 1.0          # full revolutions per room
+    scan_mode: str = "auto"          # unity | rc | auto (probe, then fall back)
+    scan_probe_sec: float = 3.0      # no event by then => build has no `scan`
+    labels: tuple = ("person",)      # accepted detect labels ("" = all)
+    min_conf: float = 0.0
     settle_sec: float = 0.8          # pause after light-on before recording
     light_on_detect: bool = True
     light_off_after: bool = True
@@ -107,11 +118,97 @@ def _yaw_delta(a: float, b: float) -> float:
     return (b - a + 180.0) % 360.0 - 180.0
 
 
-def scan_360(bridge, listener: Optional[DetectionListener], cfg: PatrolConfig,
-             on_status: Callable[[str], None],
-             on_event: Optional[Callable[[DetectionEvent], None]] = None,
-             ) -> tuple[bool, float, int]:
-    """Spin in place, watching for detections. -> (completed, degrees, n_events).
+def scan_room(bridge, listener: Optional[DetectionListener], cfg: PatrolConfig,
+              on_status: Callable[[str], None],
+              on_event: Optional[Callable[[DetectionEvent], None]] = None,
+              ) -> tuple[bool, float, int, bool]:
+    """Scan the room the drone is hovering in.
+
+    -> (completed, degrees, n_events, unity_did_it)
+
+    Preferred path: Unity spins itself and runs the detector on its own camera
+    frames (`scan` verb → `detect`/`scan_done` events). It owns the frames, so
+    its boxes are real pixel coordinates rather than something we guessed.
+
+    Fallback: we spin it with `rc` and take detections from the UDP 9004
+    listener. Used when the Unity build predates the `scan` verb — which we can
+    only find out by asking, since unknown verbs are acked "ok" and dropped.
+    `cfg.scan_mode` pins the choice if you already know which build you have.
+    """
+    if cfg.scan_mode in ("unity", "auto"):
+        bridge.drain_events()
+        bridge.start_scan(cfg.scan_deg_per_sec, cfg.scan_turns)
+        done, degrees, events, answered = _await_unity_scan(
+            bridge, cfg, on_status, on_event)
+        if answered:
+            return done, degrees, events, True
+        if cfg.scan_mode == "unity":
+            on_status("스캔 실패: Unity가 scan 에 응답하지 않음")
+            return False, 0.0, 0, True
+        on_status("Unity 쪽 scan 응답 없음 — rc 회전으로 대체")
+        bridge.stop_scan()
+
+    done, degrees, events = _scan_by_rc(bridge, listener, cfg, on_status, on_event)
+    return done, degrees, events, False
+
+
+def _await_unity_scan(bridge, cfg: PatrolConfig,
+                      on_status: Callable[[str], None],
+                      on_event: Optional[Callable[[DetectionEvent], None]],
+                      ) -> tuple[bool, float, int, bool]:
+    """Consume detect/scan_done while Unity sweeps. -> (..., answered).
+
+    `answered` is False when nothing at all came back in `scan_probe_sec` —
+    that build has no `scan` verb, so the caller should fall back. Once ANY
+    event arrives we know it does, and we wait out the full sweep.
+    """
+    target_deg = 360.0 * max(0.1, cfg.scan_turns)
+    full_timeout = 3.0 * target_deg / max(1.0, cfg.scan_deg_per_sec) + 10.0
+    answered = False
+    events = 0
+    t0 = time.time()
+
+    while True:
+        waited = time.time() - t0
+        if not answered and waited > cfg.scan_probe_sec:
+            return False, 0.0, 0, False
+        if waited > full_timeout:
+            on_status(f"스캔 타임아웃 (Unity, {waited:.0f}s)")
+            bridge.stop_scan()
+            return False, 0.0, events, True
+
+        ev = bridge.wait_for_event(0.2)
+        if ev is None:
+            continue
+        answered = True
+        kind = ev.get("event")
+        if kind == "scan_done":
+            return True, float(ev.get("degrees", target_deg)), events, True
+        if kind != "detect":
+            continue
+        if events >= cfg.max_events_per_room:
+            continue
+        det = DetectionEvent.from_payload(ev)
+        if det is None or not _label_wanted(det, cfg):
+            continue
+        if on_event is not None:
+            on_event(det)
+        events += 1
+        if events == cfg.max_events_per_room:
+            on_status("이 방의 탐지 기록 상한 도달 — 스캔 계속")
+
+
+def _label_wanted(det: DetectionEvent, cfg: PatrolConfig) -> bool:
+    if det.conf < cfg.min_conf:
+        return False
+    return not cfg.labels or det.label in cfg.labels
+
+
+def _scan_by_rc(bridge, listener: Optional[DetectionListener], cfg: PatrolConfig,
+                on_status: Callable[[str], None],
+                on_event: Optional[Callable[[DetectionEvent], None]] = None,
+                ) -> tuple[bool, float, int]:
+    """Spin in place with rc, watching UDP 9004. -> (completed, degrees, n).
 
     Rotation is closed on the simulator's own reported yaw (accumulated
     wrap-safe deltas), not on elapsed time, so a slow frame rate or the C#
@@ -223,10 +320,28 @@ def run_patrol(bridge, sim_tf, points_world: np.ndarray, gm: planner.GridMeta,
                rooms: Sequence[RoomInfo], home_world, cfg: PatrolConfig,
                listener: Optional[DetectionListener] = None,
                on_status: Callable[[str], None] = print,
+               on_progress: Optional[Callable[[str, dict], None]] = None,
                follow_path_mod=None) -> PatrolResult:
-    """Fly the whole patrol. Requires an active `--sim` bridge + transform."""
+    """Fly the whole patrol. Requires an active `--sim` bridge + transform.
+
+    `on_status` is prose for a human (terminal + Unity banner). `on_progress`
+    is the machine-readable twin — `(kind, payload)` per milestone, which the
+    API server turns into the poll feed the web console reads. Keeping them
+    separate means the web never has to parse Korean sentences to know where
+    the drone is.
+
+    Kinds: mission_start, leg_start, arrived, leg_failed, scan_start,
+    scan_done, detect, returning, landed, mission_end.
+    """
     if follow_path_mod is None:  # injected by the server (repo-root sys.path)
         from simulator.bridge import follow_path as follow_path_mod  # type: ignore
+
+    def progress(kind: str, **payload) -> None:
+        if on_progress is not None:
+            try:
+                on_progress(kind, payload)
+            except Exception:      # a listener must never abort a flight
+                pass
 
     res = PatrolResult(started_at=time.time())
     home_world = np.asarray(home_world, dtype=float)
@@ -260,27 +375,36 @@ def run_patrol(bridge, sim_tf, points_world: np.ndarray, gm: planner.GridMeta,
         if bridge.initialize_sdk() == "timeout":
             res.aborted_reason = "simulator_unreachable"
             on_status("시뮬레이터에 연결할 수 없습니다 (Play 모드인가요?)")
-            return _finish(res, listener, cfg)
+            return _finish(res, listener, cfg, progress)
 
         on_status(f"순찰 시작 — {len(rooms)}개 구역")
+        progress("mission_start",
+                 rooms=[{"room": r.room_name, "display": r.display,
+                         "floor": r.floor} for r in rooms],
+                 returnHome=bool(cfg.return_home))
         bridge.takeoff()                       # ← exactly once for the mission
         if bridge.wait_for_state(timeout=5.0) is None:
             res.aborted_reason = "state_lost"
             on_status("시뮬레이터 상태 스트림 없음 (UDP 9002 확인)")
-            return _finish(res, listener, cfg)
+            return _finish(res, listener, cfg, progress)
         pos_world = _drone_world(bridge, sim_tf, pos_world)
 
         for i, room in enumerate(rooms, 1):
             t_room = time.time()
             goal = scan_pose(room, cfg.hover_height, gm)
             label = f"[{i}/{len(rooms)}] {room.display}"
+            progress("leg_start", room=room.room_name, display=room.display,
+                     order=i, of=len(rooms))
             reached, reason, leg_m = fly_leg(goal, label)
             if not reached:
                 res.rooms.append(RoomVisit(
                     room.room_name, room.display, False, reason, False, 0.0, 0,
                     leg_m, time.time() - t_room))
                 on_status(f"{label} 도달 실패 ({reason}) — 다음 구역으로")
+                progress("leg_failed", room=room.room_name, reason=reason)
                 continue
+            progress("arrived", room=room.room_name, display=room.display,
+                     legMeters=round(leg_m, 2))
 
             # Detection is only accepted INSIDE the patrol room.
             if listener is not None:
@@ -293,25 +417,40 @@ def run_patrol(bridge, sim_tf, points_world: np.ndarray, gm: planner.GridMeta,
                     len(res.events) + 1)
                 res.events.append(annotated)
                 room_events.append(annotated)
+                progress("detect", room=_room.room_name,
+                         display=_room.display, n=len(res.events),
+                         label=annotated.label, conf=annotated.conf,
+                         box=annotated.box_pct,
+                         image=annotated.saved_image or annotated.image_path)
 
             on_status(f"{label} 도착 — 360° 스캔 중...")
-            done, degrees, n_ev = scan_360(bridge, listener, cfg, on_status,
-                                           on_event=_on_event)
+            progress("scan_start", room=room.room_name, display=room.display)
+            done, degrees, n_ev, by_unity = scan_room(
+                bridge, listener, cfg, on_status, on_event=_on_event)
+            if cfg.scan_mode == "auto" and not by_unity:
+                # One probe per mission, not per room: a build without the verb
+                # would otherwise cost scan_probe_sec in every single room.
+                cfg.scan_mode = "rc"
             if listener is not None:
                 listener.disarm()
             res.rooms.append(RoomVisit(
                 room.room_name, room.display, True, reason, done, degrees,
                 len(room_events), leg_m, time.time() - t_room))
             on_status(f"{label} 스캔 완료 ({degrees:.0f}°, 탐지 {len(room_events)}건)")
+            progress("scan_done", room=room.room_name, display=room.display,
+                     degrees=round(degrees, 1), detections=len(room_events),
+                     completed=bool(done))
 
         if cfg.return_home:
+            progress("returning")
             reached, _, _ = fly_leg(home_world, "복귀 지점(home)")
             res.returned_home = reached
-        return _finish(res, listener, cfg)
+        progress("landed")
+        return _finish(res, listener, cfg, progress)
     except Exception as e:                       # never leave the drone driving
         res.aborted_reason = f"{type(e).__name__}: {e}"
         on_status(f"순찰 중단: {e}")
-        return _finish(res, listener, cfg)
+        return _finish(res, listener, cfg, progress)
     finally:
         try:
             bridge.send_rc(0, 0, 0, 0)
@@ -324,13 +463,23 @@ def run_patrol(bridge, sim_tf, points_world: np.ndarray, gm: planner.GridMeta,
 
 
 def _finish(res: PatrolResult, listener: Optional[DetectionListener],
-            cfg: PatrolConfig) -> PatrolResult:
+            cfg: PatrolConfig, progress=None) -> PatrolResult:
     res.finished_at = time.time()
     if listener is not None:
         res.listener_stats = listener.stats()
         listener.disarm()
     if cfg.viz_dir is not None:
         write_viz(res, cfg.viz_dir)
+    if progress is not None:
+        progress("mission_end",
+                 flownMeters=round(res.distance_m, 1),
+                 durationSec=round(res.duration_s, 1),
+                 roomsReached=res.rooms_reached,
+                 roomsPlanned=len(res.rooms),
+                 detections=len(res.events),
+                 collisions=res.collisions,
+                 returnedHome=bool(res.returned_home),
+                 abortedReason=res.aborted_reason)
     return res
 
 

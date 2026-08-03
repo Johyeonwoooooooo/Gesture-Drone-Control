@@ -1,9 +1,10 @@
-"""Detection-event ingest — the contract between the 2D detector and the agent.
+"""Detection-event ingest — an out-of-process 2D detector talking to the agent.
 
-The 2D person detector (and the Unity→Python photo transport it owns) runs as a
-SEPARATE PROCESS. It pushes one JSON datagram per detection to UDP 9004 on this
-machine; the patrol agent reacts (hover → light on → record photo → notify) and
-puts the event in the patrol report.
+NOTE: this is no longer the primary path. Unity does the 360° scan and the
+person detection itself (`PatrolPersonDetection.cs` → YOLO over TCP 9100) and
+reports `detect` events on the normal state channel, which is what
+`patrol_mission.scan_room` consumes. This module stays for a detector that runs
+as its own process and pushes to UDP 9004 — it is not wired up by default.
 
 Wire format — one JSON object per datagram::
 
@@ -11,10 +12,14 @@ Wire format — one JSON object per datagram::
       "label":      "person",              # REQUIRED
       "conf":       0.87,                  # optional, 0..1
       "bbox":       [x, y, w, h],          # optional, image pixels
+      "box":        {"l":21,"t":33,"w":16,"h":40},   # optional, frame percent
       "image_path": "/abs/path/evt.jpg",   # optional but strongly preferred
       "ts":         1754035212.4,          # optional, detector's unix time
       "source":     "yolo26n"              # optional, free text
     }
+
+`box` (percent) is what the web console draws with; `bbox` (pixels) is kept for
+detectors that only know pixels. Send whichever you have.
 
 Only `label` is required. Without `image_path` the event is still recorded and
 reported, just without a photo — the mission never fails over a missing file.
@@ -47,7 +52,8 @@ DEFAULT_PORT = 9004
 class DetectionEvent:
     label: str
     conf: float = 0.0
-    bbox: Optional[List[float]] = None
+    bbox: Optional[List[float]] = None          # image pixels [x, y, w, h]
+    box_pct: Optional[Dict[str, float]] = None  # frame percent {l, t, w, h}
     image_path: Optional[str] = None
     ts: float = 0.0                  # detector-supplied unix time (0 if absent)
     recv_ts: float = 0.0             # when WE received it — authoritative
@@ -69,6 +75,7 @@ class DetectionEvent:
     def to_json(self) -> dict:
         return {
             "label": self.label, "conf": self.conf, "bbox": self.bbox,
+            "box_pct": self.box_pct,
             "image_path": self.image_path, "ts": self.ts, "recv_ts": self.recv_ts,
             "iso_time": self.iso_time, "source": self.source,
             "room_name": self.room_name, "room_display": self.room_display,
@@ -85,21 +92,29 @@ class DetectionEvent:
             conf = float(d.get("conf", d.get("confidence", d.get("score", 0.0))))
         except (TypeError, ValueError):
             conf = 0.0
-        bbox = d.get("bbox") or d.get("box")
-        if isinstance(bbox, (list, tuple)) and len(bbox) >= 4:
+        raw_box = d.get("bbox") if d.get("bbox") is not None else d.get("box")
+        bbox = None
+        box_pct = None
+        if isinstance(raw_box, dict):
+            # Unity sends {"l","t","w","h"} already as percent of the camera
+            # frame — the unit the web console draws in. Pass it through
+            # untouched; rescaling it anywhere in between only loses accuracy.
             try:
-                bbox = [float(v) for v in bbox[:4]]
+                box_pct = {k: float(raw_box[k]) for k in ("l", "t", "w", "h")}
+            except (KeyError, TypeError, ValueError):
+                box_pct = None
+        elif isinstance(raw_box, (list, tuple)) and len(raw_box) >= 4:
+            try:
+                bbox = [float(v) for v in raw_box[:4]]
             except (TypeError, ValueError):
                 bbox = None
-        else:
-            bbox = None
         image = d.get("image_path") or d.get("image") or d.get("photo")
         try:
             ts = float(d.get("ts", d.get("timestamp", 0.0)))
         except (TypeError, ValueError):
             ts = 0.0
         return DetectionEvent(
-            label=label.lower(), conf=conf, bbox=bbox,
+            label=label.lower(), conf=conf, bbox=bbox, box_pct=box_pct,
             image_path=str(image) if image else None, ts=ts,
             recv_ts=time.time(), source=str(d.get("source", "")), raw=d,
         )

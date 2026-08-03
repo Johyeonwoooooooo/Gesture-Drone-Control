@@ -90,6 +90,14 @@ public class TelloSimulator : MonoBehaviour
     private string statusMessage = "";
     private float statusMessageTime = -1f;
 
+    // Patrol scan state, driven by the `scan` verb. The pipeline waits for the
+    // answering scan_done event, so every exit path must send one — otherwise
+    // it sits there until its timeout and falls back to spinning us over rc.
+    [NonSerialized] public bool scanActive = false;
+    private float scanTargetDeg = 0f;
+    private float scanTurnedDeg = 0f;
+    private float scanDegPerSec = 50f;
+
     // Read by CamcorderHUD (battery drains faster in flight).
     public bool IsFlying => isFlying;
 
@@ -245,6 +253,23 @@ public class TelloSimulator : MonoBehaviour
             ProcessCommand(cmd);
         }
 
+        if (scanActive)
+        {
+            if (!isFlying)
+            {
+                StopScan("landed");
+            }
+            else
+            {
+                targetYaw = Mathf.Clamp(scanDegPerSec / rotationSpeed, -1f, 1f);
+                scanTurnedDeg += Mathf.Abs(currentYaw) * rotationSpeed * Time.deltaTime;
+                if (scanTurnedDeg >= scanTargetDeg)
+                {
+                    StopScan("done");
+                }
+            }
+        }
+
         if (isFlying)
         {
             currentLR = Mathf.SmoothDamp(currentLR, targetLR, ref velLR, smoothTime);
@@ -368,6 +393,27 @@ public class TelloSimulator : MonoBehaviour
             return;
         }
 
+        if (cmd.StartsWith("scan_stop"))
+        {
+            StopScan("stopped");
+            return;
+        }
+
+        if (cmd.StartsWith("scan"))
+        {
+            // "scan <deg/s> [turns]" — sweep this room and report back.
+            // PatrolPersonDetection (feature/drone-camera-person-detection) is
+            // the one that captures frames and calls YOLO; when it is on this
+            // object it takes over and we only own the spin + scan_done. With
+            // no detector attached the sweep still runs, just without detects.
+            string[] sp = cmd.Split(' ');
+            float dps = 50f, turns = 1f;
+            if (sp.Length > 1) float.TryParse(sp[1], NumberStyles.Float, CultureInfo.InvariantCulture, out dps);
+            if (sp.Length > 2) float.TryParse(sp[2], NumberStyles.Float, CultureInfo.InvariantCulture, out turns);
+            StartScan(dps, turns);
+            return;
+        }
+
         if (cmd.StartsWith("rc "))
         {
             string[] parts = cmd.Split(' ');
@@ -437,10 +483,67 @@ public class TelloSimulator : MonoBehaviour
         }
     }
 
+    public void StartScan(float degPerSec, float turns)
+    {
+        if (!isFlying)
+        {
+            Debug.LogWarning("[Tello] scan while landed — nothing to sweep");
+            SendEvent("scan_done", "\"degrees\":0");
+            return;
+        }
+        scanDegPerSec = Mathf.Max(1f, degPerSec);
+        scanTargetDeg = 360f * Mathf.Max(0.1f, turns);
+        scanTurnedDeg = 0f;
+        scanActive = true;
+        Debug.Log($"[Tello] scan {scanDegPerSec:F0} deg/s x {turns:F1}");
+    }
+
+    // `reason` is for the log only — the pipeline just needs the event.
+    void StopScan(string reason)
+    {
+        if (!scanActive)
+        {
+            return;
+        }
+        scanActive = false;
+        targetYaw = 0f;
+        Debug.Log($"[Tello] scan {reason} at {scanTurnedDeg:F0} deg");
+        if (reason != "stopped")
+        {
+            // Landing mid-sweep still has to answer, or the pipeline waits out
+            // its timeout. Only an explicit scan_stop goes silent — whoever
+            // sent it is not waiting.
+            SendEvent("scan_done",
+                      "\"degrees\":" + scanTurnedDeg.ToString("F1", CultureInfo.InvariantCulture));
+        }
+    }
+
+    // Report a detection to the pipeline. `box` is percent of the camera frame
+    // — the unit the web console draws in, so nothing downstream rescales it.
+    public void ReportDetection(string label, float confidence,
+                                float left, float top, float width, float height,
+                                string imagePath = null)
+    {
+        string body =
+            "\"label\":\"" + label + "\","
+            + "\"conf\":" + confidence.ToString("F3", CultureInfo.InvariantCulture) + ","
+            + "\"box\":{"
+            + "\"l\":" + left.ToString("F1", CultureInfo.InvariantCulture) + ","
+            + "\"t\":" + top.ToString("F1", CultureInfo.InvariantCulture) + ","
+            + "\"w\":" + width.ToString("F1", CultureInfo.InvariantCulture) + ","
+            + "\"h\":" + height.ToString("F1", CultureInfo.InvariantCulture)
+            + "}";
+        if (!string.IsNullOrEmpty(imagePath))
+        {
+            body += ",\"image_path\":\"" + imagePath.Replace("\\", "/") + "\"";
+        }
+        SendEvent("detect", body);
+    }
+
     // Event back to the pipeline (scan_done, detect, ...). Shares the state
     // channel (statePort); the bridge tells the two apart by the "event" key.
     // `body` is raw JSON appended inside the object, or null for a bare event.
-    void SendEvent(string name)
+    void SendEvent(string name, string body = null)
     {
         if (udpServer == null || lastRemoteEndPoint == null)
         {
@@ -448,7 +551,8 @@ public class TelloSimulator : MonoBehaviour
         }
         try
         {
-            string payload = "{\"event\":\"" + name + "\"}";
+            string payload = "{\"event\":\"" + name + "\""
+                             + (string.IsNullOrEmpty(body) ? "" : "," + body) + "}";
             byte[] bytes = Encoding.ASCII.GetBytes(payload);
             IPEndPoint stateEndpoint = new IPEndPoint(lastRemoteEndPoint.Address, statePort);
             udpServer.Send(bytes, bytes.Length, stateEndpoint);

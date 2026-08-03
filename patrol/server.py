@@ -130,6 +130,11 @@ def main() -> None:
     ap.add_argument("--scan-deg-per-sec", type=float, default=50.0)
     ap.add_argument("--scan-turns", type=float, default=1.0,
                     help="Full revolutions per room during the scan.")
+    ap.add_argument("--scan-mode", default="auto",
+                    choices=["auto", "unity", "rc"],
+                    help="Who spins and detects: unity (PatrolPersonDetection "
+                         "+ YOLO), rc (we spin, UDP 9004 detector), or auto — "
+                         "try unity once, fall back to rc for the mission.")
     ap.add_argument("--max-rooms", type=int, default=12,
                     help="Cap on rooms per patrol (집 전체 순찰 safety).")
     ap.add_argument("--report-dir", default=str(_THIS.parent / "out" / "reports"))
@@ -266,6 +271,9 @@ def main() -> None:
             hover_height=args.hover_height,
             scan_deg_per_sec=args.scan_deg_per_sec,
             scan_turns=args.scan_turns,
+            scan_mode=args.scan_mode,
+            labels=tuple(l.lower() for l in (args.patrol_labels or ())),
+            min_conf=args.patrol_min_conf,
             light_on_detect=not args.no_light,
             return_home=intent.return_home,
             speed=float(args.sim_speed), rc_limit=int(args.sim_rc_limit),
