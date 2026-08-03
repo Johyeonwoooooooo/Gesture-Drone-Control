@@ -470,6 +470,28 @@ if (!window.__simShare) {
       }
       return this.crop == null ? this.autoCrop() : this.crop;
     },
+    // ── 탐지 순간 스냅샷 ──────────────────────────────────────
+    // 공유 중인 시뮬 영상에서 한 프레임을 떠서 탐지 박스를 그려 넣는다.
+    // 보고서의 "생존자 사진"이 이것이다. 화면 공유가 꺼져 있으면 null.
+    // box 의 l/t/w/h 는 프레임 대비 % 로 본다. 나중에 YOLO 가 실제 bbox 를
+    // 주면 %로 바꿔 __patrolDetect({box}) 로 넘기면 그대로 그려진다.
+    videoEl: null,
+    snapshot(box) {
+      const v = this.videoEl;
+      if (!v || !v.videoWidth) return null;
+      const sy = Math.round(v.videoHeight * this.cropTop());
+      const c = document.createElement('canvas');
+      c.width = v.videoWidth; c.height = v.videoHeight - sy;
+      const g = c.getContext('2d');
+      g.drawImage(v, 0, sy, c.width, c.height, 0, 0, c.width, c.height);
+      if (box) {
+        g.lineWidth = Math.max(2, c.width / 400);
+        g.strokeStyle = '#ef4444';
+        g.strokeRect(box.l / 100 * c.width, box.t / 100 * c.height,
+                     box.w / 100 * c.width, box.h / 100 * c.height);
+      }
+      try { return c.toDataURL('image/jpeg', 0.72); } catch (e) { return null; }
+    },
     // 전체 화면. <video> 자체가 아니라 오버레이(CAM 01, 스캔라인)를 감싼
     // '스테이지' 요소를 통째로 띄운다 — 그래야 HUD 가 같이 남는다.
     isFull() { return !!(document.fullscreenElement || document.webkitFullscreenElement); },
@@ -506,6 +528,7 @@ function simVideo(extra) {
     },
     // 인라인 ref 는 렌더마다 다시 불리므로 crop 변경도 여기서 반영된다.
     ref: el => {
+      S.videoEl = el;                 // 스냅샷(보고서 사진)이 이 요소를 캡처한다
       if (!el) return;
       if (el.srcObject !== s) el.srcObject = s;
       el.style.setProperty('object-view-box',
@@ -690,10 +713,15 @@ class Component extends DCLogic {
   // 순찰·360도 스캔·2D 탐지 판단은 전부 LLM 에이전트가 한다. 웹은 "찾았다"는
   // 통보를 받아 카메라 위에 박스를 치고 알리기만 한다.
   //
-  // 연동 입구:  window.__patrolDetect({ label, room, conf, box })
+  // 연동 입구:  window.__patrolDetect({ label, room, conf, box, photo })
   //   label 생략 → "생존자 N", room 생략 → 순찰 대상 순서대로,
   //   box 생략 → DETECT_BOXES 에서 순번대로. 전부 생략해도 된다.
+  //   photo 생략 → 시뮬 영상에서 한 프레임 떠서 box 를 그려 넣는다(보고서용).
   // 생존자/피해자 구분은 YOLO 2D 탐지 쪽이 정해지면 label 로 넘겨받는다.
+  //
+  // 배너와 박스는 2초만 보이고 사라진다(ALERT_MS). 발견 사실은 우측 목록과
+  // 순찰 보고서에 남으므로 화면에 계속 붙어 있을 이유가 없다.
+  ALERT_MS = 2000;
   reportDetection(d) {
     d = d || {};
     const dets = this.state.detections;
@@ -704,15 +732,17 @@ class Component extends DCLogic {
     const now = new Date();
     const time = [now.getHours(), now.getMinutes(), now.getSeconds()]
       .map(v => String(v).padStart(2, '0')).join(':');
+    const box = d.box || this.DETECT_BOXES[(n - 1) % this.DETECT_BOXES.length];
     const det = {
-      n, label: d.label || `생존자 ${n}`, room, time,
+      n, label: d.label || `생존자 ${n}`, room, time, box,
       conf: d.conf != null ? d.conf : 85 + Math.random() * 12,
-      box: d.box || this.DETECT_BOXES[(n - 1) % this.DETECT_BOXES.length],
+      at: now.getTime(),
+      photo: d.photo || window.__simShare.snapshot(box),
     };
     this.setState({ detections: [...dets, det], alert: det });
     this.toast(`⚠ ${det.label} 발견 — ${det.room}`);
     clearTimeout(this.alertT);
-    this.alertT = setTimeout(() => this.setState({ alert: null }), 4200);
+    this.alertT = setTimeout(() => this.setState({ alert: null }), this.ALERT_MS);
     return det;
   }
   clearDetections() {
@@ -928,12 +958,12 @@ class Component extends DCLogic {
       vals.onCropDown = () => window.__simShare.setCrop(crop - 0.005);
       // ── 사람 탐지 통보 표시 ────────────────────────────────
       const dets = st.detections;
-      vals.detectBoxes = dets.map(d => ({
-        key: d.n, l: d.box.l, t: d.box.t, w: d.box.w, h: d.box.h,
-        label: d.label, conf: `${d.conf.toFixed(1)}%`,
-        // 방금 잡힌 박스만 깜빡인다
-        anim: st.alert && st.alert.n === d.n ? 'blinkDot .55s 6' : 'none',
-      }));
+      // 박스는 방금 잡힌 것 하나만, 2초 동안 깜빡이다 배너와 같이 사라진다.
+      // (0.5s × 4회 = 2s — ALERT_MS 와 맞춰 둔다)
+      vals.detectBoxes = st.alert ? [{
+        key: st.alert.n, l: st.alert.box.l, t: st.alert.box.t, w: st.alert.box.w, h: st.alert.box.h,
+        label: st.alert.label, conf: `${st.alert.conf.toFixed(1)}%`, anim: 'blinkDot .5s 4',
+      }] : [];
       vals.detectListVisible = dets.length > 0;
       vals.detectCount = `${dets.length}`;
       vals.detectRows = dets.slice().reverse().map(d => ({
