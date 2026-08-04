@@ -3,7 +3,7 @@
 `api_server.py` 가 노출하는 계약. 웹 콘솔(`web/`, HAUNTED OPS)이 붙을 자리다.
 
 ```bash
-# 로컬 PC (Unity 옆). 한 포트에 web/ 정적 + API 가 같이 뜬다.
+# 로컬 PC (Unity 옆). 한 포트에 web/ 정적 + API 가 같이 뜬다. GPU 서버 사용안할거면 뒤 인자는 생략. llm-api-key 는 안붙여도 작동/
 python api_server.py --port 8123 --llm-url http://<GPU서버>:8000/v1 --llm-api-key <토큰>
 ```
 
