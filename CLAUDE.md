@@ -82,6 +82,11 @@ python llm_server/serve.py --port 8000 --llm-device cuda:1 --api-key <토큰>
 python simulator/bridge/smoke.py --unity-host 127.0.0.1   # 연결 게이트: 'ok' 필수
 python api_server.py --llm-url http://166.104.223.32:8000/v1 --llm-api-key <토큰>
 
+# [로컬 PC] GPU 서버(그리고 Unity)가 없을 때 — 오프라인 모드로 나머지만 테스트.
+# LLM 호출 두 개만 빠진다: /api/intent 는 별칭/N층/방 종류 키워드로 풀고
+# 보고서 요약문은 템플릿. GET /api/status 의 llmOffline 로 판별
+python api_server.py --port 8123
+
 # 웹 없이 터미널로 (디버그. API 서버와 동시에 띄우지 말 것 — 브리지를 뺏는다)
 python patrol/server.py --sim --unity-host 127.0.0.1 \
     --llm-url http://166.104.223.32:8000/v1

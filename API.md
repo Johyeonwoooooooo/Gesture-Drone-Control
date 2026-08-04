@@ -3,9 +3,19 @@
 `api_server.py` 가 노출하는 계약. 웹 콘솔(`web/`, HAUNTED OPS)이 붙을 자리다.
 
 ```bash
-# 로컬 PC (Unity 옆). 한 포트에 web/ 정적 + API 가 같이 뜬다. GPU 서버 사용안할거면 뒤 인자는 생략. llm-api-key 는 안붙여도 작동/
+# 로컬 PC (Unity 옆). 한 포트에 web/ 정적 + API 가 같이 뜬다.
+# --llm-api-key 는 서버가 토큰을 요구할 때만 붙인다.
 python api_server.py --port 8123 --llm-url http://<GPU서버>:8000/v1 --llm-api-key <토큰>
+
+# GPU 서버 없이 (오프라인 모드). Unity 도 없으면 없는 대로 뜬다
+python api_server.py --port 8123
 ```
+
+> **오프라인 모드** (`--llm-url` 생략): LLM 호출 두 개만 빠지고 방 인덱스·
+> 플래너·미션 루프·보고서·콘솔은 그대로 돈다. `/api/intent` 는 별칭/`N층`/방
+> 종류 키워드로 구역을 찾고 — 모델이 방 코드를 제안하는 첫 단계 하나만 못 쓴다
+> — 보고서 요약문은 템플릿 문장으로 나온다. `GET /api/status` 의
+> `llmOffline: true` 로 판별할 수 있다.
 
 살아있는 규격서는 **`http://localhost:8123/docs`** (FastAPI 자동 생성). 이
 문서는 그걸로는 안 보이는 것 — 각 엔드포인트를 콘솔의 어느 함수에서 부르면
@@ -30,7 +40,7 @@ python api_server.py --port 8123 --llm-url http://<GPU서버>:8000/v1 --llm-api-
 | | |
 |---|---|
 | `GET /api/drone` | `{x, y, z, source:"sim"\|"home", flying, connected}` — 1초 폴링 |
-| `GET /api/status` | `{ready, engine, building, rooms, model, mission:{state,id,busy,seq}}` |
+| `GET /api/status` | `{ready, engine, building, rooms, model, llmOffline, mission:{state,id,busy,seq}}` |
 | `POST /plan` | `{start?, goal}` → `{engine, success, steps, bumps, dist, flown, ms, start, goal, path}` |
 | `POST /api/intent` | 자연어 → 방 id 목록 (§1) |
 | `GET /api/rooms` | 방 22개 + 별칭 + 스캔 포즈 (§1-b) |
@@ -89,7 +99,9 @@ async runSearch() {
 
 `rooms` 가 비어 있으면 구역을 못 집은 것이고 `why` 에 이유가 들어온다
 ("구역을 특정하지 못함"). 그때는 기존 부분일치 폴백을 그대로 쓰면 된다.
-빈 `text` 면 **400**.
+빈 `text` 면 **400**. 오프라인 모드(`--llm-url` 없음)에서도 이 라우트는 그대로
+답한다 — 별칭/`N층`/방 종류로 풀리는 문장은 똑같이 풀리고, 안 풀렸을 때 `why`
+뒤에 "(오프라인 모드 …)" 가 붙어 이유가 구분된다.
 
 > **빈 목록이 정상 동작이다.** "냉장고 찾아줘" 처럼 구역과 무관한 문장에도 3B
 > 모델은 그럴듯한 방 코드를 채워 넣는다. 서버는 **사용자가 실제로 쓴 말이

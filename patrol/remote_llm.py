@@ -134,6 +134,42 @@ class RemoteLLMParser:
             ) from e
 
 
+class OfflineLLMParser:
+    """No model at all — the same `generate()` contract, answering nothing.
+
+    For running the rest of the pipeline without the GPU box (web console,
+    planner, mission loop, report). Every caller already survives an unusable
+    answer, which is what makes this cheap: `patrol_intent._extract_json("")`
+    degrades to `{}` and the five text-based resolution tiers carry the query on
+    aliases/층/방 종류 alone, and `patrol_report._llm_summary` falls back to its
+    templated sentence. So the cost of going offline is exactly tier 1 of intent
+    resolution (the room ids the model itself proposes) and the report prose —
+    a query like "2층 전부 순찰해줘" or "현우방 확인해줘" still resolves.
+    """
+
+    def __init__(self, model_id: str = "(offline)", reason: str = "") -> None:
+        self.model_id = model_id
+        self.reason = reason
+        print(f"[llm] offline{f' ({reason})' if reason else ''} — "
+              f"별칭/층/방 종류 키워드로만 구역을 찾습니다")
+
+    def generate(self, system: str, user: str, max_new_tokens: int = 256) -> str:
+        return ""
+
+    def ping(self) -> List[str]:
+        return []
+
+
+def make_llm(base_url: Optional[str], model_id: str = "Qwen/Qwen2.5-3B-Instruct",
+             api_key: Optional[str] = None, timeout: float = DEFAULT_TIMEOUT,
+             reason: str = "--llm-url 없음"):
+    """`RemoteLLMParser` if there is a URL, `OfflineLLMParser` if there isn't."""
+    if base_url:
+        return RemoteLLMParser(base_url, model_id, api_key=api_key,
+                               timeout=timeout)
+    return OfflineLLMParser(reason=reason)
+
+
 def _v1_root(base_url: str) -> str:
     u = base_url.rstrip("/")
     if u.endswith("/chat/completions"):

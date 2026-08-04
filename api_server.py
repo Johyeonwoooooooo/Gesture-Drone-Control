@@ -7,6 +7,13 @@ the console calls `api/drone` and `plan` as RELATIVE paths, so the static files
 and the API have to share an origin anyway.
 
     python api_server.py --llm-url http://<GPU서버>:8000/v1    # + --api-key
+    python api_server.py                                      # GPU 박스 없이 테스트
+
+`--llm-url` 없이 띄우면 오프라인 모드다 — LLM 호출만 빠지고 나머지(방 인덱스,
+플래너, 미션 루프, 보고서, 웹 콘솔)는 그대로 돈다. `/api/intent` 는 별칭·층·방
+종류 키워드로 구역을 찾고(모델이 제안하는 방 코드 한 단계만 못 쓴다), 보고서
+요약문은 템플릿 문장으로 나온다. Unity 도 마찬가지로 없으면 없는 대로 뜬다 —
+드론 위치가 `source:"home"` 으로 고정될 뿐이다.
 
 Routes the console already calls (do not change their shape):
 
@@ -53,7 +60,7 @@ sys.path.insert(0, str(_THIS.parent))
 from patrol import (patrol_intent, patrol_mission, patrol_report,  # noqa: E402
                     planner, room_index)
 from patrol.litept_backend import LitePTBackend  # noqa: E402
-from patrol.remote_llm import RemoteLLMParser  # noqa: E402
+from patrol.remote_llm import RemoteLLMError, make_llm  # noqa: E402
 from patrol.room_index import RoomInfo  # noqa: E402
 
 WEB_DIR = _THIS.parent / "web"
@@ -114,11 +121,17 @@ class Scene:
         print(f"[api] scene ready: grid={self.gm.shape}, "
               f"home={np.round(self.home, 2)} ({time.time() - t0:.1f}s)")
 
-        self.llm = RemoteLLMParser(args.llm_url, model_id=args.llm_model,
-                                   api_key=args.llm_api_key,
-                                   timeout=args.llm_timeout)
-        served = self.llm.ping()
-        print(f"[llm] server ok, models={served or '(no /models route)'}")
+        self.llm = make_llm(args.llm_url, model_id=args.llm_model,
+                            api_key=args.llm_api_key, timeout=args.llm_timeout)
+        self.offline_llm = not args.llm_url
+        if not self.offline_llm:
+            try:
+                served = self.llm.ping()   # fail here, not on the first query
+            except RemoteLLMError as e:
+                raise SystemExit(
+                    f"[llm] {e}\n[llm] LLM 없이 나머지를 테스트하려면 "
+                    f"--llm-url 를 빼고 실행하세요.") from e
+            print(f"[llm] server ok, models={served or '(no /models route)'}")
 
         from simulator.bridge import coord_transform, follow_path
         from simulator.bridge.unity_bridge import UnityTelloBridge
@@ -298,6 +311,7 @@ def build_app(scene: Scene) -> FastAPI:
             "building": scene.args.building,
             "rooms": len(scene.rooms),
             "model": scene.llm.model_id,
+            "llmOffline": scene.offline_llm,
             "mission": {"state": mission.state, "id": mission.mission_id,
                         "busy": mission.busy, "seq": log.seq},
         }
@@ -365,6 +379,10 @@ def build_app(scene: Scene) -> FastAPI:
         rooms, why = patrol_intent.resolve_rooms(
             intent, scene.rooms, text, max_rooms=scene.args.max_rooms)
         rooms = room_index.order_rooms(rooms, scene.drone_pose()[0])
+        if not rooms and scene.offline_llm:
+            # Offline it is the keyword tiers alone, so say which lever is
+            # missing instead of letting it read as "the model didn't get it".
+            why += " (오프라인 모드 — 방 이름/별칭이나 \"N층\"을 넣어 주세요)"
         return {
             "why": why,
             "rooms": [room_index.web_room_id(r.room_name) for r in rooms],
@@ -468,8 +486,11 @@ def main() -> None:
     ap.add_argument("--sample", type=int, default=1)
     ap.add_argument("--algo", default="astar", choices=["astar", "rrt"])
     ap.add_argument("--rrt-iter", type=int, default=8000)
-    # llm (never loaded here — llm_server/ holds the model)
-    ap.add_argument("--llm-url", required=True)
+    # llm (never loaded here — llm_server/ holds the model).
+    # Optional on purpose: without it the server runs offline (see the module
+    # docstring) so the console and the mission loop can be tested alone.
+    ap.add_argument("--llm-url", default=None,
+                    help="OpenAI 호환 엔드포인트. 생략하면 오프라인 모드")
     ap.add_argument("--llm-model", default="Qwen/Qwen2.5-3B-Instruct")
     ap.add_argument("--llm-api-key", default=None)
     ap.add_argument("--llm-timeout", type=float, default=60.0)

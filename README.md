@@ -103,6 +103,13 @@ Unity와 파이프라인이 같은 PC라 **UDP가 전부 localhost가 되고 rel
 > `python patrol/server.py --sim --unity-host 127.0.0.1 --llm-url ...` (§5).
 > **둘을 동시에 띄우면 안 된다** — UDP 브리지를 서로 뺏는다.
 
+> **①이 없어도 ④는 뜬다.** `--llm-url` 을 빼면 오프라인 모드로 시작한다
+> (`[llm] offline …`). LLM 호출 두 개만 빠지고 콘솔·플래너·미션 루프·보고서는
+> 그대로다 — `/api/intent` 는 별칭/`N층`/방 종류 키워드로 구역을 찾고, 보고서
+> 요약문은 템플릿 문장이 된다. ②③ 도 없으면 드론 위치가 `source:"home"` 에
+> 머물고 순찰은 `simulator_unreachable` 로 즉시 끝난다 — 콘솔/방 인덱스/경로
+> 계획만 확인할 때 쓰면 된다. (API.md 첫 절)
+
 > **지금은 탐지가 안 뜬다.** Unity 쪽 `PatrolPersonDetection.cs` 가 이 브랜치에
 > 없어서 `scan` verb를 모르고, 파이프라인이 rc 회전 폴백을 탄다. 비행과 360°
 > 회전은 정상이지만 `detect` 이벤트가 하나도 안 온다 → 콘솔의 탐지 목록·경보·
@@ -641,7 +648,7 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 |---|---|
 | `[Errno 48] address already in use` (API 서버) | 그 포트를 누가 쓴다. `lsof -nP -iTCP:<포트> -sTCP:LISTEN`. 범인이 `api_server.py` 면 포트를 바꾸지 말고 죽여라 — UDP 브리지까지 쥐고 있다. 다른 앱이면 `--port` 를 옮긴다 (§4 ④) |
 | `localhost:<포트>` 가 로컬이 아니라 서버로 감 | **VS Code Remote-SSH 자동 포트 포워딩.** 서버에서 열린 포트를 같은 번호로 로컬에 포워딩해서, 겉보기엔 잘 도는데 딴 기계로 간다. PORTS 패널 → *Stop Forwarding Port*, 또는 안 겹치는 `--port` 사용 |
-| 시작 시 `cannot reach the LLM server at ...` | 서버 `llm_server/serve.py`(§1)가 안 떠 있거나 포트가 막힘. `curl http://<서버IP>:8000/health` 로 갈라볼 것 — 응답 오면 `--llm-url` 오타, 안 오면 서버/방화벽. **띄운 직후면 30초쯤 기다릴 것** (모델 로딩) |
+| 시작 시 `cannot reach the LLM server at ...` | 서버 `llm_server/serve.py`(§1)가 안 떠 있거나 포트가 막힘. `curl http://<서버IP>:8000/health` 로 갈라볼 것 — 응답 오면 `--llm-url` 오타, 안 오면 서버/방화벽. **띄운 직후면 30초쯤 기다릴 것** (모델 로딩). 지금 당장 나머지만 보고 싶으면 `--llm-url` 을 빼고 오프라인으로 띄운다 (§4) |
 | `LLM server returned HTTP 401` | `--api-key` 를 걸어놓고 `--llm-api-key` 를 안 줬거나 값이 다름 |
 | `LLM server returned HTTP 404` | `--llm-url` 이 `/v1` 까지여야 한다. `http://<IP>:8000` 도 받아주지만 그 외 경로면 404 |
 | `ModuleNotFoundError: No module named 'torch'` (로컬) | 로컬엔 torch가 없는 게 정상이다. `patrol/` 이나 `api_server.py` 가 torch를 끌어온다면 그건 버그 — `llm_server/` 를 import하는 코드가 새로 생긴 것이다 |
