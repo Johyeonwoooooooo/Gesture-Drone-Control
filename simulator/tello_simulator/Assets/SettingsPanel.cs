@@ -28,7 +28,7 @@ public class SettingsPanel : MonoBehaviour
     public float moveSpeed = 15f;
 
     [Header("경로 표시")]
-    public bool showTrail = true;
+    public bool showTrail = false;   // 지나온 경로가 화면을 덮어서 기본 off
     public bool showPlannedPath = true;
     public bool showFlightReport = true;
     public bool showCollisionMarkers = true;

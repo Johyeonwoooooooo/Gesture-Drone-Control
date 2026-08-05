@@ -1246,7 +1246,7 @@ MonoBehaviour:
   rotationSpeed: 100
   smoothTime: 0.05
   minHeight: 0.5
-  showFlightTrail: 1
+  showFlightTrail: 0
   trailColor: {r: 0.2, g: 0.85, b: 1, a: 0.9}
   trailWidth: 0.3
   markCollisions: 1

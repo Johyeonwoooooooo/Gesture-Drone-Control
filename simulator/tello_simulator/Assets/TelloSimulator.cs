@@ -43,8 +43,10 @@ public class TelloSimulator : MonoBehaviour
     public bool showDebugHud = false;
 
     [Header("Flight Visualization")]
-    [Tooltip("Draw a colored trail behind the drone while it flies.")]
-    public bool showFlightTrail = true;
+    [Tooltip("Draw a colored trail behind the drone while it flies. Off by " +
+             "default — the trail is still built and recording, so the " +
+             "settings panel (Tab) can turn it back on mid-flight.")]
+    public bool showFlightTrail = false;
     public Color trailColor = new Color(0.2f, 0.85f, 1f, 0.9f);
     public float trailWidth = 0.3f;
     [Tooltip("Drop a red sphere marker at every recorded collision position.")]
@@ -134,10 +136,9 @@ public class TelloSimulator : MonoBehaviour
             TeleportTo(spawnPosition, spawnYaw);
             Debug.Log($"[Tello] spawned at home {spawnPosition}");
         }
-        if (showFlightTrail)
-        {
-            SetupFlightTrail();
-        }
+        // Always built, `enabled` carries the visibility — otherwise the panel
+        // toggle has nothing to switch on when it starts hidden.
+        SetupFlightTrail();
         StartUDPServer();
     }
 
@@ -154,6 +155,7 @@ public class TelloSimulator : MonoBehaviour
         trail.startColor = trailColor;
         trail.endColor = trailColor;
         trail.emitting = false;                   // only while flying
+        trail.enabled = showFlightTrail;
     }
 
     // The tello model comes from a URDF import that leaves gravity-driven
