@@ -65,6 +65,10 @@ from pydantic import BaseModel
 _THIS = Path(__file__).resolve()
 sys.path.insert(0, str(_THIS.parent))
 
+# 콘솔 로그가 한국어라 윈도우 기본 cp949 로는 '—' 같은 글자에서 죽는다.
+for _s in (sys.stdout, sys.stderr):
+    _s.reconfigure(encoding="utf-8", errors="replace")
+
 from patrol import (patrol_intent, patrol_mission, patrol_report,  # noqa: E402
                     planner, room_index)
 from patrol.litept_backend import LitePTBackend  # noqa: E402
@@ -449,7 +453,8 @@ def build_app(scene: Scene) -> FastAPI:
         if not f.is_file():
             raise HTTPException(404, "보고서가 아직 생성되지 않았습니다")
         import json
-        return json.loads(f.read_text())
+        # utf-8 필수 — 보고서는 한국어이고 윈도우 기본 인코딩은 cp949 다.
+        return json.loads(f.read_text(encoding="utf-8"))
 
     # ------------------------------------------------------------ web/ static
     if WEB_DIR.is_dir():

@@ -42,6 +42,10 @@ import numpy as np
 _THIS = Path(__file__).resolve()
 sys.path.insert(0, str(_THIS.parents[1]))  # repo root
 
+# 로그가 한국어라 윈도우 기본 cp949 로는 '—' 같은 글자에서 죽는다.
+for _s in (sys.stdout, sys.stderr):
+    _s.reconfigure(encoding="utf-8", errors="replace")
+
 from patrol import (patrol_intent, patrol_mission, patrol_report,  # noqa: E402
                     planner, room_index)
 from patrol.detect_events import DetectionListener  # noqa: E402

@@ -179,6 +179,11 @@ python simulator/bridge/calibrate_transform.py --building 00809_Qpor2mEya8F \
   순간이 오는데, 그 순간 이 성질이 깨진다. LLM 관련 코드를 추가할 때는
   `generate()` **위에** 얹을 것.
 
+- **윈도우에서 인코딩은 utf-8 로 못 박는다.** 로그·보고서가 전부 한국어인데
+  기본이 cp949 라 `—` 하나에 죽는다. 두 진입점이 시작할 때 `sys.stdout/stderr`
+  를 utf-8 로 `reconfigure` 하고, 파일을 읽는 쪽(`report.json`)은
+  `encoding="utf-8"` 을 명시한다. 쓰는 쪽(`patrol_report`)은 원래 그랬다.
+
 - **relay 는 이제 레거시다.** Unity 와 파이프라인이 같은 PC 라 UDP 가 전부
   localhost 다. `relay.py` 는 로컬에 데이터를 못 내리는 상황용으로만 남겨뒀다.
   로컬↔서버는 나가는 TCP 하나(LLM 엔드포인트)뿐이고 NAT 는 그걸 막지 않는다
