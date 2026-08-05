@@ -6,10 +6,18 @@ one drone and one UDP link to it — two backends cannot both hold 9000/9002, an
 the console calls `api/drone` and `plan` as RELATIVE paths, so the static files
 and the API have to share an origin anyway.
 
-    python api_server.py --llm-url http://<GPU서버>:8000/v1    # + --api-key
-    python api_server.py                                      # GPU 박스 없이 테스트
+    python api_server.py                                      # 로컬 Ollama (기본)
+    python api_server.py --llm-url gpu                        # 학교 GPU 서버 (VPN)
+    python api_server.py --llm-url ""                         # LLM 없이 테스트
 
-`--llm-url` 없이 띄우면 오프라인 모드다 — LLM 호출만 빠지고 나머지(방 인덱스,
+LLM은 기본적으로 **이 PC의 Ollama** (`qwen2.5:3b-instruct`) 를 쓴다. 순찰 한 번에
+LLM 호출이 2회뿐이라 3B면 노트북에서 충분하다. 학교 GPU 서버를 쓰려면
+`--llm-url gpu` — 주소·모델 이름은 `remote_llm.GPU_LLM_URL/GPU_LLM_MODEL` 에
+있고, 토큰은 `PATROL_LLM_API_KEY` 환경변수로 넘기면 명령줄에 안 남는다.
+**교내망 밖에서는 8000·22 가 막혀 있어 한양대 SSL VPN 을 켜야 닿는다.**
+프로토콜이 OpenAI 호환이라 어느 쪽이든 클라이언트는 같다.
+
+`--llm-url ""` 로 띄우면 오프라인 모드다 — LLM 호출만 빠지고 나머지(방 인덱스,
 플래너, 미션 루프, 보고서, 웹 콘솔)는 그대로 돈다. `/api/intent` 는 별칭·층·방
 종류 키워드로 구역을 찾고(모델이 제안하는 방 코드 한 단계만 못 쓴다), 보고서
 요약문은 템플릿 문장으로 나온다. Unity 도 마찬가지로 없으면 없는 대로 뜬다 —
@@ -60,7 +68,8 @@ sys.path.insert(0, str(_THIS.parent))
 from patrol import (patrol_intent, patrol_mission, patrol_report,  # noqa: E402
                     planner, room_index)
 from patrol.litept_backend import LitePTBackend  # noqa: E402
-from patrol.remote_llm import RemoteLLMError, make_llm  # noqa: E402
+from patrol.remote_llm import (DEFAULT_LLM_MODEL, DEFAULT_LLM_URL,  # noqa: E402
+                               RemoteLLMError, make_llm, resolve_llm)
 from patrol.room_index import RoomInfo  # noqa: E402
 
 WEB_DIR = _THIS.parent / "web"
@@ -121,16 +130,18 @@ class Scene:
         print(f"[api] scene ready: grid={self.gm.shape}, "
               f"home={np.round(self.home, 2)} ({time.time() - t0:.1f}s)")
 
-        self.llm = make_llm(args.llm_url, model_id=args.llm_model,
-                            api_key=args.llm_api_key, timeout=args.llm_timeout)
-        self.offline_llm = not args.llm_url
+        llm_url, llm_model, llm_key = resolve_llm(
+            args.llm_url, args.llm_model, args.llm_api_key)
+        self.llm = make_llm(llm_url, model_id=llm_model,
+                            api_key=llm_key, timeout=args.llm_timeout)
+        self.offline_llm = not llm_url
         if not self.offline_llm:
             try:
                 served = self.llm.ping()   # fail here, not on the first query
             except RemoteLLMError as e:
                 raise SystemExit(
-                    f"[llm] {e}\n[llm] LLM 없이 나머지를 테스트하려면 "
-                    f"--llm-url 를 빼고 실행하세요.") from e
+                    f'[llm] {e}\n[llm] LLM 없이 나머지를 테스트하려면 '
+                    f'--llm-url "" 로 실행하세요.') from e
             print(f"[llm] server ok, models={served or '(no /models route)'}")
 
         from simulator.bridge import coord_transform, follow_path
@@ -489,9 +500,11 @@ def main() -> None:
     # llm (never loaded here — llm_server/ holds the model).
     # Optional on purpose: without it the server runs offline (see the module
     # docstring) so the console and the mission loop can be tested alone.
-    ap.add_argument("--llm-url", default=None,
-                    help="OpenAI 호환 엔드포인트. 생략하면 오프라인 모드")
-    ap.add_argument("--llm-model", default="Qwen/Qwen2.5-3B-Instruct")
+    ap.add_argument("--llm-url", default=DEFAULT_LLM_URL,
+                    help="OpenAI 호환 엔드포인트. 기본은 이 PC의 Ollama. "
+                         '"gpu" = 학교 GPU 서버(VPN 필요), '
+                         '빈 문자열("")이면 오프라인 모드')
+    ap.add_argument("--llm-model", default=DEFAULT_LLM_MODEL)
     ap.add_argument("--llm-api-key", default=None)
     ap.add_argument("--llm-timeout", type=float, default=60.0)
     # unity link — localhost now that the pipeline runs beside the simulator

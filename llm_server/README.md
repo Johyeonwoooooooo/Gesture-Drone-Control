@@ -1,5 +1,11 @@
 # llm_server — GPU 서버에 남는 유일한 조각
 
+> **기본 경로가 아니다.** 파이프라인은 순찰 한 번에 LLM을 2번 부르고 3B면
+> 노트북에서 돌기 때문에, 기본값은 **로컬 Ollama**(`qwen2.5:3b-instruct`)다
+> (README §1). 게다가 이 서버는 교내망 밖에서 막혀 있어 VPN이 필요하다 —
+> `166.104.223.32` 의 TCP 8000·22 가 집 회선에서 `filtered` 로 실측됐다.
+> 더 큰 모델을 쓰거나 여럿이 한 GPU를 공유할 때 이 폴더를 쓴다.
+
 순찰 파이프라인에서 GPU가 필요한 건 **의도 파서 하나뿐**이다. 3D 인식은 사전계산
 결과를 읽기만 하고, 경로 계획은 numpy다. 그래서 그 하나만 여기 남기고 나머지는
 전부 Unity가 도는 PC로 내렸다. 이 폴더가 서버에서 도는 전부다.
@@ -10,7 +16,10 @@ pip install -r llm_server/requirements.txt
 python llm_server/serve.py --port 8000 --llm-device cuda:1 --api-key <토큰>
 ```
 
-클라이언트(로컬 PC)는 `--llm-url http://<이 서버>:8000/v1` 로 붙는다.
+클라이언트(로컬 PC)는
+`--llm-url http://<이 서버>:8000/v1 --llm-model Qwen/Qwen2.5-3B-Instruct` 로
+붙는다. 기본값이 Ollama 라 **두 플래그 다 명시해야 한다** — 모델 이름을 빼면
+Ollama 이름(`qwen2.5:3b-instruct`)이 그대로 나가서 404 가 된다.
 
 ## 규칙: 이 폴더는 `patrol/` 을 import하지 않는다
 
@@ -79,5 +88,5 @@ vllm serve Qwen/Qwen2.5-3B-Instruct --port 8000
 망가진다. 이 워크로드는 쿼리당 호출이 2~3회뿐이라 vLLM의 연속 배칭은 거의 쓸 일이
 없고, 체감되는 이득은 단일 요청 지연이다.
 
-Apple Silicon 맥이면 서버 없이 로컬에서 Ollama로 대신할 수도 있다 —
-`ollama serve` 후 `--llm-url http://127.0.0.1:11434/v1 --llm-model qwen2.5:3b-instruct`.
+서버 없이 로컬 Ollama로 돌리는 게 지금의 기본 경로다 (README §1) — 플래그 없이
+`python api_server.py --port 8123`.

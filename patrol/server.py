@@ -14,12 +14,14 @@
 시 직전 목표 → 홈 순으로 폴백).
 
 The model is NEVER loaded here — it lives behind an OpenAI-compatible endpoint
-(`llm_server/serve.py` on the GPU box, or anything else that speaks the same
-protocol). So this process needs no torch, which is what lets it run next to
-Unity on the operator's PC:
+(by default Ollama on this PC; `llm_server/serve.py` on the GPU box, or anything
+else that speaks the same protocol). So this process needs no torch, which is
+what lets it run next to Unity on the operator's PC:
 
-    python patrol/server.py --sim --unity-host 127.0.0.1 \
-        --llm-url http://166.104.223.32:8000/v1
+    python patrol/server.py --sim --unity-host 127.0.0.1
+    python patrol/server.py --sim --llm-url http://<GPU서버>:8000/v1 \
+        --llm-model Qwen/Qwen2.5-3B-Instruct
+    python patrol/server.py --sim --llm-url ""          # 오프라인 모드
 
 Run from the repo root (see requirements.txt / README.md §1).
 
@@ -44,7 +46,8 @@ from patrol import (patrol_intent, patrol_mission, patrol_report,  # noqa: E402
                     planner, room_index)
 from patrol.detect_events import DetectionListener  # noqa: E402
 from patrol.litept_backend import LitePTBackend  # noqa: E402
-from patrol.remote_llm import RemoteLLMParser  # noqa: E402  (stdlib only)
+from patrol.remote_llm import (DEFAULT_LLM_MODEL,  # noqa: E402  (stdlib only)
+                               DEFAULT_LLM_URL, make_llm, resolve_llm)
 
 
 def main() -> None:
@@ -54,11 +57,11 @@ def main() -> None:
                     help="LitePT output dir: detections.json + per-room npy.")
     ap.add_argument("--building", default="00809_Qpor2mEya8F",
                     help="Building id (transform lookup + program metadata).")
-    ap.add_argument("--llm-url", required=True,
-                    help="OpenAI-compatible endpoint, e.g. "
-                         "http://166.104.223.32:8000/v1 (llm_server/serve.py). "
-                         "The model never loads in this process.")
-    ap.add_argument("--llm-model", default="Qwen/Qwen2.5-3B-Instruct",
+    ap.add_argument("--llm-url", default=DEFAULT_LLM_URL,
+                    help="OpenAI-compatible endpoint. Defaults to Ollama on "
+                         'this PC; "gpu" = the school GPU box (VPN), "" = '
+                         "offline. The model never loads here.")
+    ap.add_argument("--llm-model", default=DEFAULT_LLM_MODEL,
                     help="Model name to ask that endpoint for.")
     ap.add_argument("--llm-api-key", default=None,
                     help="Bearer token, if the LLM server requires one.")
@@ -137,10 +140,14 @@ def main() -> None:
 
     # One LLM handle for the whole session — patrol_intent and patrol_report
     # reuse it rather than making their own.
-    llm = RemoteLLMParser(args.llm_url, model_id=args.llm_model,
-                          api_key=args.llm_api_key, timeout=args.llm_timeout)
-    served = llm.ping()   # fail here, not on the user's first query
-    print(f"[llm] server ok, models={served or '(no /models route)'}")
+    # `--llm-url ""` picks the offline parser, same switch as api_server.py.
+    llm_url, llm_model, llm_key = resolve_llm(
+        args.llm_url, args.llm_model, args.llm_api_key)
+    llm = make_llm(llm_url, model_id=llm_model,
+                   api_key=llm_key, timeout=args.llm_timeout)
+    if llm_url:
+        served = llm.ping()   # fail here, not on the user's first query
+        print(f"[llm] server ok, models={served or '(no /models route)'}")
 
     # ---------------- Unity simulator link (lazy: only with --sim) ----------
     bridge = None

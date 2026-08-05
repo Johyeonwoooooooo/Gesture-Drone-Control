@@ -4,14 +4,18 @@
 
 ```bash
 # 로컬 PC (Unity 옆). 한 포트에 web/ 정적 + API 가 같이 뜬다.
-# --llm-api-key 는 서버가 토큰을 요구할 때만 붙인다.
-python api_server.py --port 8123 --llm-url http://<GPU서버>:8000/v1 --llm-api-key <토큰>
-
-# GPU 서버 없이 (오프라인 모드). Unity 도 없으면 없는 대로 뜬다
+# LLM 은 기본이 이 PC 의 Ollama (qwen2.5:3b-instruct) — 플래그가 필요 없다.
 python api_server.py --port 8123
+
+# 학교 GPU 서버를 쓸 때 (VPN 필요). "gpu" 가 주소+모델 별칭이고, 토큰은
+# PATROL_LLM_API_KEY 환경변수로 줘도 된다 (--llm-api-key 와 같은 값).
+python api_server.py --port 8123 --llm-url gpu
+
+# LLM 자체를 빼고 (오프라인 모드). Unity 도 없으면 없는 대로 뜬다
+python api_server.py --port 8123 --llm-url ""
 ```
 
-> **오프라인 모드** (`--llm-url` 생략): LLM 호출 두 개만 빠지고 방 인덱스·
+> **오프라인 모드** (`--llm-url ""`): LLM 호출 두 개만 빠지고 방 인덱스·
 > 플래너·미션 루프·보고서·콘솔은 그대로 돈다. `/api/intent` 는 별칭/`N층`/방
 > 종류 키워드로 구역을 찾고 — 모델이 방 코드를 제안하는 첫 단계 하나만 못 쓴다
 > — 보고서 요약문은 템플릿 문장으로 나온다. `GET /api/status` 의
@@ -99,7 +103,7 @@ async runSearch() {
 
 `rooms` 가 비어 있으면 구역을 못 집은 것이고 `why` 에 이유가 들어온다
 ("구역을 특정하지 못함"). 그때는 기존 부분일치 폴백을 그대로 쓰면 된다.
-빈 `text` 면 **400**. 오프라인 모드(`--llm-url` 없음)에서도 이 라우트는 그대로
+빈 `text` 면 **400**. 오프라인 모드(`--llm-url ""`)에서도 이 라우트는 그대로
 답한다 — 별칭/`N층`/방 종류로 풀리는 문장은 똑같이 풀리고, 안 풀렸을 때 `why`
 뒤에 "(오프라인 모드 …)" 가 붙어 이유가 구분된다.
 

@@ -19,27 +19,31 @@
 
 ## 어디서 무엇이 도는가
 
-**GPU 서버에는 LLM만 남는다.** 파이프라인에서 GPU가 필요한 건 의도 파서
-하나뿐이고(3D 인식은 사전계산 결과를 읽기만 한다), 저장소 전체에서 torch를
-import하는 파일은 `llm_server/local_llm.py` 하나다. 나머지는 numpy만으로 돈다.
+**전부 한 PC에서 돈다.** 파이프라인에서 GPU가 필요한 건 의도 파서 하나뿐이고
+(3D 인식은 사전계산 결과를 읽기만 한다), 그 호출도 순찰 한 번에 **2회**
+(구역 해석 · 보고서 문장)뿐이다. 3B 모델이면 노트북에서 충분해서 **기본값은
+이 PC의 Ollama** 다.
 
 ```
-[GPU 서버 (Linux)]                    [로컬 PC (Windows/macOS)]
-llm_server/serve.py                    브라우저 — 웹 콘솔 (web/)
- Qwen2.5-3B                              ↕ HTTP :8123
- /v1/chat/completions  ◀── TCP 8000 ── api_server.py  (patrol/ 두뇌)
- (torch는 여기만)                          ↕ UDP localhost 9000 / 9002
-                                        Unity 시뮬레이터 (Play 중)
+[로컬 PC (Windows/macOS)]
+ 브라우저 — 웹 콘솔 (web/)
+   ↕ HTTP :8123
+ api_server.py  (patrol/ 두뇌, numpy만)
+   ↕ HTTP localhost :11434    Ollama — qwen2.5:3b-instruct   ← 기본
+   ↕ UDP localhost 9000/9002  Unity 시뮬레이터 (Play 중)
 ```
 
-Unity와 파이프라인이 같은 PC라 **UDP가 전부 localhost가 되고 relay가 필요
-없다.** 망을 타는 건 로컬→서버 TCP 하나뿐이고, 그것도 순찰 한 번에 **LLM 호출
-2회**(구역 해석 · 보고서 문장)가 전부다. NAT는 나가는 연결을 막지 않는다
-(실측: 노트북 `10.100.130.17` → 서버 `166.104.223.32` TCP 8000/8080/8443 도달).
+학교 GPU 서버(`llm_server/serve.py`, §1)를 쓰고 싶으면 `--llm-url` 로 갈아끼우면
+된다 — 프로토콜이 OpenAI 호환이라 그 한 줄이 전부다. **다만 교내망 밖에서는
+막혀 있다**: 집 회선(`192.168.219.100`)에서 `166.104.223.32` 의 TCP 8000·22 둘 다
+`filtered` 로 실측됐다. README 에 예전부터 적혀 있던 "도달" 실측은 출발지가
+`10.100.130.17` — **교내 IP** 였다. 밖에서 붙으려면 한양대 SSL VPN 이 필요하다.
+로컬 Ollama 를 쓰면 VPN 도 서버도 필요 없다.
 
 | 방향 | 포트 | 내용 |
 |---|---|---|
-| 로컬 → 서버 | TCP **8000** | LLM `/v1/chat/completions` (OpenAI 호환) |
+| API → Ollama | TCP **11434** | LLM `/v1/chat/completions` (기본, localhost) |
+| (선택) 로컬 → 학교 서버 | TCP **8000** | 같은 규격. VPN 필요 |
 | 브라우저 → API | HTTP **8123** | 웹 콘솔 ↔ `api_server.py` (`API.md`). `--port` 로 정한다 |
 | API → Unity | UDP **9000** | `command`/`takeoff`/`land`/`rc`/`setpos`/`msg`/`light`/`scan`/`scan_stop` |
 | Unity → API | (9000 응답) | 각 명령에 `"ok"` (API는 9001 바인딩) |
@@ -61,7 +65,8 @@ Unity와 파이프라인이 같은 PC라 **UDP가 전부 localhost가 되고 rel
 
 | 위치 | 할 일 | 참고 |
 |---|---|---|
-| 서버 | `git clone` → conda 환경 + `llm_server/requirements.txt` | §1 |
+| 로컬 | Ollama 설치 + `ollama pull qwen2.5:3b-instruct` (1.9 GB) | §1 |
+| (선택) 서버 | `git clone` → conda 환경 + `llm_server/requirements.txt` | §1-b |
 | 로컬 | `git clone` → 파이썬 환경 + `requirements.txt` (**torch 불필요**) | §2 |
 | 로컬 | `data/final_npy/` 필요한 부분만 내려받기 (약 90 MB) | §2 |
 | 로컬 | Unity Hub + 에디터 `6000.3.12f1`, `simulator/tello_simulator` 열기 | §3 |
@@ -74,22 +79,28 @@ Unity와 파이프라인이 같은 PC라 **UDP가 전부 localhost가 되고 rel
 ### B. 매번 다시 실행
 
 ```
-[서버]  ① python llm_server/serve.py --port 8000 --llm-device cuda:1 --api-key <토큰>
-        (한 번 띄우면 계속 켜둔다. nohup/tmux 로 떼어놔도 된다 — §1)
-        → curl http://127.0.0.1:8000/health 가 답할 때까지 30초쯤 기다린다
+[로컬]  ① Ollama 가 떠 있는지만 확인 (윈도우는 설치하면 서비스로 상주한다)
+        → curl http://127.0.0.1:11434/api/version
 
-[로컬]  ② Unity ▶ Play → Console "[Tello] UDP server listening on 9000"(초록)
+        ② Unity ▶ Play → Console "[Tello] UDP server listening on 9000"(초록)
         ③ python simulator/bridge/smoke.py --unity-host 127.0.0.1      # 'ok' 게이트
-        ④ python api_server.py --port 8123 \
-              --llm-url http://<서버IP>:8000/v1 --llm-api-key <토큰>
+        ④ python api_server.py --port 8123
         ⑤ 브라우저 http://localhost:8123
+```
+
+학교 GPU 서버를 쓸 때는 ④ 만 바꾼다 (**VPN 붙은 뒤**). 주소·모델은 `gpu`
+별칭 안에 있어 외울 게 없다:
+
+```
+set PATROL_LLM_API_KEY=<토큰>       # 서버가 토큰을 요구할 때만 (bash 는 export)
+python api_server.py --port 8123 --llm-url gpu
 ```
 
 **게이트가 둘이다. 하나씩 통과시키고 넘어가야 원인이 어디인지 안다.**
 
 - **③ `-> 'ok'`** 가 안 나오면 무조건 ②(Unity 9000) 문제다. 뒤로 가라.
-- **④의 `[llm] server ok`** 가 안 나오면 ①(서버) 또는 방화벽 문제다.
-  로컬에서 `curl http://<서버IP>:8000/health` 로 갈라볼 것.
+- **④의 `[llm] server ok`** 가 안 나오면 ①(Ollama) 문제다.
+  `curl http://127.0.0.1:11434/v1/models` 로 갈라볼 것.
 
 ④가 뜨면 이 세 줄이 순서대로 나온다:
 
@@ -100,10 +111,10 @@ Unity와 파이프라인이 같은 PC라 **UDP가 전부 localhost가 되고 rel
 ```
 
 > 웹 콘솔 없이 터미널로 쓰려면 ④ 대신
-> `python patrol/server.py --sim --unity-host 127.0.0.1 --llm-url ...` (§5).
+> `python patrol/server.py --sim --unity-host 127.0.0.1` (§5).
 > **둘을 동시에 띄우면 안 된다** — UDP 브리지를 서로 뺏는다.
 
-> **①이 없어도 ④는 뜬다.** `--llm-url` 을 빼면 오프라인 모드로 시작한다
+> **①이 없어도 ④는 뜬다.** `--llm-url ""` 로 띄우면 오프라인 모드로 시작한다
 > (`[llm] offline …`). LLM 호출 두 개만 빠지고 콘솔·플래너·미션 루프·보고서는
 > 그대로다 — `/api/intent` 는 별칭/`N층`/방 종류 키워드로 구역을 찾고, 보고서
 > 요약문은 템플릿 문장이 된다. ②③ 도 없으면 드론 위치가 `source:"home"` 에
@@ -118,7 +129,26 @@ Unity와 파이프라인이 같은 PC라 **UDP가 전부 localhost가 되고 rel
 
 ---
 
-## 1. GPU 서버 준비
+## 1. LLM 준비 — 로컬 Ollama (기본)
+
+```powershell
+winget install --id Ollama.Ollama -e          # macOS: brew install ollama
+ollama pull qwen2.5:3b-instruct               # 1.9 GB
+curl http://127.0.0.1:11434/v1/models         # {"data":[{"id":"qwen2.5:3b-instruct"}...
+```
+
+윈도우 설치본은 서비스로 상주하므로 `ollama serve` 를 따로 칠 일이 없다.
+`api_server.py` / `patrol/server.py` 의 `--llm-url` 기본값이 이 엔드포인트고
+`--llm-model` 기본값이 `qwen2.5:3b-instruct` 라, 설치만 하면 플래그가 필요 없다.
+
+모델을 바꾸려면 `ollama pull <다른모델>` 후 `--llm-model <다른모델>`. 프로토콜이
+OpenAI 호환이라 클라이언트(`patrol/remote_llm.py`)는 한 줄도 안 바뀐다.
+
+## 1-b. (선택) 학교 GPU 서버
+
+**VPN 이 있어야 붙는다.** 교내망 밖에서는 `166.104.223.32` 의 TCP 8000·22 가
+둘 다 막혀 있다 (실측). 한양대 SSL VPN 으로 교내 IP 를 받은 뒤에야 아래가 된다.
+로컬 Ollama 로 돌리면 이 절은 통째로 건너뛰어도 된다.
 
 서버에서 도는 건 `llm_server/` 하나다. 자세한 건 **`llm_server/README.md`**.
 
@@ -163,10 +193,9 @@ pkill -f llm_server/serve.py               # 내리기
 ssh -N -L 8000:localhost:8000 <계정>@<서버IP>   # 그러면 --llm-url http://127.0.0.1:8000/v1
 ```
 
-**서버를 아예 안 쓰는 방법도 있다.** `remote_llm.py` 는 OpenAI 호환 프로토콜만
-알지 상대가 무엇인지는 모른다. Apple Silicon 맥이면 로컬에서 Ollama로 대신할 수
-있다: `ollama pull qwen2.5:3b-instruct && ollama serve` 후
-`--llm-url http://127.0.0.1:11434/v1 --llm-model qwen2.5:3b-instruct`.
+**서버를 아예 안 쓰는 게 기본이다** (§1). `remote_llm.py` 는 OpenAI 호환
+프로토콜만 알지 상대가 무엇인지는 모르므로, 로컬 Ollama 든 이 GPU 서버든
+클라이언트 코드는 같다.
 
 ## 2. 로컬 PC 준비 (파이썬 + 데이터)
 
@@ -247,8 +276,10 @@ python simulator/bridge/smoke.py --unity-host 127.0.0.1
 
 **④ 로컬 — API 서버**
 ```bash
-python api_server.py --port 8123 \
-    --llm-url http://<서버IP>:8000/v1 --llm-api-key <토큰>
+python api_server.py --port 8123                     # LLM 은 로컬 Ollama (기본)
+python api_server.py --port 8123 --llm-url gpu       # 학교 GPU 서버 (VPN 필요)
+#   토큰은 PATROL_LLM_API_KEY 환경변수, 또는 --llm-api-key <토큰>
+#   주소를 직접 주려면 --llm-url http://<서버IP>:8000/v1 --llm-model <모델>
 ```
 ✅ `[llm] server ok, models=[...]` → `[sim] Unity 127.0.0.1:9000 -> 'ok'` →
 `[api] http://127.0.0.1:8123   (규격: /docs)` → `Uvicorn running on ...`
@@ -274,7 +305,7 @@ python api_server.py --port 8123 \
 
 ```bash
 python simulator/bridge/fake_unity_sim.py --detect-per-scan 1 &
-python api_server.py --port 8123 --llm-url http://<서버IP>:8000/v1
+python api_server.py --port 8123
 #   --no-scan 을 주면 scan verb 없는 구버전을 흉내내 rc 회전 폴백을 탄다
 ```
 
@@ -306,8 +337,7 @@ python api_server.py --port 8123 --llm-url http://<서버IP>:8000/v1
 터미널에서 직접 쓰려면 REPL을 띄운다 (API 서버와 **동시에는 안 된다**):
 
 ```bash
-python patrol/server.py --sim --unity-host 127.0.0.1 \
-    --llm-url http://<서버IP>:8000/v1 --llm-api-key <토큰>
+python patrol/server.py --sim --unity-host 127.0.0.1
 ```
 
 ```
@@ -648,7 +678,8 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 |---|---|
 | `[Errno 48] address already in use` (API 서버) | 그 포트를 누가 쓴다. `lsof -nP -iTCP:<포트> -sTCP:LISTEN`. 범인이 `api_server.py` 면 포트를 바꾸지 말고 죽여라 — UDP 브리지까지 쥐고 있다. 다른 앱이면 `--port` 를 옮긴다 (§4 ④) |
 | `localhost:<포트>` 가 로컬이 아니라 서버로 감 | **VS Code Remote-SSH 자동 포트 포워딩.** 서버에서 열린 포트를 같은 번호로 로컬에 포워딩해서, 겉보기엔 잘 도는데 딴 기계로 간다. PORTS 패널 → *Stop Forwarding Port*, 또는 안 겹치는 `--port` 사용 |
-| 시작 시 `cannot reach the LLM server at ...` | 서버 `llm_server/serve.py`(§1)가 안 떠 있거나 포트가 막힘. `curl http://<서버IP>:8000/health` 로 갈라볼 것 — 응답 오면 `--llm-url` 오타, 안 오면 서버/방화벽. **띄운 직후면 30초쯤 기다릴 것** (모델 로딩). 지금 당장 나머지만 보고 싶으면 `--llm-url` 을 빼고 오프라인으로 띄운다 (§4) |
+| 시작 시 `cannot reach the LLM server at ...` | 기본값이면 **Ollama** 가 안 떠 있다 — `curl http://127.0.0.1:11434/v1/models` (§1). 학교 서버를 지정했으면 **VPN 이 안 붙어 있거나** 서버/방화벽 문제 (§1-b). 서버를 막 띄웠으면 30초쯤 기다릴 것(모델 로딩). 지금 당장 나머지만 보고 싶으면 `--llm-url ""` 로 오프라인 (§4) |
+| `LLM server returned HTTP 404` + 모델 이름 오류 | Ollama 는 `--llm-model` 이 `ollama list` 의 이름과 정확히 같아야 한다 (`qwen2.5:3b-instruct`). GPU 서버 쪽은 HF 이름(`Qwen/Qwen2.5-3B-Instruct`) |
 | `LLM server returned HTTP 401` | `--api-key` 를 걸어놓고 `--llm-api-key` 를 안 줬거나 값이 다름 |
 | `LLM server returned HTTP 404` | `--llm-url` 이 `/v1` 까지여야 한다. `http://<IP>:8000` 도 받아주지만 그 외 경로면 404 |
 | `ModuleNotFoundError: No module named 'torch'` (로컬) | 로컬엔 torch가 없는 게 정상이다. `patrol/` 이나 `api_server.py` 가 torch를 끌어온다면 그건 버그 — `llm_server/` 를 import하는 코드가 새로 생긴 것이다 |

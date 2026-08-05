@@ -9,11 +9,17 @@ or by typing Korean/English) → an LLM parses the intent → rooms are resolved
 precomputed 3D detections → the drone flies the planned route in Unity, scanning
 each room 360° and reacting to person detections → a report comes out.
 
-Three pieces, on **two machines**:
+Three pieces. **By default all of it runs on one PC** — the LLM is Ollama
+(`qwen2.5:3b-instruct`) on localhost:11434, because the pipeline makes only two
+LLM calls per patrol and the school GPU box is unreachable from off campus
+(`166.104.223.32` TCP 8000 and 22 both filtered from a home line; the "reachable"
+measurement in the README was taken from a campus IP, `10.100.130.17`). Hanyang
+SSL VPN is what that path needs; the local default needs nothing.
 
-1. **`llm_server/`** — the only thing that runs on the GPU box. Loads the intent
+1. **`llm_server/`** — the GPU-box option, not the default. Loads the intent
    model and serves it over an OpenAI-compatible HTTP endpoint. **The only place
-   in the repo that imports torch**, and it does not import `patrol/`.
+   in the repo that imports torch**, and it does not import `patrol/`. Swapping
+   between it and Ollama is `--llm-url` + `--llm-model`, nothing else.
 2. **`patrol/`** — the brain (Python, numpy only). LLM intent parsing, detection
    matching, room index, A*/RRT* planning, patrol mission loop, report writer.
    Runs on the PC next to Unity. `api_server.py` (repo root) puts the web console
@@ -75,29 +81,33 @@ Detections are **read**, never computed here: `data/final_npy/` (gitignored,
 ## Common commands
 
 ```bash
-# [GPU 서버] 계속 켜둠. 이것 하나가 서버에서 도는 전부다
-python llm_server/serve.py --port 8000 --llm-device cuda:1 --api-key <토큰>
+# [로컬 PC] LLM. 기본값이 이거라 플래그가 필요 없다 (윈도우는 서비스로 상주)
+ollama pull qwen2.5:3b-instruct && curl http://127.0.0.1:11434/v1/models
 
 # [로컬 PC] Unity Play → 탐지기 → API 서버 (웹 콘솔이 이 앞에 붙는다)
 python simulator/bridge/smoke.py --unity-host 127.0.0.1   # 연결 게이트: 'ok' 필수
-python api_server.py --llm-url http://166.104.223.32:8000/v1 --llm-api-key <토큰>
-
-# [로컬 PC] GPU 서버(그리고 Unity)가 없을 때 — 오프라인 모드로 나머지만 테스트.
-# LLM 호출 두 개만 빠진다: /api/intent 는 별칭/N층/방 종류 키워드로 풀고
-# 보고서 요약문은 템플릿. GET /api/status 의 llmOffline 로 판별
 python api_server.py --port 8123
 
+# [선택] 학교 GPU 서버를 쓸 때. 교내망 밖에서는 8000·22 가 막혀 있어 VPN 필요.
+# --llm-url gpu = remote_llm.GPU_LLM_URL/GPU_LLM_MODEL 별칭. 토큰은 환경변수
+python llm_server/serve.py --port 8000 --llm-device cuda:1 --api-key <토큰>   # 서버
+PATROL_LLM_API_KEY=<토큰> python api_server.py --port 8123 --llm-url gpu
+
+# [로컬 PC] LLM 자체를 빼고 나머지만 테스트 — 오프라인 모드.
+# LLM 호출 두 개만 빠진다: /api/intent 는 별칭/N층/방 종류 키워드로 풀고
+# 보고서 요약문은 템플릿. GET /api/status 의 llmOffline 로 판별
+python api_server.py --port 8123 --llm-url ""
+
 # 웹 없이 터미널로 (디버그. API 서버와 동시에 띄우지 말 것 — 브리지를 뺏는다)
-python patrol/server.py --sim --unity-host 127.0.0.1 \
-    --llm-url http://166.104.223.32:8000/v1
+python patrol/server.py --sim --unity-host 127.0.0.1
 
 # Unity 없이 프로토콜 스텁으로 (--no-scan 이면 rc 회전 폴백 경로를 탄다)
 python simulator/bridge/fake_unity_sim.py --detect-per-scan 1 &
-python patrol/server.py --sim --unity-host 127.0.0.1 --llm-url http://127.0.0.1:8000/v1
+python patrol/server.py --sim --unity-host 127.0.0.1
 
 # 모듈 자가 테스트
 python patrol/litept_backend.py                  # 방별 인스턴스 수 + home 좌표
-python patrol/remote_llm.py --llm-url http://<host>:8000/v1 "2층 전부 순찰해줘"
+python patrol/remote_llm.py "2층 전부 순찰해줘"    # 기본 = 로컬 Ollama
 python -m patrol.room_index --list               # 방 목록/별칭 (cwd = repo root)
 python -m patrol.detect_events --emit --label person --conf 0.9 --image /abs/x.jpg
 
@@ -151,8 +161,17 @@ python simulator/bridge/calibrate_transform.py --building 00809_Qpor2mEya8F \
 
 - **LLM 접점은 `generate(system, user) -> str` 하나뿐이고, 거기서 기계가
   갈린다.** 클라이언트는 `remote_llm.RemoteLLMParser` 하나(HTTP, urllib만)이고
-  프롬프트는 각 호출부가 들고 있다. 모델 자체는 `llm_server/local_llm.py` 에
-  있고 **저장소에서 torch를 import하는 파일은 그거 하나**다.
+  프롬프트는 각 호출부가 들고 있다. 상대가 Ollama 든 `llm_server/serve.py` 든
+  vLLM 이든 클라이언트는 같다 — OpenAI 호환 와이어 포맷만 안다. 기본값은
+  `remote_llm.DEFAULT_LLM_URL/DEFAULT_LLM_MODEL` 한 곳에 있고 두 진입점이
+  그걸 import 한다. **`--llm-url ""` (빈 문자열) 이 오프라인 모드 스위치**다 —
+  예전엔 플래그 생략이었는데 기본값이 생기면서 바뀌었다. **`--llm-url gpu`** 는
+  학교 서버(`GPU_LLM_URL`) 별칭이고, 모델을 따로 안 주면 모델 이름까지 같이
+  바뀐다(Ollama 태그와 서버 모델 ID 가 다르므로). 이 확장은 두 진입점이 각자
+  분기하지 않도록 `remote_llm.resolve_llm()` 한 곳에서만 편다 — 토큰을
+  `PATROL_LLM_API_KEY` 로 받는 것도 거기다. 모델 자체는
+  `llm_server/local_llm.py` 에 있고 **저장소에서 torch를 import하는 파일은
+  그거 하나**다.
 
   `llm_server/` 는 `patrol/` 을 import하지 않는다 — 서버는 완성된 system/user
   텍스트를 받아 모델만 돌리므로 프롬프트도 방 목록도 필요 없다. 그래서 그

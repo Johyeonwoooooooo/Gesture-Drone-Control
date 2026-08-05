@@ -5,20 +5,22 @@ callers (`patrol_intent` for the patrol area, `patrol_report` for the report
 prose) sit on top of it, so the model can live on another machine and nothing
 else notices.
 
-    llm = RemoteLLMParser("http://166.104.223.32:8000/v1")
+    llm = RemoteLLMParser("http://127.0.0.1:11434/v1", "qwen2.5:3b-instruct")
     llm.generate("Answer in JSON.", "2층 전부 순찰해줘")
 
 Deliberately **stdlib only** (urllib) — the PC running Unity should need
 nothing beyond numpy, so don't reach for `requests` or the `openai` SDK here.
-The server can be `llm_server/serve.py` or any OpenAI-compatible runtime
-(vLLM, Ollama, llama.cpp); the wire format is the same.
+The server can be Ollama (the default), `llm_server/serve.py`, vLLM, or
+llama.cpp; the wire format is the same and nothing else in the repo notices.
 
 Self-test (needs data/ for the room directory):
-    python patrol/remote_llm.py --llm-url http://<host>:8000/v1 "2층 전부 순찰해줘"
+    python patrol/remote_llm.py "2층 전부 순찰해줘"                    # 로컬 Ollama
+    python patrol/remote_llm.py --llm-url http://<host>:8000/v1 ...   # GPU 서버
 """
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 import urllib.error
@@ -30,6 +32,37 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root
 
 DEFAULT_TIMEOUT = 60.0
 DEFAULT_RETRIES = 2
+
+# 기본은 **이 PC의 Ollama** 다. 학교 GPU 서버는 교내망 밖에서 막혀 있어
+# (166.104.223.32:8000/22 둘 다 filtered) VPN 없이는 못 붙는데, 이 파이프라인의
+# LLM 호출은 한 순찰에 2회뿐이고 3B면 노트북에서 충분히 돈다. 서버를 쓰려면
+# --llm-url http://<서버>:8000/v1 --llm-model Qwen/Qwen2.5-3B-Instruct 로 덮으면
+# 된다 — 프로토콜이 같아서 그게 전부다.
+DEFAULT_LLM_URL = "http://127.0.0.1:11434/v1"
+DEFAULT_LLM_MODEL = "qwen2.5:3b-instruct"
+
+# 학교 GPU 서버(`llm_server/serve.py`). 교내망 밖에서는 8000·22 둘 다 막혀 있어
+# **한양대 SSL VPN 을 켜야** 닿는다. 팀원이 주소를 외울 필요 없게 별칭을 뒀다:
+#     python api_server.py --llm-url gpu          (+ 토큰은 아래 환경변수)
+# 모델을 따로 안 주면 서버 쪽 모델 이름으로 같이 바뀐다 — Ollama 태그와 다르다.
+GPU_LLM_URL = "http://166.104.223.32:8000/v1"
+GPU_LLM_MODEL = "Qwen/Qwen2.5-3B-Instruct"
+API_KEY_ENV = "PATROL_LLM_API_KEY"     # 토큰을 명령줄에 안 남기려는 용도
+
+
+def resolve_llm(base_url: Optional[str], model_id: str,
+                api_key: Optional[str]) -> tuple[Optional[str], str, Optional[str]]:
+    """`--llm-url gpu` 별칭과 토큰 환경변수를 실제 값으로 편다.
+
+    두 진입점(api_server.py / patrol/server.py)이 같은 규칙을 쓰도록 여기 둔다.
+    """
+    if base_url == "gpu":
+        base_url = GPU_LLM_URL
+        if model_id == DEFAULT_LLM_MODEL:   # 사용자가 따로 안 준 경우만
+            model_id = GPU_LLM_MODEL
+    if not api_key:
+        api_key = os.environ.get(API_KEY_ENV) or None
+    return base_url, model_id, api_key
 
 
 class RemoteLLMError(RuntimeError):
@@ -81,9 +114,10 @@ class RemoteLLMParser:
             if attempt < self.retries:
                 time.sleep(0.5 * (attempt + 1))
         raise RemoteLLMError(
-            f"{last}\nIs the LLM server up on that host? Start it with\n"
-            f"    python llm_server/serve.py --port <port> --llm-device cuda:1\n"
-            f"and check --llm-url."
+            f"{last}\nLLM 서버가 안 떠 있습니다. 기본값은 이 PC의 Ollama 입니다:\n"
+            f"    ollama serve  (+ ollama pull {DEFAULT_LLM_MODEL})\n"
+            f"GPU 서버를 쓰려면 --llm-url http://<서버>:8000/v1 로 덮으세요.\n"
+            f"LLM 없이 나머지만 돌리려면 --llm-url \"\" (오프라인 모드)."
         )
 
     # -------------------------------------------------------------- public --
@@ -127,10 +161,15 @@ class RemoteLLMParser:
         except urllib.error.HTTPError:
             return []
         except (urllib.error.URLError, TimeoutError, OSError) as e:
+            # 학교 서버는 교내망 밖에서 아예 필터링돼 있어 증상이 '느림'이 아니라
+            # '무응답'이다. 팀원이 제일 자주 밟는 곳이라 여기서 VPN 을 짚어준다.
+            hint = ("\n한양대 SSL VPN 이 켜져 있는지 확인하세요 — 교내망 밖에서는 "
+                    "이 서버의 8000·22 가 둘 다 막혀 있습니다."
+                    if url.startswith(GPU_LLM_URL) else "")
             raise RemoteLLMError(
                 f"cannot reach the LLM server at {url}: {e}\n"
                 f"Check that it is running and that the port is open from here "
-                f"(curl {url})."
+                f"(curl {url}).{hint}"
             ) from e
 
 
@@ -160,10 +199,14 @@ class OfflineLLMParser:
         return []
 
 
-def make_llm(base_url: Optional[str], model_id: str = "Qwen/Qwen2.5-3B-Instruct",
+def make_llm(base_url: Optional[str], model_id: str = DEFAULT_LLM_MODEL,
              api_key: Optional[str] = None, timeout: float = DEFAULT_TIMEOUT,
-             reason: str = "--llm-url 없음"):
-    """`RemoteLLMParser` if there is a URL, `OfflineLLMParser` if there isn't."""
+             reason: str = '--llm-url ""'):
+    """`RemoteLLMParser` if there is a URL, `OfflineLLMParser` if there isn't.
+
+    Empty string counts as "no URL" — that is how `--llm-url ""` selects
+    offline mode now that the flag defaults to the local Ollama endpoint.
+    """
     if base_url:
         return RemoteLLMParser(base_url, model_id, api_key=api_key,
                                timeout=timeout)
@@ -189,8 +232,8 @@ def main() -> None:
     import argparse
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("query", nargs="+")
-    ap.add_argument("--llm-url", required=True)
-    ap.add_argument("--llm-model", default="Qwen/Qwen2.5-3B-Instruct")
+    ap.add_argument("--llm-url", default=DEFAULT_LLM_URL)
+    ap.add_argument("--llm-model", default=DEFAULT_LLM_MODEL)
     ap.add_argument("--llm-api-key", default=None)
     ap.add_argument("--llm-timeout", type=float, default=DEFAULT_TIMEOUT)
     ap.add_argument("--data-dir",
