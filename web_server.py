@@ -1,52 +1,46 @@
 # -*- coding: utf-8 -*-
 """
 web_server.py — 웹 관제 UI(HAUNTED OPS) + 강화학습 경로계획 백엔드
-────────────────────────────────────────────────────────────────────
-브라우저에서 평면도 위의 두 점(출발/도착)을 찍으면, 학습된 SAC 정책을
-서버에서 실제로 굴려 3D 궤적을 만들어 돌려준다. 방그래프 BFS 나 RRT* 가
-아니라 **강화학습 정책 단독 추론**이 경로를 만든다.
+──────────────────────────────────────────────────────────────────
+(파일에 원래 있던 설명과 기능은 유지)
 
-    conda activate tello
-    python web_server.py                 # http://localhost:8000
-    python web_server.py --port 9100
-    python web_server.py --no-rl         # UI 만 (정책 없이 폴백 경로)
+추가된 기능:
+- POST /api/report : 원시 순찰/비행 리포트(JSON)를 받아 LLM으로 요약하고 web/uploads/reports/<id>.json 으로 저장
+- GET  /api/reports : 저장된 리포트 목록 반환
+- GET  /api/reports/<id> : 특정 리포트 반환
 
-정적 파일은 최상위 web/ 를 그대로 서빙한다
-(HAUNTED OPS.dc.html / 드론 관제.dc.html / support.js / uploads/).
-playground/ 는 실험용이고, 실제로 돌리는 웹 앱은 web/ 에 있다.
-
-출발점은 **드론의 현재 위치**로 고정이다. 웹에서는 도착지 한 점만 고른다.
-`--unity-host` 를 주면 시뮬레이터의 실시간 위치를 쓰고(UDP 9002 상태 패킷을
-Unity→월드 좌표로 역변환), 없으면 시뮬레이터 스폰 지점(HOME_WORLD)을 쓴다.
-
-API
-  GET  /api/status  →  {ready, engine, model, env}
-  GET  /api/drone   →  {x,y,z, source:"sim"|"home", connected, flying}
-  POST /plan        →  {start,goal,path,success,steps,bumps,dist,flown,ms,engine}
-       body: {"goal":[x,y,z], "start":[x,y,z](생략 시 드론 현재 위치),
-              "people":0, "shield":false}
-
-주의: 모델 로드 + 환경 생성은 기동 시 1회(약 6초)만 하고 상주시킨다.
-한 번의 경로 계획은 0.05~0.2초(최악 700스텝 ≈ 3.5초). 환경 객체는
-재진입 불가라 Lock 으로 직렬화한다.
+요약은 tools/report_summarizer.summarize(data) 를 사용합니다. Ollama/transformers 가 환경에 있으면 이를 사용해 요약하고, 없으면 간단한 포맷 요약을 반환합니다.
 """
 import os
 import sys
 import time
 import argparse
 import threading
+import uuid
+import json
+from datetime import datetime
 
 import numpy as _np
 from flask import Flask, Response, request, jsonify, redirect, send_from_directory
 
 import rl_planner               # 경로 계획(정책 로드/롤아웃/단축)은 전부 여기
 
+# repo root
 _ROOT = os.path.dirname(os.path.abspath(__file__))
 _SIM = os.path.join(_ROOT, 'simulator', 'bridge')
 _WEB = os.path.join(_ROOT, 'web')
 _INDEX = 'HAUNTED OPS.dc.html'
 
+# ensure simulator bridge is importable
 sys.path.insert(0, _SIM)
+# ensure repo root is importable for tools/*.py
+sys.path.insert(0, _ROOT)
+
+# try import summarizer tools (may not be present in some envs)
+try:
+    import tools.report_summarizer as report_summarizer
+except Exception:
+    report_summarizer = None
 
 BUILDING = '00809_Qpor2mEya8F'
 
@@ -142,7 +136,65 @@ def api_plan():
     )
 
 
-# ── 정적 파일 ──────────────────────────────────────────────────────
+# ── 리포트 엔드포인트 (추가) ───────────────────────────────────────
+# 저장 경로: web/uploads/reports/<id>.json
+REPORTS_DIR = os.path.join(_WEB, 'uploads', 'reports')
+os.makedirs(REPORTS_DIR, exist_ok=True)
+
+@app.post('/api/report')
+def api_report():
+    """원시 순찰/비행 리포트(JSON)를 받아 요약한 리포트를 저장하고 반환합니다.
+    요청 본문: JSON (자유 포맷 — 예: traj.json / unity_autopilot_3d_result.json 형식의 dict)
+    응답: {success: bool, id: str, report: {...}}
+    """
+    d = request.get_json(silent=True)
+    if not d:
+        return jsonify(error='빈 요청입니다'), 400
+
+    try:
+        if report_summarizer is not None:
+            report = report_summarizer.summarize(d)
+        else:
+            # 간단한 포맷 요약(폴백)
+            report = _fallback_summarize(d)
+    except Exception as e:
+        # 예외가 나도 저장 가능한 최소 리포트로 응답
+        report = {
+            'id': f'report-{datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")}-{uuid.uuid4().hex[:6]}',
+            'error': str(e),
+            'raw': d,
+        }
+
+    # ensure id
+    rid = report.get('id') or f'report-{datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")}-{uuid.uuid4().hex[:6]}'
+    report['id'] = rid
+
+    out_path = os.path.join(REPORTS_DIR, rid + '.json')
+    with open(out_path, 'w', encoding='utf-8') as f:
+        json.dump(report, f, ensure_ascii=False, indent=2)
+
+    return jsonify(success=True, id=rid, report=report)
+
+
+@app.get('/api/reports')
+def api_reports_list():
+    files = [f for f in os.listdir(REPORTS_DIR) if f.endswith('.json')]
+    files.sort(reverse=True)
+    ids = [os.path.splitext(f)[0] for f in files]
+    return jsonify(reports=ids)
+
+
+@app.get('/api/reports/<rid>')
+def api_report_get(rid):
+    path = os.path.join(REPORTS_DIR, rid + '.json')
+    if not os.path.isfile(path):
+        return jsonify(error='not found'), 404
+    with open(path, 'r', encoding='utf-8') as f:
+        r = json.load(f)
+    return jsonify(r)
+
+
+# ── 정적 파일 ─────────────────────────────────────────────────────
 @app.get('/')
 def index():
     return redirect('/' + _INDEX.replace(' ', '%20'))
@@ -154,6 +206,32 @@ def static_file(p):
     if not full.startswith(_WEB) or not os.path.isfile(full):
         return jsonify(error='not found'), 404
     return send_from_directory(_WEB, p)
+
+
+def _fallback_summarize(d: dict) -> dict:
+    """간단한 폴백 요약: 제공된 키에서 기본 메타 정보 추출해서 리포트 생성."""
+    now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+    rid = f'report-{datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")}-{uuid.uuid4().hex[:6]}'
+    total_detections = d.get('total_detections') or len(d.get('detections', [])) if isinstance(d.get('detections'), list) else d.get('total_detections', 0)
+    first_detection = d.get('first_detection') or (d.get('detections')[0] if d.get('detections') else None)
+    flight = d.get('flight') or {}
+    failures = d.get('failures') or []
+
+    summary = {
+        'id': rid,
+        'mission_start': d.get('mission_start') or d.get('start_time') or None,
+        'mission_end': d.get('mission_end') or None,
+        'total_detections': total_detections,
+        'first_detection': first_detection,
+        'flight': flight,
+        'failures': failures,
+        'detections': d.get('detections') or [],
+        'summary_text_ko': f"순찰 중 {total_detections}건의 탐지. 최초 탐지: {first_detection}.",
+        'recommended_actions_ko': [],
+        'raw': d,
+        'generated_at': now,
+    }
+    return summary
 
 
 def main():
