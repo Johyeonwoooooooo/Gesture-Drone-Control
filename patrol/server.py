@@ -96,10 +96,12 @@ def main() -> None:
     ap.add_argument("--sim-transform", default=None,
                     help="Path to a calibrated transform JSON. Default: "
                          "simulator/bridge/transforms/<building>.json")
-    ap.add_argument("--sim-speed", type=float, default=2.0,
+    ap.add_argument("--sim-speed", type=float, default=6.0,
                     help="Flight speed in Unity units/s (house at scale 5, "
-                         "so 2.0 u/s = 0.4 m/s real).")
-    ap.add_argument("--sim-rc-limit", type=int, default=30)
+                         "so 6.0 u/s = 1.2 m/s real).")
+    ap.add_argument("--sim-rc-limit", type=int, default=60,
+                    help="rc magnitude cap. Must stay >= speed*100/15 or the "
+                         "clip caps the speed instead.")
     ap.add_argument("--sim-timeout", type=float, default=0.0,
                     help="Flight timeout seconds; 0 = auto from path length.")
     ap.add_argument("--sim-no-status", action="store_true",

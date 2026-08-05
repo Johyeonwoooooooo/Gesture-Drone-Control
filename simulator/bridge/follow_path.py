@@ -123,7 +123,14 @@ def follow_path(
 ) -> FollowResult:
     """Drive rc commands until the last waypoint is reached (or a failure)."""
     waypoints = [np.asarray(w, dtype=float) for w in waypoints_unity]
-    pid = WaypointPID(waypoints, arrival_threshold=arrival_threshold)
+    # kp 를 max_speed 에 묶는다. A* 웨이포인트가 0.15 m 격자라 다음 점까지의
+    # 오차가 threshold 언저리를 못 벗어나고, 고정 kp 로는 kp*오차 가 곧 순항
+    # 속도라 --sim-speed 를 올려도 안 빨라진다. 오차 = threshold 일 때 딱
+    # max_speed 가 나오게 두면 순항은 max_speed 로 포화하고 도착 직전에만
+    # 감속한다. 드론은 rc = 속도인 기구학 모델이라 관성 오버슈트는 없다.
+    pid = WaypointPID(waypoints,
+                      kp=max_speed / max(arrival_threshold, 1e-3),
+                      arrival_threshold=arrival_threshold)
 
     path_len = float(
         sum(np.linalg.norm(b - a) for a, b in zip(waypoints[:-1], waypoints[1:]))

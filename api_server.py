@@ -517,8 +517,10 @@ def main() -> None:
     ap.add_argument("--unity-port", type=int, default=9000)
     ap.add_argument("--unity-local-port", type=int, default=9001)
     ap.add_argument("--unity-state-port", type=int, default=9002)
-    ap.add_argument("--sim-speed", type=float, default=2.0)
-    ap.add_argument("--sim-rc-limit", type=int, default=30)
+    # 6.0 u/s = 1.2 m/s (집이 scale 5). rc-limit 는 speed*100/15 이상이어야
+    # 한다 — 아니면 rc 클리핑이 속도를 대신 깎는다.
+    ap.add_argument("--sim-speed", type=float, default=6.0)
+    ap.add_argument("--sim-rc-limit", type=int, default=60)
     ap.add_argument("--sim-timeout", type=float, default=0.0)
     # patrol
     ap.add_argument("--hover-height", type=float, default=1.2)

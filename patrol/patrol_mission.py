@@ -65,8 +65,8 @@ class PatrolConfig:
     light_off_after: bool = True
     max_events_per_room: int = 5
     return_home: bool = True
-    speed: float = 2.0               # Unity u/s
-    rc_limit: int = 30
+    speed: float = 6.0               # Unity u/s (= 1.2 m/s at house scale 5)
+    rc_limit: int = 60               # >= speed*100/15, or rc clipping caps it
     algo: str = "astar"
     leg_timeout: Optional[float] = None
     abort_on_collision: bool = False
