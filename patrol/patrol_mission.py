@@ -67,6 +67,8 @@ class PatrolConfig:
     return_home: bool = True
     speed: float = 6.0               # Unity u/s (= 1.2 m/s at house scale 5)
     rc_limit: int = 60               # >= speed*100/15, or rc clipping caps it
+    flight: str = "pid"              # 추종기: "pid" | "rl" (경로는 둘 다 A*)
+    data_dir: Optional[Path] = None  # flight="rl" 일 때 장애물 점군 출처
     algo: str = "astar"
     leg_timeout: Optional[float] = None
     abort_on_collision: bool = False
@@ -346,6 +348,14 @@ def run_patrol(bridge, sim_tf, points_world: np.ndarray, gm: planner.GridMeta,
     if follow_path_mod is None:  # injected by the server (repo-root sys.path)
         from simulator.bridge import follow_path as follow_path_mod  # type: ignore
 
+    # 강화학습 추종기는 쓸 때만 올린다 (장애물 KDTree 구성이 몇 초 걸린다).
+    rl = None
+    if cfg.flight == "rl":
+        from simulator.bridge import follow_rl as follow_rl_mod  # type: ignore
+        world = follow_rl_mod.GeoWorld.load(cfg.data_dir)
+        rl = (follow_rl_mod, world, follow_rl_mod.NumpyActor())
+        on_status(f"추종기: 강화학습 정책 (장애물 점 {len(world.coord):,}개)")
+
     def progress(kind: str, **payload) -> None:
         if on_progress is not None:
             try:
@@ -369,12 +379,27 @@ def run_patrol(bridge, sim_tf, points_world: np.ndarray, gm: planner.GridMeta,
         wps_unity = sim_tf.mosaic_to_unity(np.asarray(path, dtype=float))
         res.planned_path_unity.extend([[float(v) for v in p] for p in wps_unity])
         on_status(f"이동 중: {label} ({info['length_m']:.1f} m)")
-        fr = follow_path_mod.follow_path(
-            bridge, [tuple(p) for p in wps_unity],
-            max_speed=cfg.speed, rc_limit=cfg.rc_limit,
-            timeout_sec=cfg.leg_timeout,
-            abort_on_collision=cfg.abort_on_collision,
-            on_status=lambda t: on_status(f"  {t}"))
+        fr = None
+        if rl is not None:
+            rl_mod, rl_world, rl_actor = rl
+            fr = rl_mod.follow_rl(
+                bridge, np.asarray(path, dtype=float), sim_tf, rl_world, rl_actor,
+                max_speed=cfg.speed, rc_limit=cfg.rc_limit,
+                timeout_sec=cfg.leg_timeout,
+                abort_on_collision=cfg.abort_on_collision,
+                on_status=lambda t: on_status(f"  {t}"))
+            if not fr.success:
+                # 정책이 막히면 미션을 버리지 않고 PID 로 마저 간다. 남은 구간은
+                # 현재 위치에서 다시 계획된 게 아니라 원래 경로라, 이미 지나온
+                # 앞부분은 PID 가 알아서 건너뛴다(도착 판정 반경).
+                on_status(f"  RL 실패({fr.reason}) → PID 로 폴백")
+        if fr is None or not fr.success:
+            fr = follow_path_mod.follow_path(
+                bridge, [tuple(p) for p in wps_unity],
+                max_speed=cfg.speed, rc_limit=cfg.rc_limit,
+                timeout_sec=cfg.leg_timeout,
+                abort_on_collision=cfg.abort_on_collision,
+                on_status=lambda t: on_status(f"  {t}"))
         res.collisions += fr.collision_count
         res.trajectory_unity.extend([list(p) for p in fr.trajectory_unity])
         res.distance_m += float(info["length_m"]) if fr.success else 0.0

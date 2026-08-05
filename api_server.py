@@ -265,6 +265,7 @@ class MissionRunner:
             return_home=return_home,
             speed=float(a.sim_speed), rc_limit=int(a.sim_rc_limit),
             algo=a.algo, leg_timeout=(a.sim_timeout or None),
+            flight=a.flight, data_dir=Path(a.data_dir),
             events_dir=out_dir / "events",
             viz_dir=Path(a.viz_dir) if a.viz_dir else None,
         )
@@ -501,6 +502,8 @@ def main() -> None:
     ap.add_argument("--margin", type=int, default=1)
     ap.add_argument("--sample", type=int, default=1)
     ap.add_argument("--algo", default="astar", choices=["astar", "rrt"])
+    ap.add_argument("--flight", default="pid", choices=["pid", "rl"],
+                    help="구간 추종기. pid=기존 PID, rl=강화학습 정책(A* 경로를 따라가되 주변은 정책이 본다). rl 실패 시 자동으로 pid 폴백.")
     ap.add_argument("--rrt-iter", type=int, default=8000)
     # llm (never loaded here — llm_server/ holds the model).
     # Optional on purpose: without it the server runs offline (see the module

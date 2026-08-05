@@ -179,6 +179,21 @@ python simulator/bridge/calibrate_transform.py --building 00809_Qpor2mEya8F \
   순간이 오는데, 그 순간 이 성질이 깨진다. LLM 관련 코드를 추가할 때는
   `generate()` **위에** 얹을 것.
 
+- **강화학습 정책은 계획기가 아니라 추종기다** (`--flight rl`). 경로는 여전히
+  A* 가 준다. 학습(`playground/reinforce_learning`, `main` 브랜치)때 `--subgoal
+  2.5` 로 관측의 목표를 '최단경로 2.5 m 앞 carrot' 으로 바꿔 놨기 때문에 전역
+  경로가 밖에서 안 들어오면 정책은 목표 자체를 못 본다. 그래서 자리가
+  `follow_path`(PID) 자리다 — 얻는 건 주변을 보고 피하는 능력(레이 14개).
+  `follow_rl.py` 는 실패하면 곧바로 PID 로 폴백하므로 미션이 죽지 않는다.
+
+  **로컬 PC 에 torch 는 여전히 안 들어온다.** actor 가 21→256→256→3 MLP
+  하나(7.3만 파라미터)뿐이라 `rl_policy.py --export` 가 가중치를
+  `geo_actor.npz`(추적함, 290 KB)로 뽑고 추론은 numpy 로 한다. 뽑는 쪽만 env
+  `tello`(torch+SB3) 가 필요하다. 관측 21차원이 학습 때와 1비트라도 다르면
+  성공률이 조용히 떨어지므로 `follow_rl.py --check` 가 `geo_env` 원본과 레이
+  14개를 직접 대조한다 (현재 오차 0). 상수(`RAY_MAX`/`CLEARANCE`/`SUBGOAL_DIST`
+  …)는 학습 플래그와 짝이라 마음대로 바꾸면 안 된다.
+
 - **윈도우에서 인코딩은 utf-8 로 못 박는다.** 로그·보고서가 전부 한국어인데
   기본이 cp949 라 `—` 하나에 죽는다. 두 진입점이 시작할 때 `sys.stdout/stderr`
   를 utf-8 로 `reconfigure` 하고, 파일을 읽는 쪽(`report.json`)은

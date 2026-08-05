@@ -73,6 +73,8 @@ def main() -> None:
                     help="Per-request timeout, seconds.")
     # planner
     ap.add_argument("--algo", default="astar", choices=["astar", "rrt"])
+    ap.add_argument("--flight", default="pid", choices=["pid", "rl"],
+                    help="구간 추종기. pid=기존 PID, rl=강화학습 정책(A* 경로를 따라가되 주변은 정책이 본다). rl 실패 시 자동으로 pid 폴백.")
     ap.add_argument("--resolution", type=float, default=0.15)
     ap.add_argument("--margin", type=int, default=1)
     ap.add_argument("--sample", type=int, default=1,
@@ -274,6 +276,7 @@ def main() -> None:
             return_home=intent.return_home,
             speed=float(args.sim_speed), rc_limit=int(args.sim_rc_limit),
             algo=args.algo, leg_timeout=(args.sim_timeout or None),
+            flight=args.flight, data_dir=Path(args.data_dir),
             events_dir=out_dir / "events",
             viz_dir=Path(args.viz_dir) if args.viz_dir else None,
         )
