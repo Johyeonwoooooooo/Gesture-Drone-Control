@@ -104,6 +104,12 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
     """
     text = raw_text.lower()
     floors = _resolve_floors(intent, raw_text, index)
+    # The floors the USER actually spelled out, with the model's guess left out.
+    # `intent.floors_kr` is not a claim that a floor was mentioned — the 3B model
+    # volunteers one for nearly every query, floor 1 by default. That guess is
+    # fine as a hint for the broad tiers, but it must never veto a room the user
+    # named outright, so the alias tier filters on this instead.
+    text_floors = _resolve_floors(PatrolIntent(), raw_text, index)
     offset = next(iter(index.values())).floor_offset if index else 1
 
     # 1. explicit room ids from the LLM — but only ones the TEXT backs up.
@@ -118,11 +124,12 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
         return _dedup(picked)[:max_rooms], "방 코드 지정"
 
     # 2. alias substring match on the raw text (longest alias first).
-    #    A floor named in the text CONSTRAINS this tier. "2층 거실부터 순찰해줘"
-    #    must not land on the 1층 거실 just because those two letters appear —
-    #    an alias is a substring test, it knows nothing about 층. Without this
-    #    the tier fires on any passing mention and a correct floor sweep never
-    #    reaches tier 4.
+    #    A floor SPELLED IN THE TEXT constrains this tier. "2층 복도 순찰해줘"
+    #    must not drag in the 3층 corridors just because those two letters
+    #    appear — an alias is a substring test, it knows nothing about 층.
+    #    `text_floors`, not `floors`: filtering on the model's guessed floor
+    #    silently vetoes rooms the user named in full ("규철의 지하조직 본부" ->
+    #    the model volunteers 2층, the room is on 3층, the name loses).
     #    When the filter empties the list we FALL THROUGH rather than return the
     #    wrong-floor room: the user named a floor, so the type/floor tiers below
     #    answer it better than a confident miss.
@@ -132,8 +139,8 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
     for alias, room in pairs:
         if alias.lower() in text and room not in alias_hits:
             alias_hits.append(room)
-    if floors:
-        alias_hits = [r for r in alias_hits if r.floor in floors]
+    if text_floors:
+        alias_hits = [r for r in alias_hits if r.floor in text_floors]
     if alias_hits:
         return _dedup(alias_hits)[:max_rooms], f"별칭 매칭 ({alias_hits[0].aliases[0]})"
 
