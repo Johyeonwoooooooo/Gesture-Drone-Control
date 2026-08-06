@@ -228,7 +228,8 @@ class MissionRunner:
     def busy(self) -> bool:
         return self._thread is not None and self._thread.is_alive()
 
-    def start(self, rooms: List[RoomInfo], return_home: bool) -> str:
+    def start(self, rooms: List[RoomInfo], return_home: bool,
+              cmd: str = "") -> str:
         with self._lock:
             if self.busy:
                 raise HTTPException(409, "순찰이 이미 진행 중입니다")
@@ -237,7 +238,7 @@ class MissionRunner:
             self.abort_requested = False
             self.log.clear()
             self._thread = threading.Thread(
-                target=self._run, args=(rooms, return_home), daemon=True)
+                target=self._run, args=(rooms, return_home, cmd), daemon=True)
             self._thread.start()
             return self.mission_id
 
@@ -251,7 +252,8 @@ class MissionRunner:
         except Exception:
             pass
 
-    def _run(self, rooms: List[RoomInfo], return_home: bool) -> None:
+    def _run(self, rooms: List[RoomInfo], return_home: bool,
+             cmd: str = "") -> None:
         sc, a = self.scene, self.scene.args
         out_dir = patrol_report.report_dir_for(a.report_dir)
         cfg = patrol_mission.PatrolConfig(
@@ -278,8 +280,10 @@ class MissionRunner:
                 follow_path_mod=sc.follow_path)
             self.last_result = result
             self.last_report_dir = out_dir
-            patrol_report.build_report(result, rooms, "web console", out_dir,
-                                       llm=sc.llm)
+            # `cmd` 는 요약 프롬프트의 `사용자_명령` 이 된다 — 콘솔이 실제로 받은
+            # 한국어 문장이 들어가야 요약이 "무엇을 시켰는지"를 안다.
+            patrol_report.build_report(result, rooms, cmd or "web console",
+                                       out_dir, llm=sc.llm)
             self.log.append("report_ready", {"missionId": self.mission_id})
             self.state = "done"
         except Exception as e:
@@ -303,6 +307,9 @@ class StartRequest(BaseModel):
     # the array order IS the visit order — we do not re-sort it.
     targets: List[Dict[str, Any]]
     returnHome: bool = True
+    # 사용자가 콘솔에 친 문장. 보고서 요약 프롬프트의 `사용자_명령` 으로 들어간다.
+    # 선택 필드 — 안 보내면 예전처럼 "web console" 로 적힌다.
+    cmd: str = ""
 
 
 def build_app(scene: Scene) -> FastAPI:
@@ -427,7 +434,8 @@ def build_app(scene: Scene) -> FastAPI:
         # console polls `since=seq`, so a seq read afterwards would silently
         # skip whatever the thread already emitted — mission_start included.
         seq0 = log.seq
-        mission_id = mission.start(rooms, req.returnHome)
+        mission_id = mission.start(rooms, req.returnHome,
+                                   (req.cmd or "").strip())
         return {"missionId": mission_id,
                 "rooms": [r.room_name for r in rooms],
                 "seq": seq0}

@@ -155,6 +155,24 @@ python simulator/bridge/calibrate_transform.py --building 00809_Qpor2mEya8F \
   (`on_status`)과 **별개의 통로**이고, 웹이 문장을 파싱하는 일이 없도록 일부러
   갈라놨다. 새 진행 단계를 추가하면 `progress()` 한 줄과 `API.md` 표 한 줄.
 
+  **보고서만은 폴링이 아니다.** 진행 중에 나가는 이벤트에는 요약도 실측치도
+  없다 — 콘솔은 `report_ready` 를 받은 뒤 `GET /api/patrol/report/{id}` 를
+  **한 번** 불러 `report.json` 을 통째로 받는다(`fetchReport`/`reportView`).
+  거기서 LLM 요약문(`summary`)과 실측치(`facts`/`rooms`)가 같이 온다.
+
+- **보고서 화면의 숫자는 두 출처가 겹쳐 있다.** 뼈대는 브리핑 때 확정한 계획
+  (`live`)이고, 보고서가 도착하면 실측치가 그 위를 덮는다. 둘은 원래 다른
+  값이다 — `live.dist` 는 A\* 가 뽑은 **계획** 경로 길이, `facts.비행_거리_m` 는
+  **실제로 난** 거리다. `live.returnHome` 은 설정, `facts.복귀_완료` 는 결과다.
+  덮지 않으면 요약문("○○방에 도달하지 못했습니다")과 위쪽 표("2개 구역 순찰")가
+  서로 다른 얘기를 한다. 보고서를 못 받으면 계획값으로 되돌아가므로 화면이
+  비는 일은 없다.
+
+- **탐지를 방에 되짚을 땐 `display` 가 아니라 id 로 맞춘다.** 콘솔의 하드코딩
+  `LABELS` 와 `patrol/room_aliases.json` 이 같은 방을 다른 이름으로 부르므로
+  (§ `GET /api/rooms`) 이름 문자열끼리는 영영 안 맞는다. `detect` 이벤트가
+  `room: "002_012"` 를 같이 보내니 뒤 3자리를 콘솔 id 로 써서 맞춘다.
+
 - **LLM 인스턴스는 하나다.** server가 파서를 하나 만들어
   `patrol_intent`(순찰 구역 해석)와 `patrol_report`(보고서 문장)에 주입한다.
   이 둘이 파이프라인의 LLM 호출 전부다.
