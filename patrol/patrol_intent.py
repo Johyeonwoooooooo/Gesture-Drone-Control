@@ -117,13 +117,23 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
     if picked:
         return _dedup(picked)[:max_rooms], "방 코드 지정"
 
-    # 2. alias substring match on the raw text (longest alias first)
+    # 2. alias substring match on the raw text (longest alias first).
+    #    A floor named in the text CONSTRAINS this tier. "2층 거실부터 순찰해줘"
+    #    must not land on the 1층 거실 just because those two letters appear —
+    #    an alias is a substring test, it knows nothing about 층. Without this
+    #    the tier fires on any passing mention and a correct floor sweep never
+    #    reaches tier 4.
+    #    When the filter empties the list we FALL THROUGH rather than return the
+    #    wrong-floor room: the user named a floor, so the type/floor tiers below
+    #    answer it better than a confident miss.
     alias_hits: List[RoomInfo] = []
     pairs = sorted(((a, r) for r in index.values() for a in r.aliases),
                    key=lambda p: -len(p[0]))
     for alias, room in pairs:
         if alias.lower() in text and room not in alias_hits:
             alias_hits.append(room)
+    if floors:
+        alias_hits = [r for r in alias_hits if r.floor in floors]
     if alias_hits:
         return _dedup(alias_hits)[:max_rooms], f"별칭 매칭 ({alias_hits[0].aliases[0]})"
 
