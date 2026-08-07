@@ -179,11 +179,14 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
     #    wrong-floor room: the user named a floor, so the type/floor tiers below
     #    answer it better than a confident miss.
     alias_hits: List[RoomInfo] = []
+    matched: List[str] = []          # the alias strings that actually hit
     pairs = sorted(((a, r) for r in index.values() for a in r.aliases),
                    key=lambda p: -len(p[0]))
     for alias, room in pairs:
-        if alias.lower() in text and room not in alias_hits:
-            alias_hits.append(room)
+        if alias.lower() in text:
+            matched.append(alias)
+            if room not in alias_hits:
+                alias_hits.append(room)
     if text_floors:
         alias_hits = [r for r in alias_hits if r.floor in text_floors]
 
@@ -195,23 +198,28 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
     #     the directory (7B too), and without this the only thing left matching
     #     "규철이방" is the single letter 방, which lands on every bedroom.
     #
-    #     Gated on there being NO alias hit, because a full room name contains a
-    #     person too: "현우의 이중장부 서재" must stay one room, not become all
-    #     four 현우 rooms. Naming a room is the more specific request, so it wins.
-    #     The model's `picked` is dropped here as well — for a group request its
-    #     ids are guesses at which member to visit, and we want all of them.
+    #     A person whose name sits INSIDE a room name we already matched does not
+    #     count: "현우의 이중장부 서재" must stay one room, not become all four
+    #     현우 rooms — naming a room is the more specific request. But that check
+    #     is per person, not "any alias matched at all". In "규철이방 다랑 현우의
+    #     이중장부 서재 가줘" 현우 is spoken for by the matched name while 규철 is
+    #     not, so 규철 still opens up into its group and the two are unioned.
+    #     The model's `picked` is dropped for the group part — for a group request
+    #     its ids are guesses at which member to visit, and we want all of them.
+    spoken_for = " ".join(matched)
     person_hits: List[RoomInfo] = []
     people: List[str] = []
-    if not alias_hits:
-        for who, group in person_groups(index).items():
-            if who in raw_text:
-                people.append(who)
-                person_hits.extend(group)
+    for who, group in person_groups(index).items():
+        if who in raw_text and who not in spoken_for:
+            people.append(who)
+            person_hits.extend(group)
     if text_floors:
         person_hits = [r for r in person_hits if r.floor in text_floors]
     if person_hits:
-        return _capped(_dedup(person_hits),
-                       f"{'/'.join(sorted(people))} 관련 구역", max_rooms)
+        why = f"{'/'.join(sorted(people))} 관련 구역"
+        if alias_hits:
+            why += " + 방 이름 지정"
+        return _capped(_dedup(person_hits + alias_hits), why, max_rooms)
 
     # 2b. a KIND of room the model named ("3층 침실 전부") is a claim about the
     #     WHOLE request, so it joins the union too instead of losing to whatever
