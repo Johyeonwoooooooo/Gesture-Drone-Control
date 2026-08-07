@@ -229,6 +229,11 @@ scp -r <계정>@<서버IP>:/data1/.../data/final_npy ./data/
 Get-ChildItem -Recurse .\data\final_npy -Include color.npy,normal.npy | Remove-Item
 ```
 
+```bash
+# detections.json 파일 복사 (data/final_npy/ 미존재 시 로컬 백업본 1초 복사):
+cp web/uploads/detections.json data/final_npy/detections.json
+```
+
 없으면 `minyeong-3d` 브랜치 `litept_indoor/` (`infer_centers.py` → `export_json.py`)로
 생성한다. 이 브랜치에는 생성 파이프라인이 없다 — 결과만 읽는다.
 
@@ -755,5 +760,8 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 | 비행 중 `state lost` | 링크 끊김 — 자동 정지·착륙. 복구 후 `home` |
 | Unity 배너 한글 깨짐 | `--sim-no-status` 로 배너를 끌 수 있다 (REPL) |
 | Unity 임포트 실패 | 에디터 `6000.3.12f1` 확인, 인터넷 확인, `Library/` 삭제 후 재열기 |
-| `No detections.json` | 데이터 미동기화 — §2 |
+| `No detections.json` | `data/final_npy/detections.json` 미존재 — `cp web/uploads/detections.json data/final_npy/` 실행 |
+| `response time error` / `response timeout` | 요청 응답 시간 초과. ① YOLO 9100 안 떠있음 (`person_detector_tcp.py`) ② LLM 11434 안 떠있음 (`--llm-url ""`로 오프라인 실행 가능) ③ Unity가 Play(▶) 중이 아님 |
+| 탐지 바운딩 박스 딜레이 & 위치 오프셋 | Unity `PatrolPersonDetection`의 정지 구도 재캡처(Resnap)로 오프셋 자동 교정 적용 완료 |
+| 바운딩 박스 렌더링 및 지속 시간 | Unity 화면은 깔끔하게 비활성화되며 **웹 관제 UI** 및 **저장 사진(`_stamp.jpg`)**에만 레드 네온 CSS 스타일로 표시됨. 지속 시간은 **1.5초 (`ALERT_MS = 1500`)** |
 | (레거시) `relay client: Connection refused` | 서버 relay server(§4 부록 ①)가 안 떠 있음 |
