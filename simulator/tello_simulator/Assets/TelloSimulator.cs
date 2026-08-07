@@ -41,6 +41,12 @@ public class TelloSimulator : MonoBehaviour
     [Tooltip("Raw telemetry text (state, last command, rc, position, collisions). " +
              "Off by default — CamcorderHUD draws the in-fiction overlay instead.")]
     public bool showDebugHud = false;
+    [Tooltip("Seconds the pipeline's `msg` banner stays up before it fades out. " +
+             "Each new message restarts the clock, so a running patrol keeps its " +
+             "status on screen; the last one clears instead of sitting there " +
+             "forever (smoke.py's 'smoke test OK' used to never leave). " +
+             "0 or less = never hide.")]
+    public float statusMessageHoldSec = 8f;
 
     [Header("Flight Visualization")]
     [Tooltip("Draw a colored trail behind the drone while it flies. Off by " +
@@ -678,18 +684,36 @@ public class TelloSimulator : MonoBehaviour
         style.fontSize = 14;
 
         // Pipeline status banner (from the "msg" UDP command), top-center.
+        // It expires: without a timeout the last message sits there for the whole
+        // session — smoke.py's "smoke test OK" stayed on screen through every
+        // flight after it. Each new `msg` restarts the clock (see ProcessCommand),
+        // so a running patrol keeps its current status up.
         if (!string.IsNullOrEmpty(statusMessage))
         {
-            GUIStyle banner = new GUIStyle(GUI.skin.box);
-            banner.fontSize = 22;
-            banner.alignment = TextAnchor.MiddleCenter;
-            banner.wordWrap = true;
             float age = Time.unscaledTime - statusMessageTime;
-            GUI.color = age > 30f ? new Color(1f, 1f, 1f, 0.5f) : Color.white;
-            float width = Mathf.Min(Screen.width - 40f, 720f);
-            // y=72, not 12: on a narrow Game view the centered banner reaches far
-            // enough left to sit on top of CamcorderHUD's REC block.
-            GUI.Box(new Rect((Screen.width - width) / 2f, 72f, width, 44f), statusMessage, banner);
+            if (statusMessageHoldSec > 0f && age >= statusMessageHoldSec)
+            {
+                statusMessage = "";          // drop it; nothing else reads it
+            }
+            else
+            {
+                const float fadeSec = 1.5f;
+                float alpha = statusMessageHoldSec > 0f
+                    ? Mathf.Clamp01((statusMessageHoldSec - age) / fadeSec)
+                    : 1f;
+                GUIStyle banner = new GUIStyle(GUI.skin.box);
+                banner.fontSize = 22;
+                banner.alignment = TextAnchor.MiddleCenter;
+                banner.wordWrap = true;
+                Color prev = GUI.color;
+                GUI.color = new Color(1f, 1f, 1f, alpha);
+                float width = Mathf.Min(Screen.width - 40f, 720f);
+                // y=72, not 12: on a narrow Game view the centered banner reaches
+                // far enough left to sit on top of CamcorderHUD's REC block.
+                GUI.Box(new Rect((Screen.width - width) / 2f, 72f, width, 44f),
+                        statusMessage, banner);
+                GUI.color = prev;
+            }
         }
 
         // Raw telemetry readout. Off by default — CamcorderHUD owns the top-left
