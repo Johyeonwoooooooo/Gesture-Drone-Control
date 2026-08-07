@@ -396,6 +396,13 @@ public class PatrolPersonDetection : MonoBehaviour
             ? SaveDetectedFrame(finalJpg, finalYaw, finalResponse, detectedTargets)
             : "";
 
+        // Deduplicate web console events: if this is a duplicate sighting of an already-saved person,
+        // do not fire redundant ReportDetection events to the web UI.
+        if (saveNewPersonFrames && string.IsNullOrEmpty(imagePath))
+        {
+            return;
+        }
+
         Debug.Log($"[PatrolDetection] PERSON detected confidence={finalResponse.best_confidence:F2} "
                   + $"- resnapped at yaw={finalYaw:F1} (pause {pauseOnDetectionSeconds:F1}s)");
 
