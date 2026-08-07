@@ -150,13 +150,18 @@ GET /api/rooms
 ```
 POST /api/patrol/start
   {"targets":[{"room":"012","order":1},{"room":"014","order":2}],
-   "returnHome": true}
+   "returnHome": true,
+   "cmd": "2층 전부 순찰해줘"}
   → {"missionId":"20260803_133027", "rooms":["002_012","002_014"], "seq":0}
 ```
 
 `live` payload 를 그대로 보내도 된다 — 서버는 `targets[].room` 과
-`returnHome` 만 본다. **배열 순서가 방문 순서**이고 서버는 다시 정렬하지 않는다
-(콘솔의 `orderRooms()` 결과를 존중한다).
+`returnHome` 과 `cmd` 만 본다. **배열 순서가 방문 순서**이고 서버는 다시 정렬하지
+않는다 (콘솔의 `orderRooms()` 결과를 존중한다).
+
+`cmd` 는 **선택**이고, 사용자가 콘솔에 친 문장이다. 보고서 요약 프롬프트의
+`사용자_명령` 으로 들어가므로 이걸 보내면 요약문이 "무엇을 시켰는지"를 안다.
+생략하면 예전처럼 `"web console"` 로 적힌다.
 
 | | |
 |---|---|
@@ -200,7 +205,7 @@ GET /api/patrol/events?since=0
 | `detect` | `room`, `display`, `n`, `label`, `conf`, `box{l,t,w,h}`, `image` |
 | `returning` / `landed` | — |
 | `mission_end` | `flownMeters`, `durationSec`, `roomsReached`, `roomsPlanned`, `detections`, `collisions`, `returnedHome`, `abortedReason` (§4 — 사용자 중단은 안 채운다) |
-| `report_ready` | `missionId` |
+| `report_ready` | `missionId` — **콘솔이 이걸 받고 §5 를 부른다** |
 | `abort_requested` | — `POST /api/patrol/abort` 를 받은 순간 |
 | `status` | `text` — 사람이 읽는 한국어 한 줄. 화면에 그대로 흘려도 된다 |
 | `error` | `message` — 미션이 예외로 죽었다. `state` 도 `error` 가 된다 |
@@ -251,8 +256,28 @@ POST /api/patrol/abort → {"ok": true}
 
 ### 5. 기록 · `GET /api/patrol/report/<missionId>`
 
-`report.json` 을 그대로 돌려준다. 콘솔은 이미 자기 화면에서 보고서를 그리므로
-아직 안 부른다. 「기록」 화면의 하드코딩된 6건을 실제 기록으로 바꿀 때 쓴다.
+`report.json` 을 그대로 돌려준다. 붙는 자리는 **`HAUNTED OPS.dc.html` 의
+`fetchReport()`** — `onPatrolEvent()` 가 `report_ready` 를 보면 한 번 부른다.
+진행 이벤트에는 요약도 실측치도 없으므로 **이 한 번이 그 둘의 유일한 통로**다.
+
+콘솔이 쓰는 키는 셋이다:
+
+| 키 | 쓰는 곳 |
+|---|---|
+| `summary` | 보고서 화면 좌측 「AI 요약」 패널, 순찰 완료 화면 우측 패널. `patrol_report._llm_summary()` 가 쓴 한국어 3~5문장 |
+| `facts` | 개요 표 — `비행_거리_m`(실측), `소요_시간_초`, `복귀_완료`, `충돌_횟수`, `미도달_구역`, `중단_사유`, `탐지_건수` |
+| `rooms[]` | 구역별 결과 — `room_name`(뒤 3자리가 콘솔 id), `reached`, `reason`, `scan_degrees`, `events` |
+
+> **여기 숫자가 화면의 계획값과 다른 게 정상이다.** 브리핑의 「비행 거리」는 A\* 가
+> 뽑은 계획 경로 길이(`live.dist`)고 `facts.비행_거리_m` 는 실제로 난 거리다.
+> 콘솔은 보고서가 오면 실측치로 덮고, 못 받으면 계획값 그대로 그린다 — 요약문과
+> 표가 서로 다른 얘기를 하지 않도록.
+
+> **요약은 LLM 이 없어도 나온다.** 오프라인이거나 모델이 죽으면 서버가
+> `_fallback_summary()` 템플릿 문장으로 채워 보내므로 `summary` 가 비는 일은 없다.
+> 콘솔은 둘을 구분하지 않는다 (구분이 필요하면 `GET /api/status` 의 `llmOffline`).
+
+「기록」 화면의 하드코딩된 6건을 실제 기록으로 바꿀 때도 이걸 쓴다.
 
 > **가장 최근 순찰 하나만 꺼낼 수 있다.** 서버는 마지막 보고서 폴더만 들고
 > 있어서, `missionId` 가 현재 미션과 다르면 **404** 다. 지난 기록 목록이
@@ -274,5 +299,13 @@ POST /api/patrol/abort → {"ok": true}
 - **경로 엔진.** `/plan` 은 지금 A\* 다. 콘솔이 기대하던 SAC 정책(`rl_planner`)과
   통일할지는 아직 결정 전 — 응답 `engine` 필드가 어느 쪽이 답했는지 알려준다.
 - **`GET /api/rooms` 를 콘솔이 안 쓴다.** `LABELS` 하드코딩이 두 파일에 남아
-  있어 방 이름이 자연어 쪽과 어긋난 채다 (§1-b).
-- **지난 순찰 기록.** 최근 하나만 꺼낼 수 있다 (§5).
+  있어 **표시되는** 방 이름이 자연어 쪽과 어긋난 채다 (§1-b). 탐지를 방에 되짚는
+  쪽은 `detect` 의 `room`("002_012") 뒤 3자리로 맞추도록 고쳐서 이름 어긋남의
+  영향을 안 받는다 — 보고서의 요약문·구역별 결과에 뜨는 **이름**만 두 체계가
+  섞여 있다.
+- **지난 순찰 기록.** 최근 하나만 꺼낼 수 있다 (§5). 그래서 새 순찰을 시작하면
+  이전 보고서는 못 꺼낸다 — 콘솔도 `startMission()` 에서 `report` 를 비운다.
+- **중단한 순찰의 요약.** 서버는 중단된 미션도 보고서를 쓰지만, 콘솔의
+  `abortPatrol()` 이 폴링을 즉시 끊어 `report_ready` 를 못 본다. 그래서 「순찰
+  중단」 화면에는 요약이 없다 (그 화면 문구도 "보고서가 생성되지 않았습니다"인
+  채다).
