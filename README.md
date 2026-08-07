@@ -563,8 +563,10 @@ Hierarchy에 `tello`(드론) + `Main Camera` + `Qpor2mEya8F` 가 보이면 그�
 > (`npc_casual_set_00`)는 에셋스토어 패키지라 공개 저장소에 재배포하지 않는다.
 > `data/final_npy` 와 같은 취급이고 `.gitignore` 에 있다.
 >
+> **다운로드**: [npc_casual_set_00.zip (236 MB)](https://drive.google.com/file/d/1cs-2CJbU-i0UXxMR38-Jnjbm35F_xKhj/view?usp=share_link)
+>
 > ```bash
-> # 팀 공유 드라이브의 npc_casual_set_00.zip (약 236 MB) 을 받아서
+> # 받은 zip 을 저장소 루트에 두고
 > unzip npc_casual_set_00.zip -d simulator/tello_simulator/Assets/
 > ```
 >
