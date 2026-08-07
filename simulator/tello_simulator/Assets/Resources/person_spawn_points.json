@@ -1,0 +1,399 @@
+{
+ "building": "00809_Qpor2mEya8F",
+ "person_height_m": 1.8,
+ "hover_height": 1.2,
+ "note": "simulator/bridge/place_people.py 가 생성. 직접 고치지 말 것.",
+ "spawns": [
+  {
+   "room": "000_002",
+   "display": "1층 거실 000_002 (거실)",
+   "index": 0,
+   "unity_position": [
+    -29.277,
+    0.2,
+    1.992
+   ],
+   "unity_yaw": 64.5,
+   "unity_scale": 5.0,
+   "world": [
+    5.855,
+    -0.398,
+    -3.06
+   ]
+  },
+  {
+   "room": "000_002",
+   "display": "1층 거실 000_002 (거실)",
+   "index": 1,
+   "unity_position": [
+    -23.096,
+    0.2,
+    -2.256
+   ],
+   "unity_yaw": 4.5,
+   "unity_scale": 5.0,
+   "world": [
+    4.619,
+    0.451,
+    -3.06
+   ]
+  },
+  {
+   "room": "000_002",
+   "display": "1층 거실 000_002 (거실)",
+   "index": 2,
+   "unity_position": [
+    -18.259,
+    0.2,
+    11.402
+   ],
+   "unity_yaw": 214.5,
+   "unity_scale": 5.0,
+   "world": [
+    3.652,
+    -2.28,
+    -3.06
+   ]
+  },
+  {
+   "room": "001_004",
+   "display": "2층 침실 001_004",
+   "index": 0,
+   "unity_position": [
+    -28.188,
+    15.44,
+    -3.962
+   ],
+   "unity_yaw": 64.5,
+   "unity_scale": 5.0,
+   "world": [
+    5.638,
+    0.792,
+    -0.012
+   ]
+  },
+  {
+   "room": "001_004",
+   "display": "2층 침실 001_004",
+   "index": 1,
+   "unity_position": [
+    -17.171,
+    15.44,
+    5.448
+   ],
+   "unity_yaw": 214.5,
+   "unity_scale": 5.0,
+   "world": [
+    3.434,
+    -1.09,
+    -0.012
+   ]
+  },
+  {
+   "room": "001_004",
+   "display": "2층 침실 001_004",
+   "index": 2,
+   "unity_position": [
+    -31.032,
+    15.44,
+    2.024
+   ],
+   "unity_yaw": 106.0,
+   "unity_scale": 5.0,
+   "world": [
+    6.206,
+    -0.405,
+    -0.012
+   ]
+  },
+  {
+   "room": "001_005",
+   "display": "2층 화장실 001_005",
+   "index": 0,
+   "unity_position": [
+    -59.44,
+    15.5,
+    9.766
+   ],
+   "unity_yaw": 309.2,
+   "unity_scale": 5.0,
+   "world": [
+    11.888,
+    -1.953,
+    0.0
+   ]
+  },
+  {
+   "room": "001_006",
+   "display": "2층 식당 001_006 (주방)",
+   "index": 0,
+   "unity_position": [
+    -10.919,
+    15.424,
+    -31.989
+   ],
+   "unity_yaw": 86.7,
+   "unity_scale": 5.0,
+   "world": [
+    2.184,
+    6.398,
+    -0.015
+   ]
+  },
+  {
+   "room": "001_007",
+   "display": "2층 거실 001_007",
+   "index": 0,
+   "unity_position": [
+    -28.347,
+    15.433,
+    -33.073
+   ],
+   "unity_yaw": 296.7,
+   "unity_scale": 5.0,
+   "world": [
+    5.669,
+    6.615,
+    -0.013
+   ]
+  },
+  {
+   "room": "002_011",
+   "display": "3층 거실 002_011",
+   "index": 0,
+   "unity_position": [
+    -38.805,
+    30.982,
+    -26.576
+   ],
+   "unity_yaw": 4.5,
+   "unity_scale": 5.0,
+   "world": [
+    7.761,
+    5.315,
+    3.096
+   ]
+  },
+  {
+   "room": "002_011",
+   "display": "3층 거실 002_011",
+   "index": 1,
+   "unity_position": [
+    -31.252,
+    30.982,
+    -27.934
+   ],
+   "unity_yaw": 321.8,
+   "unity_scale": 5.0,
+   "world": [
+    6.25,
+    5.587,
+    3.096
+   ]
+  },
+  {
+   "room": "002_011",
+   "display": "3층 거실 002_011",
+   "index": 2,
+   "unity_position": [
+    -28.777,
+    30.982,
+    -7.442
+   ],
+   "unity_yaw": 219.0,
+   "unity_scale": 5.0,
+   "world": [
+    5.755,
+    1.488,
+    3.096
+   ]
+  },
+  {
+   "room": "002_012",
+   "display": "3층 침실 002_012 (현우방)",
+   "index": 0,
+   "unity_position": [
+    -16.953,
+    30.984,
+    -27.672
+   ],
+   "unity_yaw": 64.5,
+   "unity_scale": 5.0,
+   "world": [
+    3.391,
+    5.534,
+    3.097
+   ]
+  },
+  {
+   "room": "002_012",
+   "display": "3층 침실 002_012 (현우방)",
+   "index": 1,
+   "unity_position": [
+    -13.412,
+    30.984,
+    -17.674
+   ],
+   "unity_yaw": 154.5,
+   "unity_scale": 5.0,
+   "world": [
+    2.682,
+    3.535,
+    3.097
+   ]
+  },
+  {
+   "room": "002_013",
+   "display": "3층 거실 002_013",
+   "index": 0,
+   "unity_position": [
+    -34.944,
+    31.018,
+    6.817
+   ],
+   "unity_yaw": 49.5,
+   "unity_scale": 5.0,
+   "world": [
+    6.989,
+    -1.363,
+    3.104
+   ]
+  },
+  {
+   "room": "002_013",
+   "display": "3층 거실 002_013",
+   "index": 1,
+   "unity_position": [
+    -40.413,
+    31.018,
+    13.01
+   ],
+   "unity_yaw": 96.8,
+   "unity_scale": 5.0,
+   "world": [
+    8.083,
+    -2.602,
+    3.104
+   ]
+  },
+  {
+   "room": "002_014",
+   "display": "3층 침실 002_014 (규철방)",
+   "index": 0,
+   "unity_position": [
+    -53.533,
+    31.007,
+    -22.051
+   ],
+   "unity_yaw": 229.5,
+   "unity_scale": 5.0,
+   "world": [
+    10.707,
+    4.41,
+    3.101
+   ]
+  },
+  {
+   "room": "002_014",
+   "display": "3층 침실 002_014 (규철방)",
+   "index": 1,
+   "unity_position": [
+    -50.222,
+    31.007,
+    -33.653
+   ],
+   "unity_yaw": 306.8,
+   "unity_scale": 5.0,
+   "world": [
+    10.044,
+    6.731,
+    3.101
+   ]
+  },
+  {
+   "room": "002_015",
+   "display": "3층 화장실 002_015",
+   "index": 0,
+   "unity_position": [
+    -58.043,
+    31.011,
+    10.86
+   ],
+   "unity_yaw": 287.2,
+   "unity_scale": 5.0,
+   "world": [
+    11.609,
+    -2.172,
+    3.102
+   ]
+  },
+  {
+   "room": "002_016",
+   "display": "3층 침실 002_016",
+   "index": 0,
+   "unity_position": [
+    -8.37,
+    31.014,
+    6.65
+   ],
+   "unity_yaw": 4.5,
+   "unity_scale": 5.0,
+   "world": [
+    1.674,
+    -1.33,
+    3.103
+   ]
+  },
+  {
+   "room": "002_017",
+   "display": "3층 화장실 002_017",
+   "index": 0,
+   "unity_position": [
+    -49.307,
+    30.96,
+    -5.624
+   ],
+   "unity_yaw": 292.3,
+   "unity_scale": 5.0,
+   "world": [
+    9.861,
+    1.125,
+    3.092
+   ]
+  },
+  {
+   "room": "002_018",
+   "display": "3층 침실 002_018",
+   "index": 0,
+   "unity_position": [
+    -28.638,
+    31.015,
+    -4.688
+   ],
+   "unity_yaw": 79.2,
+   "unity_scale": 5.0,
+   "world": [
+    5.728,
+    0.938,
+    3.103
+   ]
+  },
+  {
+   "room": "002_020",
+   "display": "3층 미분류 002_020",
+   "index": 0,
+   "unity_position": [
+    -5.999,
+    30.996,
+    -6.812
+   ],
+   "unity_yaw": 41.7,
+   "unity_scale": 5.0,
+   "world": [
+    1.2,
+    1.362,
+    3.099
+   ]
+  }
+ ]
+}
