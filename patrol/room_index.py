@@ -270,6 +270,30 @@ def scan_pose(room: RoomInfo, hover_height: float,
     return planner.voxel_to_world(gm, v) if v is not None else base
 
 
+# "현우의 수상한 지하 벙커" -> 현우.  이름은 표로 들고 있지 않고 라벨에서 뽑는다
+# — 라벨이 정본이라(room_aliases.json 의 첫 별칭이 웹 화면 이름이다) 저쪽이
+# 바뀌면 그룹도 저절로 따라간다. 사람이 안 붙은 라벨("그냥 복도 (아마도)",
+# "다 같이 모이는 척하는 감시실", "2층 복도 …")은 그냥 안 걸린다.
+_PERSON_RE = re.compile(r"^([가-힣]{2,3})(?:의|이)\s")
+
+
+def person_groups(index: Dict[str, RoomInfo]) -> Dict[str, List[RoomInfo]]:
+    """사람 이름 -> 그 사람 이름이 붙은 방들.
+
+    이 건물의 화면 이름이 사람 단위로 짜여 있어서 "규철이방 다", "현우 관련
+    구역" 같은 부름이 자연스럽게 나온다. 방 종류·층에 이은 세 번째 묶음 축이다.
+    """
+    groups: Dict[str, List[RoomInfo]] = {}
+    for name in sorted(index):
+        r = index[name]
+        if not r.aliases:
+            continue
+        m = _PERSON_RE.match(r.aliases[0])
+        if m:
+            groups.setdefault(m.group(1), []).append(r)
+    return groups
+
+
 def order_rooms(rooms: Sequence[RoomInfo], start_world,
                 pinned: Sequence[RoomInfo] = ()) -> List[RoomInfo]:
     """Visit order: what the user asked for first, then greedy nearest-neighbour.

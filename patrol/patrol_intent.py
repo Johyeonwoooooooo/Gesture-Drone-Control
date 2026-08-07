@@ -20,10 +20,11 @@ from typing import Dict, List, Optional, Sequence
 
 try:
     from patrol.litept_backend import ROOM_KW_MAP
-    from patrol.room_index import RoomInfo, room_directory_text
+    from patrol.room_index import RoomInfo, person_groups, room_directory_text
 except ImportError:  # plain-script import path
     from litept_backend import ROOM_KW_MAP  # type: ignore
-    from room_index import RoomInfo, room_directory_text  # type: ignore
+    from room_index import (RoomInfo, person_groups,  # type: ignore
+                            room_directory_text)
 
 PATROL_SYSTEM_PROMPT = """You pick the patrol area for an indoor drone from a natural-language command.
 
@@ -185,6 +186,32 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
             alias_hits.append(room)
     if text_floors:
         alias_hits = [r for r in alias_hits if r.floor in text_floors]
+
+    # 2a. a PERSON named in the text, when no single room was ("규철이방 다
+    #     순찰해줘", "현우 관련 구역 전부"). The screen names of this building are
+    #     organised by person — 규철 owns four of them — so a person reads as a
+    #     group the same way 화장실 reads as a kind. Neither the LLM nor the rest
+    #     of the tiers can do it: a 3B scores 0/5 picking "the 현우 ones" out of
+    #     the directory (7B too), and without this the only thing left matching
+    #     "규철이방" is the single letter 방, which lands on every bedroom.
+    #
+    #     Gated on there being NO alias hit, because a full room name contains a
+    #     person too: "현우의 이중장부 서재" must stay one room, not become all
+    #     four 현우 rooms. Naming a room is the more specific request, so it wins.
+    #     The model's `picked` is dropped here as well — for a group request its
+    #     ids are guesses at which member to visit, and we want all of them.
+    person_hits: List[RoomInfo] = []
+    people: List[str] = []
+    if not alias_hits:
+        for who, group in person_groups(index).items():
+            if who in raw_text:
+                people.append(who)
+                person_hits.extend(group)
+    if text_floors:
+        person_hits = [r for r in person_hits if r.floor in text_floors]
+    if person_hits:
+        return _capped(_dedup(person_hits),
+                       f"{'/'.join(sorted(people))} 관련 구역", max_rooms)
 
     # 2b. a KIND of room the model named ("3층 침실 전부") is a claim about the
     #     WHOLE request, so it joins the union too instead of losing to whatever
