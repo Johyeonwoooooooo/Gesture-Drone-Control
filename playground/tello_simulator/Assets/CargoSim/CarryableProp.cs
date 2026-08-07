@@ -50,6 +50,9 @@ public class CarryableProp : MonoBehaviour
         rb.isKinematic = true;
         // The drone is a CharacterController; its own cargo must never block it.
         col.enabled = false;
+        // Clamp rigidly onto the drone: parented + kinematic means the prop shares the
+        // drone's transform exactly (no swinging, no lag). Kept upright and aligned to
+        // the drone's heading so it reads as clamped to the body, not slung underneath.
         transform.SetParent(holder, true);
         transform.position = worldPosition;
         transform.rotation = Quaternion.Euler(0f, holder.eulerAngles.y, 0f);
@@ -69,9 +72,14 @@ public class CarryableProp : MonoBehaviour
         Transform holder = transform.parent;
         transform.SetParent(null, true);
         col.enabled = true;
-        // While carried the physics pose was frozen at the pickup point; write the
-        // current transform pose into the body BEFORE re-enabling dynamics so the
-        // prop falls from where it visually is, not from where it was grabbed.
+
+        // Set the cargo DOWN cleanly on whatever surface is directly below, instead of
+        // letting it free-fall and bounce. This is the "내려놓기" (place-down) behaviour:
+        // the prop is snapped to rest on the ground/pad, upright, with zero velocity.
+        PlaceOnSurfaceBelow(holder);
+
+        // Write the resolved pose into the body BEFORE re-enabling dynamics so the prop
+        // settles from where it is placed, not from where it was grabbed.
         rb.position = transform.position;
         rb.rotation = transform.rotation;
         rb.isKinematic = false;
@@ -80,6 +88,47 @@ public class CarryableProp : MonoBehaviour
         if (holder != null)
         {
             StartCoroutine(TemporarilyIgnoreHolder(holder));
+        }
+    }
+
+    // Snap the prop so it rests on the highest surface directly beneath it, upright.
+    // The drone's own colliders and the prop's own collider are ignored. If nothing is
+    // found within reach the prop keeps its current pose and simply falls (old behaviour).
+    void PlaceOnSurfaceBelow(Transform holder)
+    {
+        float halfHeight = (rend != null) ? rend.bounds.extents.y : 0.2f;
+
+        // Keep the prop upright, preserving only its heading.
+        transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
+
+        Vector3 origin = transform.position + Vector3.up * 0.05f;
+        RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, 12f, ~0,
+                                               QueryTriggerInteraction.Ignore);
+        float surfaceY = float.NegativeInfinity;
+        bool found = false;
+        foreach (RaycastHit h in hits)
+        {
+            if (h.collider == col)
+            {
+                continue;   // the prop's own (re-enabled) collider
+            }
+            if (holder != null && (h.collider.transform == holder
+                                   || h.collider.transform.IsChildOf(holder)))
+            {
+                continue;   // the drone
+            }
+            if (h.point.y > surfaceY)
+            {
+                surfaceY = h.point.y;   // topmost surface below = ground / pad
+                found = true;
+            }
+        }
+
+        if (found)
+        {
+            Vector3 p = transform.position;
+            p.y = surfaceY + halfHeight + 0.01f;
+            transform.position = p;
         }
     }
 

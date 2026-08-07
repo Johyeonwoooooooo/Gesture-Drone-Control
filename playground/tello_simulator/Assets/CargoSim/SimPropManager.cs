@@ -17,6 +17,9 @@ using UnityEngine;
 //   spawn <shape> <x> <y> <z> [scale] [rel]  place a new prop (box | sphere | barrel);
 //                                            "rel" interprets x/y/z in the drone's local frame
 //   clearobjects                             remove every spawned prop
+//   ghost [count]                            import free-roaming ghost(s) that wander the scene
+//   clearghosts                              remove every spawned ghost
+//   avoid on | avoid off                     toggle the drone's dynamic ghost-avoidance assist
 //
 // The layout comes from Assets/StreamingAssets/cargo_layout.json when present,
 // otherwise a built-in demo layout is used. Layout coordinates are relative to the
@@ -55,13 +58,16 @@ public class SimPropManager : MonoBehaviour
 
     private TelloSimulator simulator;
     private DroneCargo cargo;
+    private DroneAvoidance avoidance;
     private Vector3 droneStartPos;
     private Quaternion droneStartRot;
     private int spawnCounter;
 
     private readonly List<CarryableProp> props = new List<CarryableProp>();
     private readonly List<DropZone> zones = new List<DropZone>();
+    private readonly List<GhostRoamer> ghosts = new List<GhostRoamer>();
     private readonly List<Transform> billboards = new List<Transform>();
+    private int ghostCounter;
 
     private static readonly Color[] SpawnPalette =
     {
@@ -94,6 +100,12 @@ public class SimPropManager : MonoBehaviour
         if (cargo == null)
         {
             cargo = simulator.gameObject.AddComponent<DroneCargo>();
+        }
+
+        avoidance = simulator.GetComponent<DroneAvoidance>();
+        if (avoidance == null)
+        {
+            avoidance = simulator.gameObject.AddComponent<DroneAvoidance>();
         }
 
         simulator.commandHook = HandleCommand;
@@ -422,6 +434,108 @@ public class SimPropManager : MonoBehaviour
         Debug.Log("[Cargo] Cleared all props.");
     }
 
+    // ------------------------------------------------------------------ ghost (자유 배회)
+
+    // Imports a free-roaming "ghost" that wanders the scanned scene on its own. It floats,
+    // has no collider (so it neither blocks nor is grabbed by the drone), and steers around
+    // walls with raycasts. Spawned near the drone at a floor-relative height.
+    GhostRoamer SpawnGhost()
+    {
+        ghostCounter++;
+
+        // Start near the drone but offset to the side so multiple ghosts fan out.
+        float angle = ghostCounter * 2.399963f;                 // golden-angle spread
+        Vector3 offset = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * 3f;
+        Vector3 spawn = simulator.transform.position + offset;
+        if (Physics.Raycast(spawn + Vector3.up * 4f, Vector3.down, out RaycastHit hit, 80f,
+                            ~0, QueryTriggerInteraction.Ignore))
+        {
+            spawn.y = hit.point.y + 2.5f;
+        }
+        else
+        {
+            spawn.y = simulator.transform.position.y + 2.5f;
+        }
+
+        GameObject go = new GameObject($"ghost_{ghostCounter}");
+        go.transform.position = spawn;
+
+        Color ghostColor = new Color(0.65f, 0.85f, 1f);         // pale cyan-white
+
+        // Wispy body: a faint translucent outer shell around a brighter core. No colliders,
+        // so the ghost cannot bump the drone or register as an obstacle for it.
+        GameObject shell = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        shell.name = "Body";
+        shell.transform.SetParent(go.transform, false);
+        shell.transform.localScale = Vector3.one * 1.6f;
+        Destroy(shell.GetComponent<Collider>());
+        shell.GetComponent<Renderer>().material = MakeGhostMaterial(ghostColor, 0.22f);
+
+        GameObject core = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        core.name = "Core";
+        core.transform.SetParent(go.transform, false);
+        core.transform.localScale = Vector3.one * 0.9f;
+        core.transform.localPosition = Vector3.up * 0.15f;
+        Destroy(core.GetComponent<Collider>());
+        core.GetComponent<Renderer>().material = MakeGhostMaterial(ghostColor, 0.5f);
+
+        MakeLabel(go.transform, "유령", 1.4f, ghostColor, 1f);
+
+        GhostRoamer ghost = go.AddComponent<GhostRoamer>();
+        ghosts.Add(ghost);
+        Debug.Log($"[Cargo] Ghost '{go.name}' imported at {spawn} — now free-roaming.");
+        return ghost;
+    }
+
+    void ClearGhosts()
+    {
+        foreach (GhostRoamer ghost in ghosts)
+        {
+            if (ghost != null)
+            {
+                Transform label = ghost.transform.Find("Label");
+                if (label != null)
+                {
+                    billboards.Remove(label);
+                }
+                Destroy(ghost.gameObject);
+            }
+        }
+        ghosts.Clear();
+        Debug.Log("[Cargo] Cleared all ghosts.");
+    }
+
+    // Best-effort transparent material. Uses URP/Lit's transparent surface when available
+    // (URP is the project's pipeline) and falls back to the unlit Sprites shader otherwise.
+    static Material MakeGhostMaterial(Color color, float alpha)
+    {
+        color.a = alpha;
+        Shader urp = Shader.Find("Universal Render Pipeline/Lit");
+        if (urp != null)
+        {
+            Material mat = new Material(urp);
+            mat.SetFloat("_Surface", 1f);                        // 0 = opaque, 1 = transparent
+            mat.SetFloat("_Blend", 0f);                          // alpha blend
+            mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_ZWrite", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.DisableKeyword("_ALPHATEST_ON");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            mat.color = color;
+            if (mat.HasProperty("_EmissionColor"))
+            {
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", new Color(color.r, color.g, color.b) * 0.6f);
+            }
+            return mat;
+        }
+
+        Material fallback = new Material(Shader.Find("Sprites/Default"));
+        fallback.color = color;
+        return fallback;
+    }
+
     // ------------------------------------------------------------------ visuals
 
     static Material MakeLitMaterial(Color color)
@@ -545,6 +659,34 @@ public class SimPropManager : MonoBehaviour
             HandleSpawnCommand(cmd);
             return true;
         }
+        if (cmd == "ghost" || cmd.StartsWith("ghost "))
+        {
+            int count = 1;
+            string[] gp = cmd.Split(' ');
+            if (gp.Length > 1)
+            {
+                int.TryParse(gp[1], out count);
+            }
+            for (int i = 0; i < Mathf.Clamp(count, 1, 20); i++)
+            {
+                SpawnGhost();
+            }
+            return true;
+        }
+        if (cmd == "clearghosts")
+        {
+            ClearGhosts();
+            return true;
+        }
+        if (cmd == "avoid on" || cmd == "avoid off")
+        {
+            if (avoidance != null)
+            {
+                avoidance.avoidanceEnabled = cmd.EndsWith("on");
+                Debug.Log($"[Cargo] Dynamic avoidance {(avoidance.avoidanceEnabled ? "ON" : "OFF")}.");
+            }
+            return true;
+        }
         return false;
     }
 
@@ -649,17 +791,46 @@ public class SimPropManager : MonoBehaviour
         string carrying = (cargo != null && cargo.carried != null)
             ? "\"" + cargo.carried.propName + "\""
             : "null";
+        // Ghost positions ride along on the 20Hz state stream so the autonomous mission
+        // can steer around these moving obstacles in its guidance loop.
         return "\"carrying\":" + carrying
              + ",\"delivered\":" + DeliveredCount().ToString(CultureInfo.InvariantCulture)
-             + ",\"props_total\":" + AliveProps().ToString(CultureInfo.InvariantCulture);
+             + ",\"props_total\":" + AliveProps().ToString(CultureInfo.InvariantCulture)
+             + ",\"ghosts\":" + GhostsJson();
+    }
+
+    string GhostsJson()
+    {
+        StringBuilder sb = new StringBuilder(64);
+        sb.Append('[');
+        bool first = true;
+        foreach (GhostRoamer g in ghosts)
+        {
+            if (g == null)
+            {
+                continue;
+            }
+            if (!first)
+            {
+                sb.Append(',');
+            }
+            first = false;
+            Vector3 p = g.transform.position;
+            sb.Append("{\"x\":").Append(p.x.ToString("F3", CultureInfo.InvariantCulture))
+              .Append(",\"y\":").Append(p.y.ToString("F3", CultureInfo.InvariantCulture))
+              .Append(",\"z\":").Append(p.z.ToString("F3", CultureInfo.InvariantCulture))
+              .Append('}');
+        }
+        sb.Append(']');
+        return sb.ToString();
     }
 
     void OnGUI()
     {
         GUIStyle style = new GUIStyle(GUI.skin.label);
         style.fontSize = 14;
-        GUI.Label(new Rect(10, 185, 620, 25),
-            $"[Cargo] Delivered: {DeliveredCount()}/{AliveProps()}   " +
-            "(UDP: grab / drop / objects / spawn / clearobjects)", style);
+        GUI.Label(new Rect(10, 185, 820, 25),
+            $"[Cargo] Delivered: {DeliveredCount()}/{AliveProps()}   Ghosts: {ghosts.Count}   " +
+            "(UDP: grab / drop / objects / spawn / clearobjects / ghost / clearghosts / avoid)", style);
     }
 }

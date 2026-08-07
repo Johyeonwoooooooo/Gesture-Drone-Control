@@ -1,33 +1,30 @@
 using UnityEngine;
 
-// Gives the simulated drone a magnetic-winch style cargo hook: "grab" attaches the
-// nearest carryable prop below the drone, "drop" releases it. Added to the drone at
-// runtime by SimPropManager; commands arrive through TelloSimulator's UDP hook.
+// Gives the simulated drone a rigid cargo clamp: "grab" snaps the nearest carryable
+// prop directly onto the drone's underside (no dangling tether), "drop" releases it and
+// sets it down cleanly on the surface below. Added to the drone at runtime by
+// SimPropManager; commands arrive through TelloSimulator's UDP hook.
+//
+// Previous behaviour hung the prop 1.1 m below the drone and drew a LineRenderer
+// "tether", so the cargo read as a sling load swinging on a string. It now clamps flush
+// to the belly and moves as one rigid body with the drone.
 public class DroneCargo : MonoBehaviour
 {
     [Tooltip("Maximum distance from the drone to a prop for a grab to succeed.")]
     public float grabRadius = 2.5f;
-    [Tooltip("How far below the drone the carried prop hangs.")]
-    public float carryDistance = 1.1f;
+    [Tooltip("Extra gap left between the drone's underside and the top of the carried " +
+             "prop. 0 = the prop touches the belly. A small value avoids z-fighting.")]
+    public float clampClearance = 0.02f;
+    [Tooltip("Fallback centre-to-centre carry offset used only if the drone/prop bounds " +
+             "cannot be measured (e.g. a prop with no renderer).")]
+    public float carryDistance = 0.35f;
 
     public CarryableProp carried { get; private set; }
 
-    private LineRenderer tether;
-
-    void Awake()
-    {
-        GameObject tetherGO = new GameObject("CargoTether");
-        tetherGO.transform.SetParent(transform, false);
-        tether = tetherGO.AddComponent<LineRenderer>();
-        tether.positionCount = 2;
-        tether.startWidth = 0.06f;
-        tether.endWidth = 0.06f;
-        tether.material = new Material(Shader.Find("Sprites/Default"));
-        tether.startColor = new Color(1f, 0.8f, 0.2f, 0.9f);
-        tether.endColor = new Color(1f, 0.8f, 0.2f, 0.9f);
-        tether.useWorldSpace = true;
-        tether.enabled = false;
-    }
+    // Signed offset from the drone root's position down to the lowest point of its own
+    // model, measured once and reused so every grab clamps the prop to the same belly line.
+    private float undersideOffset;
+    private bool undersideMeasured;
 
     public bool TryGrab()
     {
@@ -58,10 +55,10 @@ public class DroneCargo : MonoBehaviour
             return false;
         }
 
-        best.Attach(transform, transform.position + Vector3.down * carryDistance);
+        Vector3 mount = ComputeMountPosition(best);
+        best.Attach(transform, mount);
         carried = best;
-        tether.enabled = true;
-        Debug.Log($"[Cargo] Grabbed '{best.propName}' ({bestDist:F2}m).");
+        Debug.Log($"[Cargo] Grabbed '{best.propName}' ({bestDist:F2}m) — clamped flush to the drone.");
         return true;
     }
 
@@ -76,26 +73,54 @@ public class DroneCargo : MonoBehaviour
         Debug.Log($"[Cargo] Dropped '{carried.propName}'.");
         carried.Release();
         carried = null;
-        tether.enabled = false;
         return true;
     }
 
-    void LateUpdate()
+    // World position at which the carried prop's centre should sit so its top face is
+    // clamped against the drone's belly, directly under the drone's XZ centre.
+    Vector3 ComputeMountPosition(CarryableProp prop)
     {
-        if (carried != null)
+        float droneBottom = transform.position.y + MeasureUndersideOffset();
+
+        float propHalfHeight = carryDistance;   // fallback if the prop has no renderer
+        Renderer propRend = prop.GetComponentInChildren<Renderer>();
+        if (propRend != null)
         {
-            tether.SetPosition(0, transform.position);
-            tether.SetPosition(1, carried.transform.position);
+            propHalfHeight = propRend.bounds.extents.y;
         }
+
+        float centreY = droneBottom - clampClearance - propHalfHeight;
+        return new Vector3(transform.position.x, centreY, transform.position.z);
     }
 
-    void OnGUI()
+    // Distance from the drone root down to the bottom of its own visible model. Cached:
+    // the model does not change shape, and the carried prop must never be counted here.
+    float MeasureUndersideOffset()
     {
-        GUIStyle style = new GUIStyle(GUI.skin.label);
-        style.fontSize = 14;
-        GUI.color = carried != null ? new Color(1f, 0.75f, 0.2f) : Color.white;
-        string text = carried != null ? $"[Cargo] Carrying: {carried.propName}" : "[Cargo] Carrying: -";
-        GUI.Label(new Rect(10, 160, 520, 25), text, style);
-        GUI.color = Color.white;
+        if (undersideMeasured)
+        {
+            return undersideOffset;
+        }
+
+        bool found = false;
+        float minY = float.MaxValue;
+        foreach (Renderer r in GetComponentsInChildren<Renderer>())
+        {
+            // Skip billboards/labels and anything belonging to a carried prop.
+            if (r.GetComponentInParent<CarryableProp>() != null)
+            {
+                continue;
+            }
+            if (r is TrailRenderer || r is LineRenderer)
+            {
+                continue;
+            }
+            minY = Mathf.Min(minY, r.bounds.min.y);
+            found = true;
+        }
+
+        undersideOffset = found ? (minY - transform.position.y) : -carryDistance;
+        undersideMeasured = true;
+        return undersideOffset;
     }
 }

@@ -7,9 +7,15 @@ Unity 시뮬레이터(tello_simulator, Play 상태)와 UDP로 통신하면서
 
 흐름:
   1. 이륙 (takeoff)
-  2. "objects" 명령으로 화물/배달구역 위치 수신
+  2. "objects" 명령으로 화물/배달구역 위치 수신 + 유령(동적 장애물) 임포트
   3. 각 화물에 대해: 화물 위로 비행 → grab → 배달구역으로 비행 → drop
+     (이동 구간에서는 상태 스트림의 유령 위치를 받아 퍼텐셜 필드로 우회)
   4. 전부 배달되면 착륙 후 결과 리포트 출력
+
+자율 회피:
+  Unity가 20Hz 상태 스트림에 유령 위치("ghosts")를 실어 보내고, goto()가 목표
+  인력 + 유령 반발을 합쳐 rc를 계산한다. 화물 접근/투하 등 정밀 하강 구간에서는
+  avoid=False로 회피를 꺼서 정렬을 유지한다.
 
 실행 전 준비:
   - Unity에서 tello_simulator 프로젝트를 열고 Play 버튼을 누른다.
@@ -110,12 +116,45 @@ def clamp(v: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, v))
 
 
+# ── 유령(동적 장애물) 회피 파라미터 ────────────────────────────────
+GHOST_AVOID_RADIUS = 5.0    # m — 이 거리 안의 유령에 대해 반발력 발생
+GHOST_AVOID_GAIN = 55.0     # 반발 rc 세기 (목표 인력과 합쳐지는 퍼텐셜 필드)
+GHOST_AVOID_LIFT = 12.0     # 유령 근접 시 살짝 상승시켜 위로 넘어감
+
+
+def ghost_avoidance(st, yaw):
+    """상태 스트림의 유령 위치로부터 반발 rc(드론 로컬 프레임)를 계산.
+
+    각 유령을 반발원으로 보는 퍼텐셜 필드. goto()의 목표 추종(인력) 성분에
+    더해져, 드론이 목표로 가면서도 움직이는 유령을 우회하도록 만든다.
+    """
+    ghosts = st.get("ghosts") or []
+    a_lr = a_fb = a_ud = 0.0
+    for g in ghosts:
+        dx = st["x"] - g["x"]      # 월드상 '유령 → 드론' 벡터
+        dz = st["z"] - g["z"]
+        dh = math.hypot(dx, dz)
+        if dh >= GHOST_AVOID_RADIUS or dh < 1e-3:
+            continue
+        strength = (GHOST_AVOID_RADIUS - dh) / GHOST_AVOID_RADIUS   # 0..1 (가까울수록 큼)
+        ux, uz = dx / dh, dz / dh                                   # away 단위벡터(월드)
+        # 월드 → 드론 로컬 (goto의 목표 변환과 동일한 규약)
+        llx = ux * math.cos(yaw) - uz * math.sin(yaw)              # 로컬 우측 성분
+        llz = ux * math.sin(yaw) + uz * math.cos(yaw)              # 로컬 전방 성분
+        a_lr += llx * GHOST_AVOID_GAIN * strength
+        a_fb += llz * GHOST_AVOID_GAIN * strength
+        a_ud += GHOST_AVOID_LIFT * strength
+    return a_lr, a_fb, a_ud
+
+
 def goto(sim: SimClient, tx: float, ty: float, tz: float,
          tol_xz: float = 0.35, tol_y: float = 0.3, timeout: float = 30.0,
-         label: str = "") -> bool:
+         label: str = "", avoid: bool = True) -> bool:
     """
     P 제어로 월드 좌표 (tx, ty, tz)까지 비행.
     rc 명령은 드론 로컬 프레임이므로 yaw로 월드 오차를 회전 변환한다.
+    avoid=True이면 이동 중 유령(동적 장애물)을 퍼텐셜 필드로 우회한다.
+    (정밀 작업인 화물 접근/투하 하강에서는 avoid=False로 꺼서 정렬을 지킨다.)
     """
     KP_XZ = 28.0   # rc단위 / m
     KP_Y = 35.0
@@ -142,9 +181,21 @@ def goto(sim: SimClient, tx: float, ty: float, tz: float,
         lx = dx * math.cos(yaw) - dz * math.sin(yaw)   # 로컬 우측 성분
         lz = dx * math.sin(yaw) + dz * math.cos(yaw)   # 로컬 전방 성분
 
-        lr = int(clamp(lx * KP_XZ, -MAX_RC, MAX_RC))
-        fb = int(clamp(lz * KP_XZ, -MAX_RC, MAX_RC))
-        ud = int(clamp(dy * KP_Y, -MAX_RC, MAX_RC))
+        # 목표 인력(P 제어) 성분
+        cmd_lr = lx * KP_XZ
+        cmd_fb = lz * KP_XZ
+        cmd_ud = dy * KP_Y
+
+        # 유령(동적 장애물) 반발 성분 — 이동 중에만
+        if avoid:
+            a_lr, a_fb, a_ud = ghost_avoidance(st, yaw)
+            cmd_lr += a_lr
+            cmd_fb += a_fb
+            cmd_ud += a_ud
+
+        lr = int(clamp(cmd_lr, -MAX_RC, MAX_RC))
+        fb = int(clamp(cmd_fb, -MAX_RC, MAX_RC))
+        ud = int(clamp(cmd_ud, -MAX_RC, MAX_RC))
 
         sim.send(f"rc {lr} {fb} {ud} 0")
         time.sleep(0.05)
@@ -185,7 +236,8 @@ def grab_with_retry(sim: SimClient, prop_name: str, px: float, py: float, pz: fl
     """화물 직상공에서 수직 하강하며 grab 시도"""
     hover = py + 1.2
     for attempt in range(attempts):
-        goto(sim, px, hover, pz, tol_xz=0.25, tol_y=0.2, label=f"{prop_name} 접근")
+        goto(sim, px, hover, pz, tol_xz=0.25, tol_y=0.2,
+             label=f"{prop_name} 접근", avoid=False)
         sim.send("rc 0 0 0 0")
         time.sleep(0.3)
         sim.send("grab")
@@ -233,6 +285,13 @@ def main():
         print("배달할 화물이 없습니다.")
         sim.close()
         return
+
+    # ── 동적 장애물(유령) 배치 ─────────────────────────────────
+    # 자율 배달 중 움직이는 유령을 퍼텐셜 필드로 우회하는 것을 보여주기 위해
+    # 씬에 유령 2기를 임포트한다. (이미 씬에 있으면 그만큼 더 늘어난다)
+    print("[+] 유령 2기 임포트 — 자율 회피 대상")
+    sim.send("ghost 2")
+    time.sleep(0.5)
 
     # ── 이륙 후 순항고도 확보 ──────────────────────────────────
     # 환경(스캔 메시)이 5배 스케일이라 가구가 3~5m 높이다. 가구 위·천장 아래의
@@ -282,10 +341,11 @@ def main():
         goto(sim, zone["x"], cruise_y, zone["z"], tol_xz=0.35, timeout=40,
              label="배달구역 상공 이동")
 
-        # 패드 위로 수직 하강 (화물이 1.1m 아래에 매달리므로 패드 위 0.7m까지)
-        drop_y = zone["y"] + 1.8
+        # 패드 위로 수직 하강. 화물은 이제 드론 배면에 딱 붙어(리지드 클램프) 운반되고,
+        # drop 시 바로 아래 표면에 스냅되어 놓인다. 드론을 패드 가까이 내린 뒤 투하한다.
+        drop_y = zone["y"] + 1.2
         on_target = goto(sim, zone["x"], drop_y, zone["z"], tol_xz=0.25,
-                         label="패드 위 하강")
+                         label="패드 위 하강", avoid=False)
         if not on_target:
             # 한 번 더: 다시 올라가서 재접근
             print("  [i] 패드 재접근 시도")
@@ -293,7 +353,7 @@ def main():
             goto(sim, st["x"], cruise_y, st["z"], label="재상승")
             goto(sim, zone["x"], cruise_y, zone["z"], tol_xz=0.3, label="상공 재정렬")
             on_target = goto(sim, zone["x"], drop_y, zone["z"], tol_xz=0.25,
-                             label="패드 위 재하강")
+                             label="패드 위 재하강", avoid=False)
 
         # 놓기 (투하 직전의 배달 수를 기준으로 성공 판정)
         sim.send("rc 0 0 0 0")

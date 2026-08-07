@@ -40,8 +40,10 @@ def main():
     print("  A / D   : 좌이동 / 우이동")
     print("  R / F   : 상승 / 하강")
     print("  Q / E   : 좌회전 / 우회전")
-    print("  G / H   : 화물 잡기 / 놓기")
+    print("  G / H   : 화물 잡기(드론에 딱 붙음) / 놓기(바닥에 내려놓음)")
     print("  B       : 앞에 박스 생성")
+    print("  N / M   : 유령 임포트(자유 배회) / 유령 전부 제거")
+    print("  V       : 유령 회피 어시스트 On/Off")
     print("  ESC     : 종료")
     print("=" * 50)
 
@@ -65,7 +67,7 @@ def main():
 
     # Pygame 초기화
     pygame.init()
-    win = pygame.display.set_mode((400, 300))
+    win = pygame.display.set_mode((400, 340))
     pygame.display.set_caption("Tello Simulator Controller — 이 창 클릭 후 조종")
 
     font = pygame.font.SysFont("malgun gothic", 18)  # 한글 폰트
@@ -73,6 +75,7 @@ def main():
     speed   = 50   # RC 값 (-100 ~ 100)
     running = True
     is_flying = False
+    avoid_on = True   # 유령 회피 어시스트 (유니티 기본값 ON과 일치)
 
     clock = pygame.time.Clock()
 
@@ -113,6 +116,20 @@ def main():
                     resp = send_command(sock, "spawn box 0 0.5 2 0.4 rel")
                     print(f"[박스 생성] 전송 → 응답: {resp}")
 
+                elif event.key == pygame.K_n:
+                    # 유령 임포트 → 씬을 자유롭게 배회
+                    resp = send_command(sock, "ghost")
+                    print(f"[유령 임포트] 전송 → 응답: {resp}")
+
+                elif event.key == pygame.K_m:
+                    resp = send_command(sock, "clearghosts")
+                    print(f"[유령 제거] 전송 → 응답: {resp}")
+
+                elif event.key == pygame.K_v:
+                    avoid_on = not avoid_on
+                    resp = send_command(sock, "avoid on" if avoid_on else "avoid off")
+                    print(f"[유령 회피 {'ON' if avoid_on else 'OFF'}] 전송 → 응답: {resp}")
+
         # ── RC 값 계산 ───────────────────────────────────────────────────────
         keys = pygame.key.get_pressed()
 
@@ -149,6 +166,9 @@ def main():
             ("T:이륙  L:착륙  ESC:종료",       (150, 150, 150)),
             ("WASD:이동  RF:상하  QE:회전",    (150, 150, 150)),
             ("G:잡기  H:놓기  B:박스생성",     (150, 150, 150)),
+            ("N:유령임포트  M:유령제거",       (150, 150, 150)),
+            (f"V:유령회피 [{'ON' if avoid_on else 'OFF'}]",
+                (255, 140, 40) if avoid_on else (150, 150, 150)),
         ]
 
         for i, (text, color) in enumerate(lines):

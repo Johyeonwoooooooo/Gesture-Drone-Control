@@ -71,6 +71,11 @@ public class TelloSimulator : MonoBehaviour
 
     private bool isFlying = false;
     private bool shouldQuit = false;
+
+    // Read-only view of the flight state for add-on systems (e.g. dynamic avoidance),
+    // which must never dodge or move the controller while the drone is landed.
+    public bool IsFlying => isFlying;
+
     private bool hadCollision = false;
     private string lastCommand = "";
     private int collisionCount = 0;
