@@ -4,7 +4,7 @@ The one LLM prompt in the pipeline that decides where the drone goes. It sits
 on top of `generate(system, user)` and resolves its answer to concrete
 `RoomInfo`s.
 
-    "현우방만 탐색해줘"     -> rooms=[002_012]
+    "현우방만 탐색해줘"     -> rooms=[현우 소유 방 전부]
     "2층 전부 순찰해줘"     -> rooms=[all floor-1 rooms]
 
 Room resolution never relies on the LLM alone — an alias/keyword/floor scan of
@@ -44,7 +44,7 @@ Always answer with a single JSON object, no prose, no markdown fences.
 Examples:
 
 User: 현우방만 탐색해줘
-{"target_rooms":["002_012"],"room_types":[],"floors":[],"scope":"room","return_home":true}
+{"target_rooms":["000_002","001_007","002_014","002_019"],"room_types":[],"floors":[],"scope":"room","return_home":true}
 
 User: 2층 전부 순찰해줘
 {"target_rooms":[],"room_types":[],"floors":[2],"scope":"floor","return_home":true}
@@ -106,18 +106,26 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
     floors = _resolve_floors(intent, raw_text, index)
     offset = next(iter(index.values())).floor_offset if index else 1
 
-    # 1. explicit room ids from the LLM — but only ones the TEXT backs up.
-    #    Asked something off-topic ("냉장고 찾아줘"), the 3B model still fills
-    #    target_rooms with plausible-looking ids. Silently patrolling three
-    #    invented rooms is worse than admitting we did not understand, so a id
-    #    only counts if its code, one of its aliases, or its type/floor shows
-    #    up in what the user actually wrote.
+    # Room ids the LLM named — but only ones the TEXT backs up. Asked something
+    # off-topic ("냉장고 찾아줘"), the 3B model still fills target_rooms with
+    # plausible-looking ids. Silently patrolling three invented rooms is worse
+    # than admitting we did not understand, so an id only counts if its code,
+    # one of its aliases, or its type/floor shows up in what the user wrote.
     picked = [index[r] for r in intent.target_rooms
               if r in index and _text_backs_room(index[r], text, floors)]
-    if picked:
-        return _dedup(picked)[:max_rooms], "방 코드 지정"
 
-    # 2. alias substring match on the raw text (longest alias first)
+    # 1. alias substring match on the raw text (longest alias first).
+    #    This outranks the model's own id list, because it is derived from the
+    #    user's literal words — "현우" is in the text or it is not. Asked for
+    #    현우's rooms the 3B model reliably answers with ONE of the four, and a
+    #    partial answer that short-circuits this scan is worse than no answer:
+    #    the console then shows one room where the user asked for a person.
+    #
+    #    The model's picks are NOT merged in here. room_aliases.json names all
+    #    22 rooms, so a hit is already the complete answer, and the union only
+    #    added noise: "거실 해줘" pulled in 002_019 because the model offered it
+    #    and it happens to be typed `living`, so asking for 거실 also flew to
+    #    "현우의 음모 회의실".
     alias_hits: List[RoomInfo] = []
     pairs = sorted(((a, r) for r in index.values() for a in r.aliases),
                    key=lambda p: -len(p[0]))
@@ -125,7 +133,20 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
         if alias.lower() in text and room not in alias_hits:
             alias_hits.append(room)
     if alias_hits:
-        return _dedup(alias_hits)[:max_rooms], f"별칭 매칭 ({alias_hits[0].aliases[0]})"
+        matched = alias_hits[0].aliases[0]
+        # A floor said out loud narrows the hits: "복도" names three rooms on
+        # three floors, so "2층 복도만" must not fly to all of them. Only
+        # applied when something survives — an explicit name outranks a floor.
+        if floors:
+            on_floor = [r for r in alias_hits if r.floor in floors]
+            if on_floor:
+                alias_hits = on_floor
+                matched += f", {'/'.join(str(f + offset) for f in sorted(floors))}층"
+        return _dedup(alias_hits)[:max_rooms], f"별칭 매칭 ({matched})"
+
+    # 2. room ids from the LLM, when no alias in the text pinned anything down
+    if picked:
+        return _dedup(picked)[:max_rooms], "방 코드 지정"
 
     # 3. room types (LLM list, else a Korean keyword scan)
     types = list(intent.room_types)

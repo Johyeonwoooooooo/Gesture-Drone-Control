@@ -6,15 +6,46 @@
     "Edit freely: keys are room_name (the <floor>_<room> dir suffix), values are",
     "a list of aliases. They are injected into the LLM room directory and are",
     "also matched by plain substring as a fallback when the LLM misses.",
-    "floor_offset: floor index 0 is displayed as this 층 number (1 = 0 -> '1층')."
+    "floor_offset: floor index 0 is displayed as this 층 number (1 = 0 -> '1층').",
+    "",
+    "FIRST alias of each room = the name the web console prints for it (its",
+    "hardcoded LABELS table, web/드론 관제.dc.html). Those two lists MUST agree:",
+    "the user types the name they see on screen, and this file is the only",
+    "place that turns a name into a room. They used to disagree completely —",
+    "'현우방' resolved to 002_012, which the console draws as '채원의 금고가",
+    "있다는 소문의 방' — so asking for 현우's rooms selected 채원's. If you",
+    "change a label in the console, change it here in the same commit.",
+    "",
+    "The bare given names (현우/규철/채원/민영/지윤) are deliberate: '현우방만",
+    "순찰해줘' has to select every room that belongs to 현우, not one of them.",
+    "Substring matching does the rest ('현우' is inside '현우방')."
   ],
   "building": "00809_Qpor2mEya8F",
   "floor_offset": 1,
   "aliases": {
-    "000_002": ["거실", "리빙룸"],
-    "000_003": ["안방"],
-    "001_006": ["주방", "부엌"],
-    "002_012": ["현우방", "현우 방"],
-    "002_014": ["규철방", "규철 방"]
+    "000_002": ["현우의 수상한 지하 벙커", "현우", "거실", "리빙룸"],
+    "000_003": ["규철이 숨겨둔 비밀 무기고", "규철", "안방"],
+
+    "001_004": ["다 같이 모이는 척하는 감시실", "감시실"],
+    "001_005": ["채원의 심문실(추정)", "채원", "심문실"],
+    "001_006": ["민영의 정체불명 실험실", "민영", "실험실", "주방", "부엌"],
+    "001_007": ["현우의 도청 장비실", "현우", "도청 장비실"],
+    "001_008": ["규철의 알리바이 조작실", "규철", "알리바이 조작실"],
+    "001_009": ["지윤의 블랙박스 보관소", "지윤", "블랙박스 보관소"],
+    "001_010": ["그냥 복도 (아마도)", "복도"],
+
+    "002_011": ["2층 복도 (CCTV 사각지대)", "CCTV 사각지대", "복도"],
+    "002_012": ["채원의 금고가 있다는 소문의 방", "채원", "금고"],
+    "002_013": ["민영의 출입금지 구역", "민영", "출입금지 구역"],
+    "002_014": ["현우의 이중장부 서재", "현우", "이중장부 서재", "서재"],
+    "002_015": ["지윤의 위장 세탁소", "지윤", "위장 세탁소"],
+    "002_016": ["규철의 지하조직 본부", "규철", "지하조직 본부"],
+    "002_017": ["채원의 변장 도구실", "채원", "변장 도구실"],
+    "002_018": ["민영의 해킹 작전실", "민영", "해킹 작전실"],
+    "002_019": ["현우의 음모 회의실", "현우", "음모 회의실"],
+    "002_020": ["지윤의 증거 인멸실", "지윤", "증거 인멸실"],
+    "002_021": ["규철의 탈출 통로 입구", "규철", "탈출 통로"],
+    "002_022": ["채원의 폭탄 해체 연습실", "채원", "폭탄 해체 연습실"],
+    "002_023": ["그냥 복도 (믿지 마세요)", "복도"]
   }
 }
