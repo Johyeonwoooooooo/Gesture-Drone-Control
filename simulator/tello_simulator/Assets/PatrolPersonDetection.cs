@@ -356,9 +356,12 @@ public class PatrolPersonDetection : MonoBehaviour
         personDetectionLatched = true;
         nextDetectionAlertTime = Time.time + detectionAlertCooldownSeconds;
 
-        // One raycast pass for duplicate filter and saved-frame bookkeeping.
+        // 1. Immediately freeze the drone on the exact frame of detection
+        tello.PauseForDetection(pauseOnDetectionSeconds);
+
         List<PersonTarget> detectedTargets = FindDetectedPersonTargets(response);
 
+        // 2. Perform image save (disk I/O)
         string imagePath = saveNewPersonFrames && jpg != null
             ? SaveDetectedFrame(jpg, yaw, response, detectedTargets)
             : "";
@@ -366,8 +369,7 @@ public class PatrolPersonDetection : MonoBehaviour
         Debug.Log($"[PatrolDetection] PERSON detected confidence={response.best_confidence:F2} "
                   + $"- pause {pauseOnDetectionSeconds:F1}s");
 
-        // Percent of the frame, not pixels — that is what the web console draws
-        // in, so nothing between here and the browser rescales.
+        // 3. Immediately report detection event to pipeline
         float w = Mathf.Max(1f, imageWidth);
         float h = Mathf.Max(1f, imageHeight);
         tello.ReportDetection(
@@ -378,8 +380,6 @@ public class PatrolPersonDetection : MonoBehaviour
             (best.x2 - best.x1) / w * 100f,
             (best.y2 - best.y1) / h * 100f,
             imagePath);
-
-        tello.PauseForDetection(pauseOnDetectionSeconds);
     }
 
     private DetectionBox BestBox(DetectionResponse response)
