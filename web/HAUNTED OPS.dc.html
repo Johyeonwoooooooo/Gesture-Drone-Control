@@ -847,7 +847,7 @@ class Component extends DCLogic {
   //
   // 배너와 박스는 2초만 보이고 사라진다(ALERT_MS). 발견 사실은 우측 목록과
   // 순찰 보고서에 남으므로 화면에 계속 붙어 있을 이유가 없다.
-  ALERT_MS = 2000;
+  ALERT_MS = 1500;
   reportDetection(d) {
     d = d || {};
     const dets = this.state.detections;
@@ -921,9 +921,8 @@ class Component extends DCLogic {
       .then(j => {
         this.missionId = j.missionId;
         this.evSeq = j.seq || 0;
-        // 폴링. 콘솔에 WebSocket 이 없어서 since 커서로 받는다 — 탭이
-        // 백그라운드로 가도 놓치는 이벤트가 없다.
-        this.pollIv = setInterval(() => this.pollPatrol(), 1200);
+        // 폴링. 빠른 웹 UI 반응속도를 위해 200ms 주기로 이벤트를 수신한다.
+        this.pollIv = setInterval(() => this.pollPatrol(), 200);
       })
       .catch(e => this.toast(`순찰 시작 실패 — ${(e && e.detail) || '서버 무응답'}`));
   }

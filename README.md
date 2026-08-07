@@ -31,6 +31,8 @@
  api_server.py  (patrol/ 두뇌, numpy만)
    ↕ HTTP localhost :11434    Ollama — qwen2.5:3b-instruct   ← 기본
    ↕ UDP localhost 9000/9002  Unity 시뮬레이터 (Play 중)
+                                ↕ TCP localhost :9100
+                              person_detector_tcp.py — YOLO 사람 탐지
 ```
 
 학교 GPU 서버(`llm_server/serve.py`, §1)를 쓰고 싶으면 `--llm-url` 로 갈아끼우면
@@ -48,6 +50,7 @@
 | API → Unity | UDP **9000** | `command`/`takeoff`/`land`/`rc`/`setpos`/`msg`/`light`/`scan`/`scan_stop` |
 | Unity → API | (9000 응답) | 각 명령에 `"ok"` (API는 9001 바인딩) |
 | Unity → API | UDP **9002** | 상태 JSON 20 Hz + 이벤트 `scan_started`/`scan_done`/`detect` |
+| Unity → 디텍터 | TCP **9100** | 스캔 중 카메라 프레임(JPEG) → YOLO 판정 JSON (`person_detector_tcp.py`) |
 | (선택) 외부 디텍터 → API | UDP **9004** | 별도 프로세스를 쓸 때만 (`docs/patrol-agent.md`) |
 
 > **API 서버 포트는 8000이 기본이지만 그대로 쓰지 않기를 권한다.** 8000·8080은
@@ -68,8 +71,10 @@
 | 로컬 | Ollama 설치 + `ollama pull qwen2.5:3b-instruct` (1.9 GB) | §1 |
 | (선택) 서버 | `git clone` → conda 환경 + `llm_server/requirements.txt` | §1-b |
 | 로컬 | `git clone` → 파이썬 환경 + `requirements.txt` (**torch 불필요**) | §2 |
+| 로컬 | 사람 탐지를 쓸 거면 `pip install ultralytics` (**torch 딸려옴, 별도 프로세스**) | §5 |
 | 로컬 | `data/final_npy/` 필요한 부분만 내려받기 (약 90 MB) | §2 |
 | 로컬 | Unity Hub + 에디터 `6000.3.12f1`, `simulator/tello_simulator` 열기 | §3 |
+| 로컬 | 사람 탐지를 제대로 볼 거면 NPC 에셋 zip 받아서 풀기 (약 500 MB, **저장소에 없음**) | §8 |
 | 로컬 | **test.unity** 에 00809(Qpor) 배치 확인 → 콜라이더 → 저장 | §8 |
 | (선택) | 씬을 새로 배치했으면 좌표 캘리브레이션 재실행 | §8 |
 
@@ -86,6 +91,7 @@
         ③ python simulator/bridge/smoke.py --unity-host 127.0.0.1      # 'ok' 게이트
         ④ python api_server.py --port 8123
         ⑤ 브라우저 http://localhost:8123
+        ⑥ python simulator/bridge/person_detector_tcp.py               # 사람 탐지 (별도 터미널)
 ```
 
 학교 GPU 서버를 쓸 때는 ④ 만 바꾼다 (**VPN 붙은 뒤**). 주소·모델은 `gpu`
@@ -121,11 +127,10 @@ python api_server.py --port 8123 --llm-url gpu
 > 머물고 순찰은 `simulator_unreachable` 로 즉시 끝난다 — 콘솔/방 인덱스/경로
 > 계획만 확인할 때 쓰면 된다. (API.md 첫 절)
 
-> **지금은 탐지가 안 뜬다.** Unity 쪽 `PatrolPersonDetection.cs` 가 이 브랜치에
-> 없어서 `scan` verb를 모르고, 파이프라인이 rc 회전 폴백을 탄다. 비행과 360°
-> 회전은 정상이지만 `detect` 이벤트가 하나도 안 온다 → 콘솔의 탐지 목록·경보·
-> 보고서 사진이 전부 빈다. 배선만 확인하려면 §4 「Unity 없이 스텁으로」가
-> 탐지까지 흉내낸다.
+> **⑥ 를 안 띄우면 사람만 안 잡힌다.** YOLO 프로세스(`person_detector_tcp.py`)
+> 없이도 비행·360° 스캔·보고서는 그대로 돌아간다 — Unity의 요청이 매번
+> 타임아웃하고 모든 방이 "아무도 없음"으로 끝날 뿐이다. 모델 없이 배선만
+> 확인하려면 `--mock-person` (§5) 을 쓰면 매 프레임이 탐지로 돌아온다.
 
 ---
 
@@ -225,6 +230,11 @@ scp -r <계정>@<서버IP>:/data1/.../data/final_npy ./data/
 Get-ChildItem -Recurse .\data\final_npy -Include color.npy,normal.npy | Remove-Item
 ```
 
+```bash
+# detections.json 파일 복사 (data/final_npy/ 미존재 시 로컬 백업본 1초 복사):
+cp web/uploads/detections.json data/final_npy/detections.json
+```
+
 없으면 `minyeong-3d` 브랜치 `litept_indoor/` (`infer_centers.py` → `export_json.py`)로
 생성한다. 이 브랜치에는 생성 파이프라인이 없다 — 결과만 읽는다.
 
@@ -295,13 +305,25 @@ python api_server.py --port 8123 --llm-url gpu       # 학교 GPU 서버 (VPN �
 
 **⑤ 브라우저** — `http://localhost:8123`. 규격서는 `/docs` 와 `API.md`.
 
+**⑥ 로컬 — 사람 탐지** `[별도 터미널]`
+```bash
+python simulator/bridge/person_detector_tcp.py                  # YOLO, TCP 9100
+python simulator/bridge/person_detector_tcp.py --mock-person    # 모델 없이 배선만 확인
+```
+✅ `[person-detector] loaded yolov8n.pt` → `[person-detector] listening on 127.0.0.1:9100`.
+사람을 찾으면 Unity가 이 터미널로도 bbox 를 흘려보낸다.
+
+이 프로세스는 **순서에 상관없고, 없어도 나머지는 다 돈다** — Unity 요청이
+타임아웃하고 모든 방이 "아무도 없음"으로 끝날 뿐이다. `④` 와 달리 브리지를
+잡지 않으므로 언제든 껐다 켜도 된다.
+
 평면도에서 방을 고르거나 검색창에 자연어를 넣고 → 「순찰 시작」 → 브리핑 →
 「작전 시작」. 여기서 실제 비행이 시작된다.
 
 ### Unity 없이 스텁으로
 
-물리도 화면도 없지만 좌표와 이벤트를 정직하게 흉내낸다. **탐지까지 흉내내므로
-지금은 이쪽이 웹 배선을 끝까지 확인할 수 있는 유일한 경로다.**
+물리도 화면도 없지만 좌표와 이벤트를 정직하게 흉내낸다. 탐지까지 흉내내므로
+Unity·YOLO 없이 웹 배선을 끝까지 확인할 수 있다.
 
 ```bash
 python simulator/bridge/fake_unity_sim.py --detect-per-scan 1 &
@@ -388,11 +410,35 @@ query> 집 전체 돌면서 사람 있는지 확인해줘
 `box` 는 **프레임 대비 %** 다 — 웹 콘솔이 박스를 그리는 단위와 같아서 중간에서
 아무도 환산하지 않는다. 픽셀→% 나눗셈은 자기 캡처 해상도를 아는 Unity가 한다.
 
-> **⚠ 탐지 쪽 Unity 컴포넌트가 이 브랜치에 아직 없다.**
-> `PatrolPersonDetection.cs` 와 `person_detector_tcp.py` 는
-> `origin/feature/drone-camera-person-detection` 에만 있다. 합류시키려면 그
-> 컴포넌트가 `TelloSimulator.ReportDetection(label, conf, l, t, w, h, imagePath)`
-> 를 부르게 하면 된다. 그 전까지는 아래 폴백을 탄다.
+**Unity 안에서 누가 무엇을 하는가.** 회전은 `TelloSimulator` 것이고
+(`scan` → 스핀 → `scan_done`), 카메라와 YOLO 는 `PatrolPersonDetection` 것이다.
+한 트랜스폼을 두 쪽이 돌리면 각도가 어긋나므로 탐지 컴포넌트는 **절대 회전하지
+않는다** — `scanActive` 동안 프레임만 뜬다.
+
+```
+TelloSimulator      scan verb → 스핀 → scan_started/scan_done, ReportDetection()
+  └ PatrolPersonDetection   드론 자기 카메라 → JPEG → TCP 9100 → YOLO 판정
+        └ person_detector_tcp.py   ultralytics YOLO (별도 프로세스)
+```
+
+- **컴포넌트는 자동으로 붙는다.** `HorrorAtmosphere` 와 같은
+  `RuntimeInitializeOnLoadMethod` 부트스트랩이라 씬에 GUID 가 없어도 Play 하면
+  드론에 얹힌다. 씬에 직접 붙여 두면 그쪽 설정이 그대로 쓰인다.
+- **카메라와 손전등도 자동으로 만든다.** `DroneDetectionCamera` 는 드론 자식으로
+  생기고 RenderTexture 로만 렌더하므로 화면(`CameraFollow` 의 추적 카메라)과
+  겹치지 않는다. 집이 호러용으로 어두워 YOLO 가 아무것도 못 보므로 캡처
+  카메라에 스팟 라이트를 하나 달아 둔다 (`onboardFlashlightOn`).
+- **사람을 찾으면 그 자리에 2초 멈춘다** (`PauseForDetection`). 멈춘 동안
+  `scanTurnedDeg` 가 안 오르므로 스캔은 같은 각도에서 이어지고, 파이프라인이
+  보내는 `rc` 도 이 동안은 무시된다.
+- **같은 사람을 두 번 안 센다.** 박스 중심으로 레이를 쏴 `PersonTarget` 을 찾고
+  그 id 로 거른다 (방 하나 = 스캔 하나 단위). 레이가 아무것도 못 맞히면 드론
+  yaw 60° 이내를 같은 사람으로 본다.
+- **사진은 Unity 가 저장한다.** `simulator/bridge/detection_frames/` 에 원본과
+  박스를 그린 사본이 떨어지고, `image_path` 로 가는 건 박스 그린 쪽이다.
+  `patrol_mission` 이 그걸 보고서 폴더로 복사한다. 원본 폴더는 gitignore.
+- **디텍터가 없으면** 매 요청이 타임아웃하고 스윕은 정상 종료된다. 빈 방과 같은
+  결과가 되므로 미션은 죽지 않는다.
 
 > **구버전 Unity 폴백.** 모르는 verb도 `ok` 로 acked 되므로 ack만으로는 그
 > 빌드가 `scan` 을 구현했는지 알 수 없다. 그래서 Unity가 `scan_started` 로 즉시
@@ -470,6 +516,8 @@ patrol/                      # 두뇌 (파이썬, torch 없음)
 simulator/                   # 시뮬 (Unity + 브리지)
 ├── tello_simulator/Assets/
 │   ├── TelloSimulator.cs    # UDP 수신, 비행, 360° 스캔, 이벤트 송신
+│   ├── PatrolPersonDetection.cs  # 스캔 중 드론 카메라 → TCP 9100 YOLO → detect (자동 부착)
+│   ├── PersonTarget.cs      # 씬의 사람 표식 — 같은 사람 중복 탐지 제거용 id
 │   ├── CameraFollow.cs      # 3/1인칭 카메라 (이동방향 기준), C키 토글
 │   ├── HorrorAtmosphere.cs  # 호러 조명·포그·포스트FX·손전등 (L/F/[/] 키)
 │   ├── CamcorderHUD.cs      # 캠코더 UI: REC·배터리·시계·글리치 (N/H 키)
@@ -483,6 +531,7 @@ simulator/                   # 시뮬 (Unity + 브리지)
     ├── coord_transform.py   # 좌표 변환 (JSON)
     ├── calibrate_transform.py  # 좌표 캘리브레이션
     ├── follow_path.py       # PID rc 추종, fly_mission
+    ├── person_detector_tcp.py  # YOLO 사람 탐지 서버 (TCP 9100, 유일하게 ultralytics 필요)
     ├── fake_unity_sim.py    # Unity 없는 테스트 스텁 (--detect-per-scan/--no-scan)
     ├── relay.py             # NAT 우회 UDP-over-TCP 릴레이 (레거시, §4 부록)
     ├── smoke.py             # 연결 점검
@@ -501,6 +550,34 @@ simulator/                   # 시뮬 (Unity + 브리지)
 Hierarchy에 `tello`(드론) + `Main Camera` + `Qpor2mEya8F` 가 보이면 그대로 Play하면
 된다. Scene 뷰에서 드론은 집에 비해 작고 멀어 안 보일 수 있는데 정상 — **Play를
 누르면** 드론이 집 안 홈으로 순간이동하고 카메라가 따라간다 (§5의 `spawnAtHome`).
+
+> **씬에 사람을 세우는 경로가 둘이다.**
+>
+> - **`PersonSpawner`** 가 매 Play 마다 캡슐+구로 5명을 자동으로 세운다. 씬 설정이
+>   필요 없다. 다만 **캡슐은 YOLO 가 잘 못 잡는다** — 배선 점검용이지 탐지
+>   성능을 보려는 용도가 아니다. 끄려면 씬에 `PersonSpawner` 를 하나 얹고
+>   `enableSpawning` 을 내린다.
+> - **NPC 프리팹 3개** 가 `test.unity` 에 배치돼 있다. 사람 모양이라 YOLO 가
+>   제대로 잡는 건 이쪽이다. **그 에셋은 저장소에 없다** — 아래처럼 받는다.
+>
+> **NPC 에셋 받기 (약 500 MB, 최초 1회).** Synty NPC 세트
+> (`npc_casual_set_00`)는 에셋스토어 패키지라 공개 저장소에 재배포하지 않는다.
+> `data/final_npy` 와 같은 취급이고 `.gitignore` 에 있다.
+>
+> ```bash
+> # 팀 공유 드라이브의 npc_casual_set_00.zip (약 236 MB) 을 받아서
+> unzip npc_casual_set_00.zip -d simulator/tello_simulator/Assets/
+> ```
+>
+> zip 에는 `.meta` 가 같이 들어 있어 GUID 가 보존된다 — 풀기만 하면
+> `test.unity` 의 NPC 3개가 저절로 다시 연결된다. 유니티를 켜 둔 채 풀었으면
+> 창을 한 번 포커스해 임포트를 돌린다. **안 받아도 씬은 안 깨진다** — NPC 3개가
+> Missing Prefab 로 뜨고 스포너가 만든 사람만 남는다.
+>
+> **중복 탐지 제거는 아직 안 붙어 있다.** 씬 NPC 도 스포너 사람도
+> `PersonTarget` 이 없어서 지금은 드론 yaw 60° 폴백만 돈다(60° 안의 두 사람은 한
+> 명으로 합쳐진다). 세운 오브젝트에 `PersonTarget` 을 붙이면 id 와 콜라이더가
+> 자동으로 생기고 그 id 로 걸러진다.
 
 **다른 건물로 바꾸거나 배치를 다시 할 때만** 아래 절차:
 
@@ -657,10 +734,12 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 
 ## 10. Future work
 
-- **Unity `PatrolPersonDetection.cs` 합류** — `origin/feature/drone-camera-person-detection`
-  의 컴포넌트가 `TelloSimulator.ReportDetection(...)` 를 부르게 하면 실제 YOLO
-  탐지가 파이프라인까지 올라온다. **지금 제일 큰 구멍** — 실제 Unity로 돌리면
-  스캔만 돌고 탐지가 비어 있다.
+- **사람 세우는 경로 둘 정리** — `PersonSpawner` 가 매 Play 마다 캡슐 5명을
+  세우고 `test.unity` 에 NPC 3개가 따로 배치돼 있어 평소 8명이 선다. 캡슐은
+  YOLO 가 잘 못 잡으므로(§8) 실질적으로 NPC 쪽만 탐지된다 — 한쪽으로 정리할 것.
+- **`PersonTarget` 부착** — 중복 탐지 제거가 id 기반으로 돌게 하려면 필요한데
+  지금 어느 사람에게도 안 붙어 있어 yaw 60° 폴백만 돈다. 스포너는
+  `BuildPerson` 에 `AddComponent<PersonTarget>()` 한 줄.
 - **`web/` 병합 방향 정리** — 콘솔은 이 브랜치로 들어왔지만(`web-api`) 원본은
   `origin/hyeonwoo` 에도 그대로 있다. 같은 파일이 두 브랜치에 있어 다음 병합에서
   충돌한다. 특히 `startMission()`/`runSearch()` 의 API 배선은 이쪽에만 있어서,
@@ -687,7 +766,8 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 | `smoke`/시작 시 `-> 'timeout'` | Unity가 9000을 안 듣는 중 (§4 ②). Console에 `listening on 9000` 초록 확인 |
 | Unity Console 빨강 `address already in use` | 9000 점유 — `lsof -i :9000` → `kill -9 <PID>` → 재Play. **API 서버와 REPL을 같이 띄우면 이렇게 된다** |
 | 명령 보내도 드론 안 움직임 / 배너 안 뜸 | Unity 경로 끊김. §4 ④ smoke로 'ok' 확인부터 |
-| 스캔은 도는데 탐지가 0건 | **실제 Unity면 지금은 정상이다** — `PatrolPersonDetection.cs` 가 이 브랜치에 없어 rc 폴백을 탄다 (§5). 로그의 `Unity 쪽 scan 응답 없음` 으로 확인. 배선만 볼 거면 `fake_unity_sim.py --detect-per-scan 1` |
+| 스캔은 도는데 탐지가 0건 | 순서대로 갈라라. ① **씬에 사람이 있나** — 커밋된 씬은 비어 있다 (§8). ② **YOLO 프로세스가 떴나** (§4 ⑥). `--mock-person` 으로 띄우면 무조건 잡히므로 여기서 갈린다. ③ Unity Console 에 `[PatrolDetection] detector error: connect timeout` 이면 9100 이 안 열린 것. ④ 로그에 `Unity 쪽 scan 응답 없음` 이면 rc 폴백이라 애초에 탐지 경로가 아니다 (§5) |
+| 사람이 너무 어두워 YOLO 가 못 잡음 | 캡처 카메라의 스팟 라이트가 꺼졌거나 약하다 — `PatrolPersonDetection` 의 `onboardFlashlightOn`/`Intensity`. 그래도 안 되면 디텍터 쪽 `--confidence 0.1 --imgsz 1024` |
 | 순찰 시작이 `409` | 이미 순찰이 돌고 있다. `POST /api/patrol/abort` 로 멈추고 다시 |
 | `/plan` 목표가 엉뚱한 층 | 보낸 `goal` 의 z가 그 방 범위 밖 — 응답의 `goal` 이 실제로 쓰인 스냅 좌표다 (`API.md`) |
 | Play해도 드론이 씬 기본위치 그대로 | `TelloSimulator` 의 `spawnAtHome` 이 꺼졌거나 `spawnPosition` 이 다른 건물 값 (§5) |
@@ -698,5 +778,8 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 | 비행 중 `state lost` | 링크 끊김 — 자동 정지·착륙. 복구 후 `home` |
 | Unity 배너 한글 깨짐 | `--sim-no-status` 로 배너를 끌 수 있다 (REPL) |
 | Unity 임포트 실패 | 에디터 `6000.3.12f1` 확인, 인터넷 확인, `Library/` 삭제 후 재열기 |
-| `No detections.json` | 데이터 미동기화 — §2 |
+| `No detections.json` | `data/final_npy/detections.json` 미존재 — `cp web/uploads/detections.json data/final_npy/` 실행 |
+| `response time error` / `response timeout` | 요청 응답 시간 초과. ① YOLO 9100 안 떠있음 (`person_detector_tcp.py`) ② LLM 11434 안 떠있음 (`--llm-url ""`로 오프라인 실행 가능) ③ Unity가 Play(▶) 중이 아님 |
+| 탐지 바운딩 박스 딜레이 & 위치 오프셋 | Unity `PatrolPersonDetection`의 정지 구도 재캡처(Resnap)로 오프셋 자동 교정 적용 완료 |
+| 바운딩 박스 렌더링 및 지속 시간 | Unity 화면은 깔끔하게 비활성화되며 **웹 관제 UI** 및 **저장 사진(`_stamp.jpg`)**에만 레드 네온 CSS 스타일로 표시됨. 지속 시간은 **1.5초 (`ALERT_MS = 1500`)** |
 | (레거시) `relay client: Connection refused` | 서버 relay server(§4 부록 ①)가 안 떠 있음 |

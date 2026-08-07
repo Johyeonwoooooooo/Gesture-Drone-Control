@@ -11,6 +11,11 @@
 # spconv/MinkowskiEngine/CLIP이 하나도 필요 없다.
 #
 # GPU 서버 쪽은 llm_server/requirements.txt 를 쓴다.
+#
+# 사람 탐지(simulator/bridge/person_detector_tcp.py)에 필요한 ultralytics 는
+# **일부러 여기 없다** — torch 를 끌고 오기 때문이다. 그건 Unity 가 TCP 9100 으로
+# 부르는 별도 프로세스라 이 목록과 같은 환경에 있을 필요가 없다. 쓸 때만:
+#   python -m pip install ultralytics
 
 numpy>=1.24                # numpy 2로 검증 완료 — 제거된 API를 쓰지 않는다
 
