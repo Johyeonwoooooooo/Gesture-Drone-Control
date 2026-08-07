@@ -97,7 +97,14 @@ input[type=range]{accent-color:#ef4444}
       </div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:30px;z-index:2">
         <button onClick="{{onStartMission}}" style="width:340px;height:52px;border:1px solid #ef4444;border-radius:9px;background:#450a0acc;color:#fecaca;font-family:'IBM Plex Sans KR',sans-serif;font-weight:700;font-size:16px;letter-spacing:.06em;cursor:pointer;box-shadow:0 0 22px #dc262655" style-hover="background:#7f1d1d;box-shadow:0 0 30px #dc262699">새로운 순찰 작전 시작</button>
-        <button onClick="{{goRecords}}" style="width:340px;height:38px;border:1px solid #3a161c;border-radius:8px;background:#170a0dcc;color:#cfc2c5;font-family:'IBM Plex Sans KR',sans-serif;font-size:13px;cursor:pointer" style-hover="border-color:#ef4444">순찰 기록</button>
+        <div style="width:340px;padding:10px 12px;background:#10070ae6;border:1px solid #2a1015;border-radius:9px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="flex:none;width:8px;height:8px;border-radius:50%;background:{{shareDotColor}};animation:{{shareDotAnim}}"></span>
+            <span style="flex:1;font-size:12px;color:#cfc2c5">시뮬레이터 화면</span>
+            <button onClick="{{onSimShare}}" style="flex:none;height:24px;padding:0 12px;border:1px solid {{shareBtnBorder}};border-radius:6px;background:{{shareBtnBg}};color:{{shareBtnColor}};font-family:'IBM Plex Sans KR',sans-serif;font-size:11px;font-weight:600;cursor:pointer" style-hover="border-color:#ef4444">{{shareBtnTxt}}</button>
+          </div>
+          <div style="margin-top:5px;font-size:10px;color:{{shareStatusColor}};font-family:'IBM Plex Mono',monospace">{{shareStatusTxt}}</div>
+        </div>
       </div>
       <div style="position:absolute;bottom:16px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5f4a4e;z-index:2">SCENE 00809_Qpor2mEya8F · 3 FLOORS · 22 ROOMS · 점군 596,356</div>
     </div>
@@ -299,7 +306,6 @@ input[type=range]{accent-color:#ef4444}
         <div style="display:flex;gap:8px;margin-top:24px;justify-content:center;flex-wrap:wrap">
           <button onClick="{{goReport}}" style="height:42px;padding:0 22px;border:1px solid #4ade80;border-radius:8px;background:#0e1a14;color:#6ee7b7;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif;box-shadow:0 0 18px #4ade8033" style-hover="background:#14261b">순찰 보고서 보기</button>
           <button onClick="{{goCreate}}" style="height:42px;padding:0 22px;border:1px solid #ef4444;border-radius:8px;background:#450a0a;color:#fecaca;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#7f1d1d">새 순찰 지정</button>
-          <button onClick="{{goRecords}}" style="height:38px;padding:0 16px;border:1px solid #3a161c;border-radius:8px;background:#170a0d;color:#cfc2c5;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">순찰 기록</button>
           <button onClick="{{goLobby}}" style="height:38px;padding:0 16px;border:1px solid #3a161c;border-radius:8px;background:#170a0d;color:#a8969a;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">로비로</button>
         </div>
       </div>
@@ -438,7 +444,6 @@ input[type=range]{accent-color:#ef4444}
       </div>
       <div style="flex:none;display:flex;gap:8px;justify-content:center;padding:0 18px 16px">
         <button onClick="{{goCreate}}" style="height:38px;padding:0 20px;border:1px solid #ef4444;border-radius:8px;background:#450a0a;color:#fecaca;font-weight:700;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#7f1d1d">새 순찰 지정</button>
-        <button onClick="{{goRecords}}" style="height:38px;padding:0 16px;border:1px solid #3a161c;border-radius:8px;background:#170a0d;color:#cfc2c5;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">순찰 기록</button>
         <button onClick="{{goLobby}}" style="height:38px;padding:0 16px;border:1px solid #3a161c;border-radius:8px;background:#170a0d;color:#a8969a;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">로비로</button>
       </div>
     </div>
@@ -482,45 +487,6 @@ input[type=range]{accent-color:#ef4444}
     </div>
   </sc-if>
 
-  <sc-if value="{{isRecords}}" hint-placeholder-val="{{false}}">
-    <div style="position:absolute;inset:0;display:flex;flex-direction:column">
-      <div style="flex:none;height:52px;display:flex;align-items:center;gap:14px;padding:0 18px;background:#10070a;border-bottom:1px solid #2a1015">
-        <button onClick="{{goLobby}}" style="height:30px;padding:0 12px;border:1px solid #3a161c;border-radius:7px;background:#170a0d;color:#a8969a;font-size:12px;cursor:pointer;font-family:'IBM Plex Sans KR',sans-serif" style-hover="border-color:#ef4444">← 로비</button>
-        <div style="font-family:'East Sea Dokdo',cursive;font-size:24px;color:#ef4444">미션 기록</div>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.2em">OPERATION ARCHIVE</div>
-      </div>
-      <div style="flex:none;display:grid;grid-template-columns:repeat(6,1fr);gap:10px;padding:14px 18px">
-        <sc-for list="{{recStats}}" as="s" hint-placeholder-count="6">
-          <div style="padding:11px 12px;background:#10070a;border:1px solid #2a1015;border-radius:9px">
-            <div style="font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:600;color:{{s.c}}">{{s.v}}</div>
-            <div style="font-size:10px;color:#8a7478;margin-top:2px">{{s.k}}</div>
-          </div>
-        </sc-for>
-      </div>
-      <div style="flex:1;min-height:0;overflow-y:auto;padding:0 18px 20px;display:flex;flex-direction:column;gap:6px">
-        <sc-for list="{{recRows}}" as="r" hint-placeholder-count="5">
-          <div style="border:1px solid {{r.border}};background:{{r.bg}};border-radius:9px;overflow:hidden">
-            <button onClick="{{r.onClick}}" style="width:100%;display:flex;align-items:center;gap:12px;padding:10px 14px;border:none;background:transparent;cursor:pointer;text-align:left;font-family:'IBM Plex Sans KR',sans-serif" style-hover="background:#170a0d">
-              <span style="font-family:'East Sea Dokdo',cursive;font-size:26px;width:30px;color:{{r.resultC}};flex:none">{{r.icon}}</span>
-              <span style="flex:1;min-width:0;font-size:12px;color:#e8dde0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">"{{r.cmd}}"</span>
-              <span style="font-size:10px;color:#8a7478;flex:none">{{r.scope}}</span>
-              <span style="font-size:11px;font-weight:700;color:{{r.resultC}};flex:none;width:48px;text-align:center">{{r.result}}</span>
-              <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#fca5a5;flex:none;width:56px;text-align:right">{{r.rooms}}</span>
-              <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;flex:none;width:52px;text-align:right">{{r.dist}}</span>
-              <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;flex:none;width:44px;text-align:right">{{r.time}}</span>
-              <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5f4a4e;flex:none;width:70px;text-align:right">{{r.date}}</span>
-            </button>
-            <sc-if value="{{r.open}}" hint-placeholder-val="{{false}}">
-              <div style="border-top:1px solid #2a1015;padding:10px 14px;display:flex;gap:18px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;line-height:1.9">
-                <div style="flex:1">{{r.route}}</div>
-                <div style="flex:1">{{r.log1}}<br>{{r.log2}}<br>{{r.log3}}</div>
-              </div>
-            </sc-if>
-          </div>
-        </sc-for>
-      </div>
-    </div>
-  </sc-if>
 
   </sc-if>
   <div style="position:fixed;left:50%;bottom:30px;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:96;align-items:center">
@@ -703,7 +669,7 @@ class Component extends DCLogic {
     // (2.6초 동안 타이틀·게이지가 차오르고, 이후 0.6초 페이드아웃)
     intro: true, introFade: false,
     meta: null, screen: 'lobby', cmd: '', prep: -1,
-    over: null, selRecord: null, toasts: [],
+    over: null, toasts: [],
     detections: [],     // 통보받은 사람 탐지 결과
     alert: null,        // 방금 들어온 탐지 (경고 배너용, 몇 초 뒤 사라짐)
     // 서버가 쓴 순찰 보고서(report.json). report_ready 이벤트 뒤 한 번 받아온다.
@@ -1030,12 +996,14 @@ class Component extends DCLogic {
       scanOpacity: S.scan ? 0.5 : 0,
       goLobby: () => this.setState({ screen: 'lobby' }),
       goCreate: () => this.setState({ screen: 'create' }),
-      goRecords: () => this.go('records'),
       // 작전 시작 = 시뮬레이터 화면 공유 요청 + 관제 화면 진입.
       // 권한창은 클릭 안에서만 뜨므로 여기서 바로 호출하고, 화면은 기다리지
       // 않고 넘어간다(거절해도 지도는 그대로 쓸 수 있다).
       onStartMission: () => {
-        if (!window.__simShare.stream) window.__simShare.start();
+        // 여기서는 화면 공유를 절대 요청하지 않는다. 창 선택은 로비 옵션에서
+        // 사용자가 한 번 하고, 그 스트림을 페이지가 살아 있는 동안 계속 쓴다.
+        // 예전에는 여기서 stream 이 비어 있으면 start() 를 불렀는데, 그래서
+        // 작전을 시작할 때마다 창 선택 탭이 다시 떴다.
         this.setState({ screen: 'create' });
       },
       simShareOn: !!window.__simShare.stream,
@@ -1044,6 +1012,18 @@ class Component extends DCLogic {
       simShareErr: window.__simShare.error || '',
       onSimShare: () => window.__simShare.start(),
       onSimShareStop: () => window.__simShare.stop(),
+      // 로비 옵션: 시뮬레이터 창을 한 번 고르면 그 스트림을 계속 쓴다.
+      // 여기 말고는 화면 공유를 자동으로 요청하는 곳이 없다.
+      shareStatusTxt: window.__simShare.stream ? '연결됨 · 이 창을 계속 사용합니다'
+        : (window.__simShare.error || '아직 창을 고르지 않았습니다'),
+      shareStatusColor: window.__simShare.stream ? '#4ade80'
+        : (window.__simShare.error ? '#f59e0b' : '#8a7478'),
+      shareBtnTxt: window.__simShare.stream ? '다시 선택' : '창 선택',
+      shareBtnBorder: window.__simShare.stream ? '#3a161c' : '#ef4444',
+      shareBtnBg: window.__simShare.stream ? '#170a0d' : '#450a0acc',
+      shareBtnColor: window.__simShare.stream ? '#a8969a' : '#fecaca',
+      shareDotColor: window.__simShare.stream ? '#4ade80' : '#5f4a4e',
+      shareDotAnim: window.__simShare.stream ? 'blinkDot 1.6s infinite' : 'none',
     };
     if (!meta) return base;
     const fmt = n => n.toFixed(2);
@@ -1087,7 +1067,7 @@ class Component extends DCLogic {
     const vals = {
       ...base,
       isLobby: scr === 'lobby', isCreate: scr === 'create', isBriefing: scr === 'briefing',
-      isSuccess: scr === 'success', isOver: scr === 'gameover', isRecords: scr === 'records',
+      isSuccess: scr === 'success', isOver: scr === 'gameover',
       isUnity: scr === 'unity', isReport: scr === 'report',
       briefCmd: st.cmd.trim() || this.DEFAULT_CMD,
     };
@@ -1330,32 +1310,6 @@ class Component extends DCLogic {
         { k: '복귀 설정', v: live && live.returnHome ? '복귀함' : '복귀 안 함', c: '#a8969a' },
       ];
       vals.overTargets = targetRows;
-    }
-    if (scr === 'records') {
-      const recs = this.RECORDS;
-      const okN = recs.filter(r => r.ok).length;
-      const avgRooms = recs.length ? (recs.reduce((a, r) => a + r.rooms, 0) / recs.length) : 0;
-      const avgDist = recs.length ? (recs.reduce((a, r) => a + parseFloat(r.dist), 0) / recs.length) : 0;
-      vals.recStats = [
-        { k: '총 순찰', v: `${recs.length}`, c: '#e8dde0' },
-        { k: '완료', v: `${okN}`, c: '#4ade80' },
-        { k: '중단', v: `${recs.length - okN}`, c: '#ef4444' },
-        { k: '평균 구역', v: `${avgRooms.toFixed(1)}`, c: '#fca5a5' },
-        { k: '평균 거리', v: `${avgDist.toFixed(1)}m`, c: '#57c4b8' },
-        { k: '최근', v: recs[0] ? recs[0].date : '—', c: '#8a7478' },
-      ];
-      vals.recRows = recs.map((r, i) => ({
-        key: i, cmd: r.cmd, scope: r.scope,
-        icon: r.ok ? '✓' : '✕',
-        result: r.ok ? '완료' : '중단',
-        resultC: r.ok ? '#4ade80' : '#ef4444',
-        rooms: `${r.rooms}구역`, dist: r.dist, time: r.time, date: r.date,
-        route: r.route, log1: r.logs[0], log2: r.logs[1], log3: r.logs[2],
-        open: st.selRecord === i,
-        border: st.selRecord === i ? '#4a1d24' : '#2a1015',
-        bg: st.selRecord === i ? '#150a0d' : '#10070a',
-        onClick: () => this.setState({ selRecord: st.selRecord === i ? null : i }),
-      }));
     }
     return vals;
   }
