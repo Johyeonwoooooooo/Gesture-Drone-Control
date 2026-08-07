@@ -67,6 +67,9 @@ User: 지윤의 위장 세탁소 먼저 보고 현우의 이중장부 서재 확
 """
 
 _FLOOR_RE = re.compile(r"(\d+)\s*층")
+# "그 종류를 남김없이" 를 뜻하는 말. 홀로 선 '다' 만 세고 '갔다가/났다' 같은
+# 어미는 세지 않는다 — 어미까지 세면 웬만한 문장이 전부 '전체' 요청이 된다.
+_ALL_RE = re.compile(r"전부|모두|모든|전체|싹|죄다|(^|\s)다(\s|$)")
 _UP_WORDS = ("위층", "윗층", "위 층", "upstairs")
 _DOWN_WORDS = ("아래층", "아랫층", "아래 층", "downstairs", "1층")
 
@@ -183,15 +186,40 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
     if text_floors:
         alias_hits = [r for r in alias_hits if r.floor in text_floors]
 
-    named = _dedup(picked + alias_hits)
+    # 2b. a KIND of room the model named ("3층 침실 전부") is a claim about the
+    #     WHOLE request, so it joins the union too instead of losing to whatever
+    #     partial id list arrived beside it — the model answers 침실 3개 for a
+    #     floor that has 4 and, raced, that short list would win.
+    #     Gated on the user actually saying "전부/모두/…", not merely on the
+    #     model having filled room_types. The model sets that field for by-name
+    #     queries too — it answers bedroom for "채원의 심문실(추정) 순찰해줘" —
+    #     so keying on the field alone drags every bedroom into a request for one
+    #     room. "전부" is the thing that means "every room of this kind"; without
+    #     it a type is at most a description of the room already named.
+    #     `intent.room_types` only, never the keyword scan in tier 3: that one
+    #     fires on a bare "방" sitting inside a room's own name ("채원의 금고가
+    #     있다는 소문의 방").
+    typed_hits: List[RoomInfo] = []
+    n_small = 0
+    if intent.room_types and _wants_all(raw_text):
+        pool = [r for r in index.values() if not floors or r.floor in floors]
+        of_type = [r for r in pool if r.room_type in intent.room_types]
+        typed_hits = _filter_small(of_type, min_area_m2)
+        n_small = len(of_type) - len(typed_hits)
+
+    named = _dedup(picked + alias_hits + typed_hits)
     if named:
+        bits = []
         if picked and alias_hits:
-            why = "방 이름 지정"
+            bits.append("방 이름 지정")
         elif picked:
-            why = "방 코드 지정"
-        else:
-            why = f"별칭 매칭 ({alias_hits[0].aliases[0]})"
-        return named[:max_rooms], why
+            bits.append("방 코드 지정")
+        elif alias_hits:
+            bits.append(f"별칭 매칭 ({alias_hits[0].aliases[0]})")
+        if typed_hits:
+            bits.append(f"방 종류={'/'.join(intent.room_types)}"
+                        + (f", 층={sorted(floors)}" if floors else ""))
+        return _capped(named, " + ".join(bits), max_rooms, n_small)
 
     # 3. room types (LLM list, else a Korean keyword scan)
     types = list(intent.room_types)
@@ -206,19 +234,23 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
     if types:
         typed = [r for r in pool if r.room_type in types]
         if typed:
-            return (_filter_small(typed, min_area_m2)[:max_rooms],
-                    f"방 종류={'/'.join(types)}"
-                    + (f", 층={sorted(floors)}" if floors else ""))
+            kept = _filter_small(typed, min_area_m2)
+            return _capped(kept, f"방 종류={'/'.join(types)}"
+                           + (f", 층={sorted(floors)}" if floors else ""),
+                           max_rooms, len(typed) - len(kept))
 
     # 4. floor sweep
     if floors:
-        return (_filter_small(pool, min_area_m2)[:max_rooms],
-                "/".join(f"{f + offset}층" for f in sorted(floors)) + " 전체")
+        kept = _filter_small(pool, min_area_m2)
+        return _capped(kept, "/".join(f"{f + offset}층" for f in sorted(floors))
+                       + " 전체", max_rooms, len(pool) - len(kept))
 
     # 5. whole building
     if intent.scope == "building" or any(
             k in raw_text for k in ("집 전체", "온 집", "전체", "모든 방", "whole house", "all rooms")):
-        return _filter_small(list(index.values()), min_area_m2)[:max_rooms], "건물 전체"
+        every = list(index.values())
+        kept = _filter_small(every, min_area_m2)
+        return _capped(kept, "건물 전체", max_rooms, len(every) - len(kept))
 
     return [], "구역을 특정하지 못함"
 
@@ -258,6 +290,30 @@ def _resolve_floors(intent: PatrolIntent, raw_text: str,
     if any(w in raw_text for w in _DOWN_WORDS) and available:
         return [available[0]]
     return []
+
+
+def _wants_all(raw_text: str) -> bool:
+    """Did the user ask for EVERY room of a kind ("3층 침실 전부")?"""
+    return bool(_ALL_RE.search(raw_text))
+
+
+def _capped(rooms: Sequence[RoomInfo], why: str, max_rooms: int,
+            n_small: int = 0) -> tuple[List[RoomInfo], str]:
+    """Apply the room cap and say so — both trims belong in `why`.
+
+    Dropping rooms silently reads on screen as "this is your whole patrol". 3층
+    has 13 rooms against a default cap of 12, and 1층's second room is a 0.7 m²
+    detection the closet filter removes, so "3층 전부"/"1층 전부" both come back
+    short on this very building. The console prints `why` verbatim, so the count
+    is the only place a user can notice.
+    """
+    out = list(rooms[:max_rooms])
+    notes = []
+    if n_small:
+        notes.append(f"작은 방 {n_small}개 제외")
+    if len(rooms) > max_rooms:
+        notes.append(f"{len(rooms)}개 중 {max_rooms}개만, 상한")
+    return out, why + (f" ({', '.join(notes)})" if notes else "")
 
 
 def _filter_small(rooms: Sequence[RoomInfo], min_area_m2: float) -> List[RoomInfo]:
