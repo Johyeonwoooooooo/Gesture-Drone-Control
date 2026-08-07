@@ -31,13 +31,22 @@ public class PatrolPersonDetection : MonoBehaviour
     public int responseTimeoutMs = 1500;
 
     [Header("Capture")]
-    [Tooltip("Use the 3rd-person main view camera (Camera.main) for YOLO detection by default.")]
-    public bool useMainCameraForDetection = true;
+    [Tooltip("Send CameraFollow's 3rd-person chase view instead of the drone's own. " +
+             "Measured over one sweep: 0 of 63 frames reached the report threshold — " +
+             "the chase cam shows the drone as a speck, clips into walls, and nothing " +
+             "rides it to light the room. Debug only; leave this off.")]
+    public bool useMainCameraForDetection = false;
     public Camera captureCamera;
-    public bool createOnboardCameraIfMissing = false;
+    [Tooltip("Build DroneDetectionCamera (+ its flashlight) under the drone on Play. " +
+             "This is what makes the capture first-person and lit.")]
+    public bool createOnboardCameraIfMissing = true;
     public Vector3 onboardCameraLocalPosition = new Vector3(0f, 0.05f, 0.18f);
     public Vector3 onboardCameraLocalEuler = Vector3.zero;
-    public float onboardCameraFov = 82f;
+    [Tooltip("Wider than the real Tello's 82° on purpose: indoor rooms are tight and " +
+             "a person 2 m away does not fit in 82°. A 360° sweep already overlaps " +
+             "heavily, so the cost is that people get smaller in frame — if detection " +
+             "drops, come back down. Keep onboardFlashlightAngle at or above this.")]
+    public float onboardCameraFov = 100f;
     public int imageWidth = 640;
     public int imageHeight = 360;
     [Range(1, 100)] public int jpegQuality = 70;
@@ -56,7 +65,8 @@ public class PatrolPersonDetection : MonoBehaviour
     public bool onboardFlashlightOn = true;
     public float onboardFlashlightIntensity = 45f;
     public float onboardFlashlightRange = 110f;
-    public float onboardFlashlightAngle = 90f;
+    // Has to cover onboardCameraFov or the edges of every frame stay black.
+    public float onboardFlashlightAngle = 110f;
     public Color onboardFlashlightColor = new Color(1f, 0.94f, 0.82f, 1f);
 
     [Header("Detected Frame Save")]
