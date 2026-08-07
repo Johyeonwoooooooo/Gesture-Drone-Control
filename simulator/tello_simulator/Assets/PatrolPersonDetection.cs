@@ -63,7 +63,10 @@ public class PatrolPersonDetection : MonoBehaviour
              "readable; HorrorAtmosphere's flashlight is a separate, keyboard-only one.")]
     public bool createOnboardFlashlight = true;
     public bool onboardFlashlightOn = true;
-    public float onboardFlashlightIntensity = 45f;
+    // 45 는 근거리에서 화면 한가운데를 하얗게 태웠다 (frames3 실측: 밝기는
+    // 40~117 로 살아났지만 중앙이 포화). 살짝 낮추고 아래 innerSpotAngle 을
+    // 넓혀 낙차를 눕힌다.
+    public float onboardFlashlightIntensity = 25f;
     public float onboardFlashlightRange = 110f;
     // Has to cover onboardCameraFov or the edges of every frame stay black.
     public float onboardFlashlightAngle = 110f;
@@ -226,7 +229,9 @@ public class PatrolPersonDetection : MonoBehaviour
         lightComponent.intensity = onboardFlashlightIntensity;
         lightComponent.range = onboardFlashlightRange;
         lightComponent.spotAngle = onboardFlashlightAngle;
-        lightComponent.innerSpotAngle = onboardFlashlightAngle * 0.4f;
+        // 0.4 면 안쪽 원뿔이 좁아 중앙만 타고 가장자리는 어두웠다. 넓게 잡아
+        // 프레임 전체 밝기를 고르게 한다 — YOLO 는 균일한 노출을 좋아한다.
+        lightComponent.innerSpotAngle = onboardFlashlightAngle * 0.7f;
         lightComponent.color = onboardFlashlightColor;
     }
 
