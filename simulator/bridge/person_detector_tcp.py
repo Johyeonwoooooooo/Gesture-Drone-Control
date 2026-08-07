@@ -117,11 +117,31 @@ class PersonDetector:
             from ultralytics import YOLO
 
             self.model = YOLO(model_name)
+            self._warmup()
         except Exception as exc:
             self.load_error = (
                 f"ultralytics YOLO unavailable ({exc}). "
                 "Install with: python -m pip install ultralytics"
             )
+
+    # The first predict() pays for lazy init — measured 1.85 s here against 32 ms
+    # for every one after it. Unity gives up on a frame after responseTimeoutMs
+    # (1500 ms), so without this the very first frame of the first room is always
+    # lost. Spend it at startup instead, before anyone is listening.
+    def _warmup(self) -> None:
+        try:
+            from PIL import Image
+
+            self.model.predict(
+                source=Image.new("RGB", (self.imgsz, self.imgsz), (0, 0, 0)),
+                conf=self.confidence,
+                classes=[PERSON_CLASS_ID],
+                imgsz=self.imgsz,
+                verbose=False,
+            )
+        except Exception as exc:
+            # Warmup is an optimisation; a failure here must not stop the server.
+            print(f"[person-detector] warmup skipped ({exc})")
 
     def detect(self, image_bytes: bytes) -> dict[str, Any]:
         if self.mock_person:
