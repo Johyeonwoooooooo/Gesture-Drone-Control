@@ -301,7 +301,7 @@ public class PatrolPersonDetection : MonoBehaviour
         savedPersonIds.Clear();
     }
 
-    private void ProcessCompletedDetection()
+    private async void ProcessCompletedDetection()
     {
         if (!requestInFlight || pendingDetectionTask == null || !pendingDetectionTask.IsCompleted)
         {
@@ -347,29 +347,58 @@ public class PatrolPersonDetection : MonoBehaviour
             return;
         }
 
-        DetectionBox best = BestBox(response);
+        personDetectionLatched = true;
+        nextDetectionAlertTime = Time.time + detectionAlertCooldownSeconds;
+
+        // 1. Immediately freeze the drone on detection
+        tello.PauseForDetection(pauseOnDetectionSeconds);
+
+        // 2. Resnap a fresh frame from the stationary stopped camera position so bounding box matches perfectly
+        byte[] stoppedJpg = CaptureJpeg();
+        float stoppedYaw = transform.eulerAngles.y;
+        DetectionResponse stoppedResponse = null;
+
+        if (stoppedJpg != null)
+        {
+            try
+            {
+                stoppedResponse = await SendFrameAsync(stoppedJpg);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[PatrolDetection] resnap frame request failed: {e.Message}");
+            }
+        }
+
+        DetectionResponse finalResponse = (stoppedResponse != null && stoppedResponse.ok && stoppedResponse.person_detected)
+            ? stoppedResponse
+            : response;
+        byte[] finalJpg = (stoppedResponse != null && stoppedResponse.ok && stoppedResponse.person_detected && stoppedJpg != null)
+            ? stoppedJpg
+            : jpg;
+        float finalYaw = (stoppedResponse != null && stoppedResponse.ok && stoppedResponse.person_detected)
+            ? stoppedYaw
+            : yaw;
+
+        DetectionBox best = BestBox(finalResponse);
+        if (best == null)
+        {
+            best = BestBox(response);
+        }
         if (best == null)
         {
             return;
         }
 
-        personDetectionLatched = true;
-        nextDetectionAlertTime = Time.time + detectionAlertCooldownSeconds;
+        List<PersonTarget> detectedTargets = FindDetectedPersonTargets(finalResponse);
 
-        // 1. Immediately freeze the drone on the exact frame of detection
-        tello.PauseForDetection(pauseOnDetectionSeconds);
-
-        List<PersonTarget> detectedTargets = FindDetectedPersonTargets(response);
-
-        // 2. Perform image save (disk I/O)
-        string imagePath = saveNewPersonFrames && jpg != null
-            ? SaveDetectedFrame(jpg, yaw, response, detectedTargets)
+        string imagePath = saveNewPersonFrames && finalJpg != null
+            ? SaveDetectedFrame(finalJpg, finalYaw, finalResponse, detectedTargets)
             : "";
 
-        Debug.Log($"[PatrolDetection] PERSON detected confidence={response.best_confidence:F2} "
-                  + $"- pause {pauseOnDetectionSeconds:F1}s");
+        Debug.Log($"[PatrolDetection] PERSON detected confidence={finalResponse.best_confidence:F2} "
+                  + $"- resnapped at yaw={finalYaw:F1} (pause {pauseOnDetectionSeconds:F1}s)");
 
-        // 3. Immediately report detection event to pipeline
         float w = Mathf.Max(1f, imageWidth);
         float h = Mathf.Max(1f, imageHeight);
         tello.ReportDetection(
