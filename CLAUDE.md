@@ -17,17 +17,18 @@ measurement in the README was taken from a campus IP, `10.100.130.17`). Hanyang
 SSL VPN is what that path needs; the local default needs nothing.
 
 1. **`llm_server/`** — the GPU-box option, not the default. Loads the intent
-   model and serves it over an OpenAI-compatible HTTP endpoint. **The only place
-   in the repo that imports torch**, and it does not import `patrol/`. Swapping
-   between it and Ollama is `--llm-url` + `--llm-model`, nothing else.
+   model and serves it over an OpenAI-compatible HTTP endpoint. Imports torch
+   (`local_llm.py`) and does not import `patrol/`. Swapping between it and
+   Ollama is `--llm-url` + `--llm-model`, nothing else.
 2. **`patrol/`** — the brain (Python, numpy only). LLM intent parsing, detection
    matching, room index, A*/RRT* planning, patrol mission loop, report writer.
    Runs on the PC next to Unity. `api_server.py` (repo root) puts the web console
    in front of it; `patrol/server.py` is the debug REPL.
 3. **`simulator/`** — the sim. `simulator/bridge/` is the Python↔Unity UDP link
-   (+ coordinate transform, PID path following, legacy NAT relay, test stub);
-   `simulator/tello_simulator/` is the Unity 6 project, which owns the 360° scan
-   and the person detection.
+   (+ coordinate transform, PID path following, legacy NAT relay, test stub, and
+   the YOLO detector `person_detector_tcp.py` — its own process, the second place
+   torch may appear); `simulator/tello_simulator/` is the Unity 6 project, which
+   owns the 360° scan and the person detection.
 
 This branch was cut from `sim-integration` to hold **only** what the patrol
 simulator needs. The gesture/voice control layer, the Mosaic3D/UniDet3D research
@@ -61,6 +62,11 @@ The local side has **no torch**. That is a property to protect, not an accident:
 laptop with numpy runs the whole pipeline. Check it the way the split was
 verified — block torch/transformers in `sys.meta_path` and import everything.
 
+The one local thing that wants torch is the YOLO detector
+(`simulator/bridge/person_detector_tcp.py`, `pip install ultralytics`). It stays
+outside the property because nothing imports it — Unity talks to it over TCP
+9100, the same shape as the LLM split. Keep it that way.
+
 On this box the **`patrol` conda env** carries both sets (numpy 2.2.6 /
 torch 2.13 / transformers 5.14 / fastapi 0.141), so either half runs here.
 `conda activate patrol`.
@@ -87,6 +93,10 @@ ollama pull qwen2.5:3b-instruct && curl http://127.0.0.1:11434/v1/models
 # [로컬 PC] Unity Play → 탐지기 → API 서버 (웹 콘솔이 이 앞에 붙는다)
 python simulator/bridge/smoke.py --unity-host 127.0.0.1   # 연결 게이트: 'ok' 필수
 python api_server.py --port 8123
+
+# [로컬 PC] 사람 탐지 (별도 터미널·별도 프로세스. 없으면 탐지만 빠지고 나머지는 돈다)
+python simulator/bridge/person_detector_tcp.py            # ultralytics 필요
+python simulator/bridge/person_detector_tcp.py --mock-person   # 모델 없이 배선만
 
 # [선택] 학교 GPU 서버를 쓸 때. 교내망 밖에서는 8000·22 가 막혀 있어 VPN 필요.
 # --llm-url gpu = remote_llm.GPU_LLM_URL/GPU_LLM_MODEL 별칭. 토큰은 환경변수
@@ -139,6 +149,26 @@ python simulator/bridge/calibrate_transform.py --building 00809_Qpor2mEya8F \
   판정해 rc 회전으로 내려간다. 조용한 방은 `scan_done` 까지 아무것도 안
   보내므로 "아무 이벤트나 기다리기"로는 판별이 안 된다.
 
+- **스캔 한 번에 주인이 둘이다.** 회전은 `TelloSimulator`(`scan` verb →
+  `scanTurnedDeg` → `scan_done`), 카메라와 YOLO 는 `PatrolPersonDetection`.
+  탐지 쪽은 **절대 트랜스폼을 돌리지 않는다** — 두 쪽이 같이 돌리면 파이프라인이
+  세는 각도가 틀어진다. 대신 접점이 셋이다: `scanActive`(찍을 때인가),
+  `ScanRemainingDeg`(스윕 끝 8° 안에서는 그만 찍는다 — `scan_done` 뒤에 온
+  `detect` 는 파이프라인이 버린다), `PauseForDetection(초)`(사람을 보면 그 자리에
+  정지. 그동안 `scanTurnedDeg` 가 안 올라 스캔이 안 끝나고, 파이프라인이 계속
+  보내는 `rc` 도 무시된다). 그래서 마지막 프레임에서 잡은 사람도 `scan_done`
+  전에 보고된다.
+
+  탐지기 본체(`simulator/bridge/person_detector_tcp.py`, TCP 9100)는 **별도
+  프로세스**다. ultralytics 가 torch 를 끌고 오는데 아무도 이 파일을 import 하지
+  않으므로 `patrol/` 의 무-torch 성질이 유지된다 — `llm_server/` 와 같은 분리다.
+  안 띄우면 매 요청이 타임아웃하고 그 방은 "아무도 없음" 으로 끝난다.
+
+  **씬에는 사람이 없다.** NPC 에셋(503 MB)은 `origin/feature/
+  drone-camera-person-detection` 에만 있고 이 브랜치로 안 가져왔다. 사람을 세울
+  때는 `PersonTarget` 을 붙일 것 — 박스 중심 레이로 그 id 를 찾아 같은 사람을
+  두 번 세지 않는다 (레이가 빗나가면 드론 yaw 60° 폴백).
+
 - **`detect` 의 `box` 는 프레임 대비 %** 다. 웹 콘솔의 `__patrolDetect` 가
   그대로 받는 단위라 서버는 중계만 한다. 픽셀→% 나눗셈은 자기 캡처 해상도를
   아는 Unity 에서 한다. 중간에서 환산하려 들지 말 것.
@@ -170,8 +200,9 @@ python simulator/bridge/calibrate_transform.py --building 00809_Qpor2mEya8F \
   바뀐다(Ollama 태그와 서버 모델 ID 가 다르므로). 이 확장은 두 진입점이 각자
   분기하지 않도록 `remote_llm.resolve_llm()` 한 곳에서만 편다 — 토큰을
   `PATROL_LLM_API_KEY` 로 받는 것도 거기다. 모델 자체는
-  `llm_server/local_llm.py` 에 있고 **저장소에서 torch를 import하는 파일은
-  그거 하나**다.
+  `llm_server/local_llm.py` 에 있다. **저장소에서 torch를 import하는 파일은 둘
+  뿐이고 둘 다 별도 프로세스**다 — 그거와 `simulator/bridge/
+  person_detector_tcp.py`(ultralytics). 어느 쪽도 `patrol/` 이 import 하지 않는다.
 
   `llm_server/` 는 `patrol/` 을 import하지 않는다 — 서버는 완성된 system/user
   텍스트를 받아 모델만 돌리므로 프롬프트도 방 목록도 필요 없다. 그래서 그
@@ -216,7 +247,7 @@ python simulator/bridge/calibrate_transform.py --building 00809_Qpor2mEya8F \
 
 - **Unity 스크립트 중 씬에 붙어 있는 건 둘뿐이다** (`TelloSimulator`,
   `CameraFollow`). `HorrorAtmosphere`/`HorrorAudio`/`CamcorderHUD`/
-  `SettingsPanel` 은 `TelloSimulator.cs` 가 런타임에 `AddComponent` 하고,
+  `SettingsPanel`/`PatrolPersonDetection` 은 런타임에 `AddComponent` 되고,
   `PlannedPathRenderer`/`FlightReportRenderer`/`VoxelMapRenderer` 는 필요할 때
   에디터에서 수동으로 붙인다 (README.md §8). 씬 파일에 GUID가 없다고 지우면 안 된다.
 
