@@ -24,6 +24,10 @@ a{color:#f87171}a:hover{color:#fca5a5}
 @keyframes dripStretch{0%{height:8px}55%{height:54px}100%{height:8px}}
 @keyframes dripFall{0%{transform:translateY(0);opacity:0}8%{opacity:1}85%{opacity:1}100%{transform:translateY(72vh);opacity:0}}
 @keyframes destRing{0%{transform:translate(-50%,-50%) scale(.5);opacity:1}100%{transform:translate(-50%,-50%) scale(2.6);opacity:0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* 검색창이 응답을 기다리는 동안 테두리를 훑는 빛. 자연어 해석은 1초쯤이지만
+   그 뒤 경로 계산이 수십 초라, 눌렀는데 아무 일도 안 나는 것처럼 보이면 안 된다. */
+@keyframes scanSweep{0%{background-position:-160% 0}100%{background-position:260% 0}}
 /* 전체 화면으로 띄운 시뮬 스테이지는 인라인 height 를 무시하고 화면을 채운다 */
 :fullscreen{width:100%!important;height:100%!important;background:#000}
 :-webkit-full-screen{width:100%!important;height:100%!important;background:#000}
@@ -43,10 +47,16 @@ a{color:#f87171}a:hover{color:#fca5a5}
     <!-- 순찰 지시 검색창. 지금은 방 이름·번호 부분일치로 지도를 옮겨 줄 뿐이고,
          자연어 해석(Qwen)이 붙으면 runSearch() 안에서 setTargets 로 바뀐다. -->
     <div style="flex:1;display:flex;justify-content:center;min-width:0">
-      <div style="display:flex;align-items:center;gap:6px;width:100%;max-width:440px;height:34px;padding:0 6px 0 11px;background:#170a0d;border:1px solid {{searchBorder}};border-radius:9px">
+      <div style="position:relative;overflow:hidden;display:flex;align-items:center;gap:6px;width:100%;max-width:440px;height:34px;padding:0 6px 0 11px;background:#170a0d;border:1px solid {{searchBorder}};border-radius:9px">
+        <sc-if value="{{searchBusy}}" hint-placeholder-val="{{false}}">
+          <span style="position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,#ef4444,transparent);background-size:40% 100%;background-repeat:no-repeat;animation:scanSweep 1.1s linear infinite"></span>
+        </sc-if>
         <span style="flex:none;color:#8a7478;font-size:13px">⌕</span>
         <input value="{{q}}" onChange="{{onQ}}" onKeyDown="{{onQKey}}" onFocus="{{onQFocus}}" onBlur="{{onQBlur}}" placeholder="{{searchPlaceholder}}" style="flex:1;min-width:0;height:100%;border:none;outline:none;background:transparent;color:#e8dde0;font-family:'IBM Plex Sans KR',sans-serif;font-size:12px">
-        <button onClick="{{onSearch}}" style="flex:none;height:24px;padding:0 12px;border:1px solid #4a1d24;border-radius:6px;background:#241014;color:#cfc2c5;font-family:'IBM Plex Sans KR',sans-serif;font-size:11px;cursor:pointer" style-hover="border-color:#ef4444;color:#f87171">검색</button>
+        <sc-if value="{{searchBusy}}" hint-placeholder-val="{{false}}">
+          <span style="flex:none;width:10px;height:10px;border:2px solid #ef4444;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite"></span>
+        </sc-if>
+        <button onClick="{{onSearch}}" style="flex:none;height:24px;padding:0 12px;border:1px solid {{searchBtnBorder}};border-radius:6px;background:#241014;color:{{searchBtnColor}};font-family:'IBM Plex Sans KR',sans-serif;font-size:11px;cursor:{{searchBtnCursor}};white-space:nowrap" style-hover="border-color:#ef4444;color:#f87171">{{searchBtnTxt}}</button>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px">
@@ -458,6 +468,7 @@ class Component extends DCLogic {
   state = { meta: null, floor: 1, view: { tx: 0, ty: 0, s: 1 }, hoverId: null, mouse: null, cursorW: null,
             toasts: [], dragging: false, simOpen: false, simMax: false,
             q: '', qFocus: false,   // 상단 검색창
+            searching: false,   // /api/intent 응답 대기 중 (해석 애니메이션)
             // ── 순찰 요청 ────────────────────────────────────────────
             targets: [],        // 방 id 배열. 배열 순서 = 방문 순서
             returnHome: true,   // 순찰 후 출발 지점으로 복귀할지
@@ -763,7 +774,12 @@ class Component extends DCLogic {
   // API 가 답을 못 주면 예전대로 방 이름/번호 부분일치로 지도만 옮긴다.
   runSearch() {
     const q = this.state.q.trim(), meta = this.state.meta;
-    if (!q || !meta) return;
+    if (!q || !meta || this.state.searching) return;   // 중복 제출 방지
+    // 해석은 1초쯤이지만 그 뒤 구간 경로 계산이 수십 초다. 그동안 화면이
+    // 멈춘 것처럼 보이지 않도록 여기서 표시를 켜고, 끄는 건 setTargets 가
+    // 넘겨준 planning 이 이어받는다 (planPatrol 이 planning:false 로 끝낸다).
+    this.setState({ searching: true });
+    const done = () => this.setState({ searching: false });
     fetch('api/intent', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: q })
@@ -777,7 +793,8 @@ class Component extends DCLogic {
         this.focusRoom(ids[0]);
         this.toast(`${r.why || '자연어 해석'} — ${ids.length}개 구역 지정`);
       })
-      .catch(() => this.searchByName(q, null));
+      .catch(() => this.searchByName(q, null))
+      .then(done, done);
   }
   // 이름/번호 부분일치 — API 가 없거나 구역을 못 집었을 때의 폴백.
   searchByName(q, why) {
@@ -857,7 +874,15 @@ class Component extends DCLogic {
       mapCursor: st.dragging ? 'grabbing' : 'crosshair',
       toasts: st.toasts,
       q: st.q,
-      searchBorder: st.qFocus ? '#ef4444' : '#3a161c',
+      // 해석(searching) 과 그 뒤 경로 계산(planning) 을 하나의 "작업 중"으로
+      // 묶는다. 사용자가 기다리는 건 두 단계 합친 시간이지 해석 1초가 아니다.
+      searchBusy: !!(st.searching || st.planning),
+      searchBtnTxt: st.searching ? '해석 중' : (st.planning ? '경로 계산 중' : '검색'),
+      searchBtnBorder: (st.searching || st.planning) ? '#ef4444' : '#4a1d24',
+      searchBtnColor: (st.searching || st.planning) ? '#f87171' : '#cfc2c5',
+      searchBtnCursor: st.searching ? 'default' : 'pointer',
+      searchBorder: (st.searching || st.planning) ? '#ef4444'
+        : (st.qFocus ? '#ef4444' : '#3a161c'),
       searchPlaceholder: '구역 검색 · 순찰 지시 (예: 2층 전체를 순찰해줘)',
       onQ: e => this.setState({ q: e.target.value }),
       onQFocus: () => this.setState({ qFocus: true }),
@@ -918,6 +943,8 @@ class Component extends DCLogic {
       startRoomTxt: '—', startFloorTxt: '', startCoordTxt: '',
       launchDisabled: true, launchBg: '#2a1015', launchColor: '#5f4a4e', launchCursor: 'default', launchTxt: '순찰 시작',
       curFloorLabel: '', zoomTxt: '', cursorTxt: '', hoverVisible: false, droneVisible: false,
+      searchBusy: false, searchBtnTxt: '검색', searchBtnBorder: '#4a1d24',
+      searchBtnColor: '#cfc2c5', searchBtnCursor: 'pointer',
       roomRects: [], passageDots: [], stairChips: [], routeRuns: [], targetMarks: [],
       hasTargets: false, noTargets: true, targetRows: [],
       listBorder: '#3a161c', listBg: '#150a0d', listDot: '#5f4a4e', listTitleColor: '#a8969a',
