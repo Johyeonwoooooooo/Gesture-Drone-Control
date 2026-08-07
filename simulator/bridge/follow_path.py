@@ -90,11 +90,29 @@ class WaypointPID:
         return self.kp * error + self.ki * self._integral + self.kd * derivative
 
 
+# rc 의 yaw 성분은 곧 deg/s 다: TelloSimulator 가 yaw/100 을 targetYaw 로 받고
+# rotationSpeed(100) 를 곱해 돌리므로 rc 50 이 50 deg/s 가 된다. 아래 상수들이
+# 그 단위다.
+FACE_TRAVEL_GAIN = 1.5          # 오차 1° 당 deg/s
+FACE_TRAVEL_RC_LIMIT = 45       # deg/s. 스캔이 50 deg/s 라 그보다 살짝 아래
+FACE_TRAVEL_DEADBAND_DEG = 6.0  # 이 안이면 안 돌린다 (제자리 떨림 방지)
+FACE_TRAVEL_MIN_SPEED = 0.3     # u/s. 거의 정지 상태에서 기수가 헤매지 않게
+
+
 def world_velocity_to_rc(
-    yaw_deg: float, v_world: np.ndarray, rc_limit: int = 30
+    yaw_deg: float,
+    v_world: np.ndarray,
+    rc_limit: int = 30,
+    face_travel: bool = True,
 ) -> tuple[int, int, int, int]:
     """Unity-world velocity (u/s) -> Tello rc, normalized by UNITY_MOVE_SPEED so
-    the commanded rc reproduces v_world exactly (until rc_limit clips it)."""
+    the commanded rc reproduces v_world exactly (until rc_limit clips it).
+
+    `face_travel` 이 켜져 있으면 기수를 진행 방향으로 돌리는 yaw 성분을 같이
+    싣는다. 예전엔 여기서 yaw 를 **항상 0** 으로 돌려줘서 드론이 마지막 스캔이
+    끝난 각도 그대로 옆으로·뒤로 게걸음을 쳤다. 3인칭 화면에서는 티가 안 났지만
+    탐지 카메라가 드론 1인칭이 되면서 그대로 드러난다 — 이동 내내 벽만 본다.
+    병진 속도는 건드리지 않으므로 경로 추종 자체는 그대로다."""
     yaw = math.radians(yaw_deg)
     wx, wy, wz = float(v_world[0]), float(v_world[1]), float(v_world[2])
     local_x = math.cos(yaw) * wx - math.sin(yaw) * wz
@@ -104,7 +122,17 @@ def world_velocity_to_rc(
     def clip(v: float) -> int:
         return int(max(-rc_limit, min(rc_limit, round(v * scale))))
 
-    return clip(local_x), clip(local_z), clip(wy), 0
+    yaw_rc = 0
+    if face_travel and math.hypot(wx, wz) >= FACE_TRAVEL_MIN_SPEED:
+        # Unity 의 eulerAngles.y 와 같은 규약: 0° 가 +Z, +X 쪽으로 증가한다.
+        desired_deg = math.degrees(math.atan2(wx, wz))
+        error_deg = (desired_deg - yaw_deg + 180.0) % 360.0 - 180.0
+        if abs(error_deg) > FACE_TRAVEL_DEADBAND_DEG:
+            yaw_rc = int(max(-FACE_TRAVEL_RC_LIMIT,
+                             min(FACE_TRAVEL_RC_LIMIT,
+                                 round(error_deg * FACE_TRAVEL_GAIN))))
+
+    return clip(local_x), clip(local_z), clip(wy), yaw_rc
 
 
 def follow_path(

@@ -291,10 +291,14 @@ POST /api/patrol/abort → {"ok": true}
   있으면 `NO FRAME` 이 된다. Unity 가 저장한 파일 경로(`image`)는 로컬 절대
   경로라 브라우저가 못 읽는다 — 필요하면 그 폴더를 정적 서빙하는 라우트를 하나
   더 열어야 한다.
-- **`scan` verb 를 구현한 Unity 빌드.** 아직 `PatrolPersonDetection.cs` 가 이
-  브랜치에 없다. 그 전까지 서버는 `scan` 무응답을 감지해 rc 회전으로 내려가고,
-  그 경로에는 탐지가 없다(외부 디텍터를 UDP 9004 로 띄우면 있다). **실제
-  Unity로 돌리면 `detect` 가 한 건도 안 온다** — 배선을 확인하려면
+- **`scan` verb 를 구현한 Unity 빌드 + 씬 안의 사람.** 배관은 다 있다
+  (`PatrolPersonDetection.cs` → TCP 9100 `person_detector_tcp.py` → `detect`).
+  사람은 `test.unity` 의 NPC 프리팹 3개뿐이고 **그 에셋은 저장소에 없다**
+  (README §8). **`detect` 가 한 건도 안 오는 경우는 둘 — NPC 에셋을 안 받았거나
+  YOLO 프로세스를 안 띄웠거나**이고, 둘 다 결과는 빈 집과 같다(전 방 "아무도
+  없음"). 서버가
+  `scan` 무응답을 감지하면 rc 회전으로 내려가는데 그 경로에는 탐지가 없다
+  (외부 디텍터를 UDP 9004 로 띄우면 있다). 웹 배선만 확인하려면
   `simulator/bridge/fake_unity_sim.py --detect-per-scan 1` 을 쓴다.
 - **경로 엔진.** `/plan` 은 지금 A\* 다. 콘솔이 기대하던 SAC 정책(`rl_planner`)과
   통일할지는 아직 결정 전 — 응답 `engine` 필드가 어느 쪽이 답했는지 알려준다.
