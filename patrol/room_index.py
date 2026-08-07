@@ -270,15 +270,24 @@ def scan_pose(room: RoomInfo, hover_height: float,
     return planner.voxel_to_world(gm, v) if v is not None else base
 
 
-def order_rooms(rooms: Sequence[RoomInfo], start_world) -> List[RoomInfo]:
-    """Greedy nearest-neighbour visit order from the drone's current position.
+def order_rooms(rooms: Sequence[RoomInfo], start_world,
+                pinned: Sequence[RoomInfo] = ()) -> List[RoomInfo]:
+    """Visit order: what the user asked for first, then greedy nearest-neighbour.
 
     Floor is weighted heavily so a multi-floor patrol finishes one floor before
     climbing — going up and down repeatedly is both slower and harder to watch.
+
+    `pinned` is the order the user stated out loud ("A 갔다가 B"). It goes at the
+    front verbatim and the greedy pass fills in behind it, continuing from the
+    last pinned room rather than the drone — otherwise the tail would be chosen
+    for a position the drone has already left. Splitting it this way is the whole
+    point: a 3B model reads "A 갔다가 B" reliably but plans a route 1.4-1.7x
+    longer than this greedy does, so each side only does what it is good at.
     """
-    remaining = list(rooms)
-    pos = np.asarray(start_world, dtype=float)
-    ordered: List[RoomInfo] = []
+    pin = [r for r in pinned if r in rooms]
+    remaining = [r for r in rooms if r not in pin]
+    ordered: List[RoomInfo] = list(pin)
+    pos = np.asarray(pin[-1].centroid if pin else start_world, dtype=float)
     while remaining:
         nxt = min(remaining, key=lambda r: (r.floor,
                                             float(np.linalg.norm(r.centroid - pos))))

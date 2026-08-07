@@ -38,22 +38,32 @@ Fill in:
 - scope:        "room" (specific rooms), "floor" (whole floor(s)),
   "building" (집 전체 / 온 집 / whole house), or "" if unclear.
 - return_home:  true unless the user says not to come back. Default true.
+- order:        list of ROOM IDs in the order the user asked to visit them,
+  when the user STATES an order ("A 갔다가 B", "A부터", "A 먼저", "A 다음에 B").
+  Empty list if the user stated no order — do NOT invent one, an empty list is
+  the right answer for "2층 전부 순찰해줘".
 
 Always answer with a single JSON object, no prose, no markdown fences.
 
 Examples:
 
-User: 현우방만 탐색해줘
-{"target_rooms":["002_012"],"room_types":[],"floors":[],"scope":"room","return_home":true}
+User: 채원의 금고가 있다는 소문의 방만 탐색해줘
+{"target_rooms":["002_012"],"room_types":[],"floors":[],"scope":"room","return_home":true,"order":[]}
 
 User: 2층 전부 순찰해줘
-{"target_rooms":[],"room_types":[],"floors":[2],"scope":"floor","return_home":true}
+{"target_rooms":[],"room_types":[],"floors":[2],"scope":"floor","return_home":true,"order":[]}
 
 User: 집 전체 돌면서 사람 있는지 확인해줘
-{"target_rooms":[],"room_types":[],"floors":[],"scope":"building","return_home":true}
+{"target_rooms":[],"room_types":[],"floors":[],"scope":"building","return_home":true,"order":[]}
 
 User: 3층 화장실들 확인해줘
-{"target_rooms":[],"room_types":["bathroom"],"floors":[3],"scope":"floor","return_home":true}
+{"target_rooms":[],"room_types":["bathroom"],"floors":[3],"scope":"floor","return_home":true,"order":[]}
+
+User: 채원의 금고가 있다는 소문의 방 갔다가 규철의 지하조직 본부 순찰해줘
+{"target_rooms":["002_012","002_016"],"room_types":[],"floors":[],"scope":"room","return_home":true,"order":["002_012","002_016"]}
+
+User: 지윤의 위장 세탁소 먼저 보고 현우의 이중장부 서재 확인해줘
+{"target_rooms":["002_015","002_014"],"room_types":[],"floors":[],"scope":"room","return_home":true,"order":["002_015","002_014"]}
 """
 
 _FLOOR_RE = re.compile(r"(\d+)\s*층")
@@ -68,6 +78,7 @@ class PatrolIntent:
     floors_kr: List[int] = field(default_factory=list)  # as the user says them
     scope: str = ""                         # room | floor | building | ""
     return_home: bool = True
+    order: List[str] = field(default_factory=list)   # visit order the user SAID
     raw: dict = field(default_factory=dict)
     raw_text: str = ""
 
@@ -88,9 +99,31 @@ def parse_patrol(llm, user_text: str, index: Dict[str, RoomInfo],
                    if str(f).strip().lstrip("-").isdigit()],
         scope=str(data.get("scope", "")).strip().lower(),
         return_home=bool(data.get("return_home", True)),
+        order=[r for r in map(_coerce_room_id,
+                              _as_list(data.get("order"))) if r],
         raw=data if isinstance(data, dict) else {},
         raw_text=gen,
     )
+
+
+def resolve_order(intent: PatrolIntent, rooms: Sequence[RoomInfo]) -> List[RoomInfo]:
+    """The visit order the user actually stated, as far as it can be trusted.
+
+    The model's `order` is a suggestion about the SENTENCE, not about the map, so
+    it is checked against the rooms we already resolved rather than believed:
+    ids we did not pick are dropped (the model likes to name a neighbour it saw
+    in the directory) and duplicates collapse. Whatever is left is a prefix —
+    `order_rooms` fills the rest by distance, so a partial or empty answer costs
+    nothing. That is what makes trusting the model here cheap: it can only
+    reorder rooms that some other tier already decided we are visiting.
+    """
+    by_name = {r.room_name: r for r in rooms}
+    out: List[RoomInfo] = []
+    for rid in intent.order:
+        room = by_name.get(rid)
+        if room is not None and room not in out:
+            out.append(room)
+    return out
 
 
 def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
@@ -112,16 +145,24 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
     text_floors = _resolve_floors(PatrolIntent(), raw_text, index)
     offset = next(iter(index.values())).floor_offset if index else 1
 
-    # 1. explicit room ids from the LLM — but only ones the TEXT backs up.
-    #    Asked something off-topic ("냉장고 찾아줘"), the 3B model still fills
-    #    target_rooms with plausible-looking ids. Silently patrolling three
-    #    invented rooms is worse than admitting we did not understand, so a id
-    #    only counts if its code, one of its aliases, or its type/floor shows
-    #    up in what the user actually wrote.
+    # 1. rooms the user NAMED, from two directions that are unioned rather than
+    #    raced: ids the model proposed (backed by the text) and aliases found in
+    #    the text. Racing them loses rooms — asked "본부 갔다가 금고 순찰해줘"
+    #    the model answers ["002_016"], and if that short list wins outright the
+    #    금고 the user typed by name never gets patrolled. Neither side is
+    #    complete on its own, so take both.
+    #
+    #    The model's ids still need backing: asked something off-topic ("냉장고
+    #    찾아줘") a 3B fills target_rooms with plausible-looking codes, and
+    #    silently patrolling three invented rooms is worse than admitting we did
+    #    not understand. An id counts only if its code, one of its aliases, or
+    #    its type/floor shows up in what the user actually wrote.
+    #    `text_floors` again, not `floors`: backing an id with the model's own
+    #    guessed floor is circular — it lets the model vouch for itself. Asked
+    #    "무기고 확인해줘" it answers 000_002 (the 벙커) and volunteers 1층, and
+    #    the id passes because it sits on the floor the same answer invented.
     picked = [index[r] for r in intent.target_rooms
-              if r in index and _text_backs_room(index[r], text, floors)]
-    if picked:
-        return _dedup(picked)[:max_rooms], "방 코드 지정"
+              if r in index and _text_backs_room(index[r], text, text_floors)]
 
     # 2. alias substring match on the raw text (longest alias first).
     #    A floor SPELLED IN THE TEXT constrains this tier. "2층 복도 순찰해줘"
@@ -141,8 +182,16 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
             alias_hits.append(room)
     if text_floors:
         alias_hits = [r for r in alias_hits if r.floor in text_floors]
-    if alias_hits:
-        return _dedup(alias_hits)[:max_rooms], f"별칭 매칭 ({alias_hits[0].aliases[0]})"
+
+    named = _dedup(picked + alias_hits)
+    if named:
+        if picked and alias_hits:
+            why = "방 이름 지정"
+        elif picked:
+            why = "방 코드 지정"
+        else:
+            why = f"별칭 매칭 ({alias_hits[0].aliases[0]})"
+        return named[:max_rooms], why
 
     # 3. room types (LLM list, else a Korean keyword scan)
     types = list(intent.room_types)

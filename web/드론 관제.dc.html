@@ -764,7 +764,11 @@ class Component extends DCLogic {
         if (!r.rooms || !r.rooms.length) { this.searchByName(q, r.why); return; }
         const ids = r.rooms.filter(id => meta.rooms[id]);
         if (!ids.length) { this.searchByName(q, r.why); return; }
-        this.setTargets(this.orderRooms(ids));
+        // 서버가 준 배열이 곧 방문 순서다 — 여기서 다시 정렬하지 않는다.
+        // /api/intent 는 사용자가 말한 순서("A 갔다가 B")를 앞에 고정하고 나머지를
+        // 최근접으로 채워서 내려보낸다. orderRooms 로 덮으면 그 지시가 사라진다.
+        // (지도 클릭으로 직접 고른 경우는 아래 onAddFloor 에서 계속 orderRooms 를 쓴다)
+        this.setTargets(ids);
         this.focusRoom(ids[0]);
         this.toast(`${r.why || '자연어 해석'} — ${ids.length}개 구역 지정`);
       })
