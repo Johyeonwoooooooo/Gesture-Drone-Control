@@ -106,8 +106,28 @@ public class TelloSimulator : MonoBehaviour
     private float scanTurnedDeg = 0f;
     private float scanDegPerSec = 50f;
 
+    // Detection hold, set by PatrolPersonDetection.PauseForDetection. While it
+    // runs the drone is frozen — rc is dropped and the sweep stops advancing,
+    // so the paused seconds do not count toward scanTurnedDeg and the scan
+    // resumes from the same angle.
+    private float holdMovementUntil = -1f;
+
     // Read by CamcorderHUD (battery drains faster in flight).
     public bool IsFlying => isFlying;
+
+    // How much of the current sweep is left. PatrolPersonDetection stops
+    // capturing near the end so a detect never lands after scan_done, which the
+    // pipeline treats as "this room is finished".
+    public float ScanRemainingDeg => scanActive ? Mathf.Max(0f, scanTargetDeg - scanTurnedDeg) : 0f;
+
+    // Freeze the drone in place for `seconds` — the visible "stop and look" when
+    // the detector finds someone. Extends an active hold, never shortens it.
+    public void PauseForDetection(float seconds)
+    {
+        holdMovementUntil = Mathf.Max(holdMovementUntil, Time.time + Mathf.Max(0f, seconds));
+        targetLR = targetFB = targetUD = targetYaw = 0f;
+        currentLR = currentFB = currentUD = currentYaw = 0f;
+    }
 
     // Path/marker visibility, driven by SettingsPanel. The trail keeps recording
     // while hidden so toggling it back on shows the whole flight, not a stub.
@@ -261,11 +281,19 @@ public class TelloSimulator : MonoBehaviour
             ProcessCommand(cmd);
         }
 
+        bool holdingForDetection = Time.time < holdMovementUntil;
+
         if (scanActive)
         {
             if (!isFlying)
             {
                 StopScan("landed");
+            }
+            else if (holdingForDetection)
+            {
+                // Hold the angle. The sweep stays active and scanTurnedDeg stays
+                // put, so scan_done cannot fire while we are stopped on someone.
+                targetYaw = 0f;
             }
             else
             {
@@ -278,7 +306,13 @@ public class TelloSimulator : MonoBehaviour
             }
         }
 
-        if (isFlying)
+        if (holdingForDetection)
+        {
+            targetLR = targetFB = targetUD = targetYaw = 0f;
+            currentLR = currentFB = currentUD = currentYaw = 0f;
+        }
+
+        if (isFlying && !holdingForDetection)
         {
             currentLR = Mathf.SmoothDamp(currentLR, targetLR, ref velLR, smoothTime);
             currentFB = Mathf.SmoothDamp(currentFB, targetFB, ref velFB, smoothTime);
@@ -410,10 +444,9 @@ public class TelloSimulator : MonoBehaviour
         if (cmd.StartsWith("scan"))
         {
             // "scan <deg/s> [turns]" — sweep this room and report back.
-            // PatrolPersonDetection (feature/drone-camera-person-detection) is
-            // the one that captures frames and calls YOLO; when it is on this
-            // object it takes over and we only own the spin + scan_done. With
-            // no detector attached the sweep still runs, just without detects.
+            // PatrolPersonDetection captures the frames and calls YOLO; we only
+            // own the spin, the hold, and scan_done. With no detector process
+            // listening the sweep still runs, just without detects.
             string[] sp = cmd.Split(' ');
             float dps = 50f, turns = 1f;
             if (sp.Length > 1) float.TryParse(sp[1], NumberStyles.Float, CultureInfo.InvariantCulture, out dps);
@@ -424,6 +457,14 @@ public class TelloSimulator : MonoBehaviour
 
         if (cmd.StartsWith("rc "))
         {
+            // The pipeline keeps streaming rc while we are stopped on a
+            // detection; swallow it so the hold is not overwritten mid-frame.
+            if (Time.time < holdMovementUntil)
+            {
+                targetLR = targetFB = targetUD = targetYaw = 0f;
+                return;
+            }
+
             string[] parts = cmd.Split(' ');
             if (parts.Length == 5
                 && float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float lr)
@@ -520,6 +561,7 @@ public class TelloSimulator : MonoBehaviour
         }
         scanActive = false;
         targetYaw = 0f;
+        holdMovementUntil = -1f;   // never leave the drone frozen past the sweep
         Debug.Log($"[Tello] scan {reason} at {scanTurnedDeg:F0} deg");
         if (reason != "stopped")
         {

@@ -157,6 +157,19 @@ simulator/tello_simulator/.vsconfig
 simulator/tello_simulator/UpgradeLog*.htm
 
 .vscode/
+
+# Unity가 사람을 찾을 때마다 떨구는 프레임 (PatrolPersonDetection.cs). 보고서에
+# 들어갈 사본은 patrol_mission 이 report 폴더로 복사하므로 원본은 추적하지 않는다.
+simulator/bridge/detection_frames/
+# ultralytics 가 처음 실행될 때 받아 오는 YOLO 가중치 (6 MB 내외)
+yolov8n.pt
+yolo11n.pt
+
+# NPC 캐릭터 에셋 (약 500 MB). 에셋스토어 패키지라 공개 저장소에 재배포하지
+# 않는다 — data/final_npy 와 같은 취급이고, 받는 법은 README §8.
+simulator/tello_simulator/Assets/npc_casual_set_00/
+simulator/tello_simulator/Assets/npc_casual_set_00.meta
+
 # RL 추종기가 data/final_npy 에서 만들어 두는 장애물 캐시 (6 MB, 자동 재생성).
 # 정책 가중치(geo_actor.npz, 290 KB)는 반대로 추적한다 — 그게 있어야 torch 없이 난다.
 simulator/bridge/geo_obstacles.npz
