@@ -130,6 +130,9 @@ class Scene:
         self.points_world = self.backend.load_points(stride=args.point_stride)
         self.gm = planner.voxelize(self.points_world, args.resolution,
                                    args.margin, args.sample)
+        # patrol_mission.plan_leg 가 좁은 통로용으로 만드는 팽창 0 격자.
+        # 만드는 데 몇 초 걸리므로 프로세스 내내 재사용한다.
+        self.grid_cache: Dict[tuple, planner.GridMeta] = {}
         self.home = self.backend.default_home()
         print(f"[api] scene ready: grid={self.gm.shape}, "
               f"home={np.round(self.home, 2)} ({time.time() - t0:.1f}s)")
@@ -345,18 +348,18 @@ def build_app(scene: Scene) -> FastAPI:
                  else scene.drone_pose()[0])
         goal = scene.snap_goal(req.goal)
         t0 = time.time()
-        path, info, _ = planner.plan_path(
-            scene.points_world, start, goal, algo=scene.args.algo,
-            gm=scene.gm, rrt_iter=scene.args.rrt_iter)
+        # 미션과 같은 플래너를 탄다 (patrol_mission.plan_leg): 여유가 넉넉한
+        # 격자부터 시도하고 막힌 구간만 조여서 다시 푼다. 경로가 None 인 경우는
+        # 없어서 브리핑이 "일부 구간 실패"로 비지 않는다. 둘이 갈라지면 브리핑에
+        # 그려진 경로와 실제로 나는 경로가 달라진다.
+        path, info = patrol_mission.plan_leg(
+            scene.points_world, scene.gm, start, goal,
+            algo=scene.args.algo, grid_cache=scene.grid_cache)
         ms = int((time.time() - t0) * 1000)
-        if path is None:
-            return {"engine": _engine(scene), "success": False,
-                    "error": info.get("reason", "no path"),
-                    "steps": 0, "bumps": 0, "dist": 0.0, "flown": 0.0,
-                    "ms": ms, "start": _xyz(start), "goal": _xyz(goal),
-                    "path": []}
         return {
             "engine": _engine(scene), "success": True,
+            "fallback": info.get("fallback"),   # None | tightened | direct
+            "clearanceM": info.get("clearance_m"),
             "steps": int(info["n_waypoints"]), "bumps": 0,
             "dist": round(float(np.linalg.norm(goal - path[-1])), 3),
             "flown": round(float(info["length_m"]), 2), "ms": ms,

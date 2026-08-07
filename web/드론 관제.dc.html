@@ -653,8 +653,17 @@ class Component extends DCLogic {
         .then(r => r.ok ? r.json() : r.json().then(j => Promise.reject(new Error(j.error || ('HTTP ' + r.status)))))
         .then(j => {
           if (seq !== this.planSeq) return;
-          legs.push({ room: s.room, home: !!s.home, path: j.path || [], ok: !!j.success,
+          // 서버는 이제 구간을 못 풀어도 폴백해서 항상 경로를 준다. j.fallback:
+          //   null        여유 넉넉한 격자에서 그대로 풀림
+          //   'tightened' 여유를 좁혀 다시 푼 구간 (목표에는 도달)
+          //   'nearest'   드론이 못 들어가는 목표 — 갈 수 있는 데까지만
+          //   'direct'    출발점이 막힘. 벽 통과 가능한 최후 수단
+          // 뒤의 둘만 목표 미도달이라 계획 성공으로 치지 않는다.
+          const short = j.fallback === 'nearest' || j.fallback === 'direct';
+          legs.push({ room: s.room, home: !!s.home, path: j.path || [], ok: !!j.success && !short,
+                      fallback: short || undefined, clearanceM: j.clearanceM,
                       dist: j.flown, steps: j.steps, bumps: j.bumps, engine: j.engine });
+          if (short) this.fallbackErr = '드론이 들어갈 수 없는 구역이 있어 그 앞까지만 접근합니다';
           cursor = j.goal || s.goal;
           step(i + 1);
         })

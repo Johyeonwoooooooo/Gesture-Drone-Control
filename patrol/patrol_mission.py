@@ -30,6 +30,7 @@ takeoff/land itself and calls the lower-level `follow_path.follow_path` per leg.
 from __future__ import annotations
 
 import json
+import math
 import shutil
 import time
 from dataclasses import dataclass, field
@@ -81,7 +82,10 @@ class RoomVisit:
     room_name: str
     display: str
     reached: bool
-    reason: str                      # arrived | timeout | plan_failed | ...
+    # arrived | timeout | collision | ... — `plan_failed` 은 더 이상 안 나온다.
+    # 계획은 `plan_leg` 가 3단으로 폴백해서 항상 경로를 돌려주므로, 실패는
+    # 이제 계획이 아니라 추종 단계에서만 생긴다.
+    reason: str
     scan_completed: bool
     scan_degrees: float
     events: int
@@ -326,6 +330,118 @@ def _save_photo(ev: DetectionEvent, events_dir: Optional[Path],
         return None
 
 
+# ------------------------------------------------------------------- planning
+
+def clearance_ladder(base_res: float) -> list[tuple[float, int]]:
+    """`(resolution, margin)` 단계들. 여유가 넓은 쪽 → 좁은 쪽 순서.
+
+    장애물 팽창 여유(clearance) = `resolution × margin` [m] 이다. 기본 0.15 m
+    격자 기준으로:
+
+        (0.15, 2) -> 0.30 m 여유   폭 0.75 m 이상인 통로만 통과
+        (0.15, 1) -> 0.15 m        폭 0.45 m 이상   ← 두 진입점이 만드는 격자
+        (0.075, 1) -> 0.075 m      폭 0.225 m 이상
+        (0.05, 1) -> 0.05 m        폭 0.15 m 이상
+
+    **해상도를 낮출지언정 `margin` 은 0으로 내리지 않는다.** 팽창을 빼면 좁은
+    통로가 열려서 계획은 성공하지만, 경로가 벽 표면에 딱 붙어버려 드론이 그대로
+    긁고 지나간다 — 없애려는 그 충돌이 계획 단계에서 만들어지는 셈이다. 대신
+    해상도를 반/삼분의 일로 줄이면 필요한 통로 폭도 같은 비율로 줄면서 여유는
+    (작아질지언정) 남는다.
+    """
+    return [(base_res, 2), (base_res, 1), (base_res / 2.0, 1),
+            (base_res / 3.0, 1)]
+
+
+def plan_leg(points_world: np.ndarray, gm: planner.GridMeta,
+             start_world, goal_world, algo: str = "astar",
+             grid_cache: Optional[dict] = None) -> tuple[list, dict]:
+    """Plan one leg, from the safest grid down. Never returns None.
+
+    건물 전체가 하나의 복셀 격자이고 팽창이 좁은 방·문틈을 막아버려 A* 가
+    `no path` / `max_iters exceeded` 로 죽는 구간이 있다 (patrol/README.md
+    §한계, 안방 `000_003`). 미션 전체 설정을 흔드는 대신 **막힌 그 구간만**
+    `clearance_ladder()` 를 한 칸씩 내려가며 다시 푼다. 넉넉한 여유로 먼저
+    풀어보고, 안 되는 구간에서만 조인다 — 벽에서 멀리 도는 경로가 기본이 된다.
+
+    사다리를 다 내려가도 못 풀면 **목표를 포기하지 목표까지 뚫고 가지는 않는다**:
+    호출자의 격자(여유 그대로)에서 `best_effort` A* 를 돌려 도달 가능한 지점 중
+    목표에 가장 가까운 곳까지 간다(`fallback="nearest"`). 00809 의 `002_021`·
+    `002_022` 처럼 드론이 들어갈 수 없는 좁은 공간이 목표일 때 이게 걸린다 —
+    벽을 통과하는 대신 문 앞까지 가서 거기서 스캔한다.
+
+    직선(`"direct"`)은 출발점조차 자유공간이 아닐 때만 나오는 마지막 안전망이다.
+
+    info 에 남는 것: `clearance_m`(이 경로가 확보한 여유), `fallback`
+    (`None` = 가장 안전한 단계에서 풀림 | `"tightened"` | `"nearest"` |
+    `"direct"`), `gap_to_goal_m`(`"nearest"` 일 때 목표까지 남은 거리),
+    `first_reason`(첫 단계가 실패한 이유), `rung`(사다리에서 몇 번째).
+
+    `grid_cache` 는 단계별 격자를 미션 내내 재사용하는 통. 0.05 m 격자는 만드는
+    데 몇 초 걸리므로 구간마다 다시 만들면 안 된다.
+    """
+    if grid_cache is None:
+        grid_cache = {}
+    rungs = clearance_ladder(gm.resolution)
+    # 호출자가 이미 만들어 넘긴 격자를 그 자리에 꽂아 둔다 (다시 만들지 않도록).
+    grid_cache.setdefault((round(gm.resolution, 4), 1), gm)
+
+    first_reason = None
+    reason = "?"
+    for rung, (res, margin) in enumerate(rungs):
+        key = (round(res, 4), margin)
+        grid = grid_cache.get(key)
+        if grid is None:
+            # 점은 이미 point_stride 로 솎여 들어오므로 sample=1
+            # (두 진입점의 --sample 기본값과 같다).
+            grid = planner.voxelize(points_world, res, margin, 1)
+            grid_cache[key] = grid
+        # 이 단계에서 목표가 아예 도달 불가면 A* 를 돌리지 않는다. 실패하는
+        # A* 가 제일 비싸다 — 도달 가능한 복셀을 전부 펼쳐봐야 "없다"고 말할 수
+        # 있기 때문이다(실측 5~9 s). 연결 성분 라벨은 그걸 한 번에 답한다.
+        if not planner.connected(grid, start_world, goal_world):
+            if first_reason is None:
+                first_reason = "unreachable at this clearance"
+            reason = "unreachable at this clearance"
+            continue
+        # 첫 단계만 호출자가 고른 algo 를 쓴다. 재시도는 A* 로 못 박는다 —
+        # RRT* 는 좁은 통로를 확률적으로 놓치므로 폴백에 어울리지 않는다.
+        path, info, _ = planner.plan_path(
+            points_world, start_world, goal_world,
+            algo=(algo if rung == 0 else "astar"), gm=grid)
+        if path is not None:
+            info["clearance_m"] = round(res * margin, 4)
+            info["rung"] = rung
+            info["fallback"] = None if rung == 0 else "tightened"
+            info["first_reason"] = first_reason
+            return path, info
+        reason = info.get("reason", "?")
+        if first_reason is None:
+            first_reason = reason
+
+    # 어느 여유로도 목표에 못 닿는다 = 드론이 들어갈 수 없는 공간이다. 뚫고
+    # 가는 대신 갈 수 있는 데까지만 간다. 여유는 호출자 격자 그대로 지킨다.
+    path, info, _ = planner.plan_path(
+        points_world, start_world, goal_world, algo="astar", gm=gm,
+        best_effort=True)
+    if path is not None and len(path) >= 2:
+        info["clearance_m"] = round(gm.resolution, 4)
+        info["rung"] = len(rungs)
+        info["fallback"] = "nearest"
+        info["first_reason"] = first_reason
+        return path, info
+
+    # 출발점 자체가 막혀 있는 경우만 여기까지 온다.
+    path = [np.asarray(start_world, dtype=float),
+            np.asarray(goal_world, dtype=float)]
+    return path, {"algo": "direct", "fallback": "direct",
+                  "clearance_m": 0.0, "rung": len(rungs) + 1,
+                  "first_reason": first_reason,
+                  "reason": reason,
+                  "length_m": planner.path_length(path),
+                  "n_waypoints": 2}
+
+
 # ---------------------------------------------------------------------- mission
 
 def run_patrol(bridge, sim_tf, points_world: np.ndarray, gm: planner.GridMeta,
@@ -367,14 +483,26 @@ def run_patrol(bridge, sim_tf, points_world: np.ndarray, gm: planner.GridMeta,
     home_world = np.asarray(home_world, dtype=float)
     pos_world = _drone_world(bridge, sim_tf, home_world)
 
+    grid_cache: dict = {}       # plan_leg 의 단계별 격자, 미션 내내 재사용
+
     def fly_leg(goal_world, label: str) -> tuple[bool, str, float]:
         """Plan + fly one leg. -> (reached, reason, length_m)."""
         nonlocal pos_world
-        path, info, _ = planner.plan_path(
-            points_world, pos_world, goal_world, algo=cfg.algo, gm=gm)
-        if path is None:
-            on_status(f"{label}: 경로 계산 실패 ({info.get('reason', '?')})")
-            return False, "plan_failed", 0.0
+        path, info = plan_leg(points_world, gm, pos_world, goal_world,
+                              algo=cfg.algo, grid_cache=grid_cache)
+        fallback = info.get("fallback")
+        if fallback == "tightened":
+            r0, m0 = clearance_ladder(gm.resolution)[0]
+            on_status(f"{label}: 여유 {r0 * m0:.2f} m 로는 막힘"
+                      f"({info['first_reason']}) → 여유 "
+                      f"{info['clearance_m']:.2f} m 로 좁혀 그 구간만 재계획")
+        elif fallback == "nearest":
+            on_status(f"{label}: 드론이 들어갈 수 없는 공간 "
+                      f"({info['first_reason']}) → 목표 "
+                      f"{info.get('gap_to_goal_m', 0):.1f} m 앞까지만 접근")
+        elif fallback == "direct":
+            on_status(f"{label}: 출발점이 막혀 있음({info['first_reason']}) "
+                      f"→ 직선으로 이동 (벽 통과 가능)")
         res.planned_path_world.extend([[float(v) for v in p] for p in path])
         wps_unity = sim_tf.mosaic_to_unity(np.asarray(path, dtype=float))
         res.planned_path_unity.extend([[float(v) for v in p] for p in wps_unity])
@@ -565,3 +693,135 @@ def write_viz(res: PatrolResult, viz_dir: Path) -> None:
                        "intrusions_world": intrusions}, f)
     except (OSError, TypeError, ValueError):
         pass  # visualization is never worth failing a mission over
+
+
+# ------------------------------------------------------------------ self-check
+
+def _demo() -> None:
+    """`python -m patrol.patrol_mission` — plan_leg 의 3단 폴백을 합성 씬으로 확인.
+
+    시뮬레이터도 Unity도 필요 없다. 방 하나를 벽으로 갈라놓고 문틈 너비만 바꿔
+    1번(그냥 통과) / 2번(팽창이 문틈을 막음) / 3번(문이 아예 없음)을 각각 태운다.
+    """
+    # 로그가 전부 한국어인데 윈도우 기본이 cp949 라 '—' 하나에 죽는다.
+    import sys
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, OSError):
+            pass
+
+    res_m = 0.15
+
+    # 문을 한쪽으로 치우쳐 둔다 — start/goal 직선 위에 두면 A* 가 푼 경로와 3번의
+    # 직선 폴백이 길이까지 똑같아져서, 검사가 둘을 구분하지 못한다.
+    gap_center = 0.8
+
+    def room_points(gap_half: float) -> np.ndarray:
+        """4×3×1.5 m 방 + x=0 칸막이. `gap_half`=0 이면 문틈 없음."""
+        step = 0.05
+        pts = []
+        ax = np.arange(-2.0, 2.0 + step, step)
+        ay = np.arange(-1.5, 1.5 + step, step)
+        az = np.arange(0.0, 1.5 + step, step)
+        # 바깥 벽 4면 (격자 범위를 정하고 밖으로 새는 우회로를 막는다)
+        for y in (ay[0], ay[-1]):
+            gx, gz = np.meshgrid(ax, az, indexing="ij")
+            pts.append(np.column_stack([gx.ravel(), np.full(gx.size, y), gz.ravel()]))
+        for x in (ax[0], ax[-1]):
+            gy, gz = np.meshgrid(ay, az, indexing="ij")
+            pts.append(np.column_stack([np.full(gy.size, x), gy.ravel(), gz.ravel()]))
+        # 바닥·천장
+        for z in (az[0], az[-1]):
+            gx, gy = np.meshgrid(ax, ay, indexing="ij")
+            pts.append(np.column_stack([gx.ravel(), gy.ravel(), np.full(gx.size, z)]))
+        # 칸막이: x=0, 문틈만 비움
+        gy, gz = np.meshgrid(ay, az, indexing="ij")
+        gy, gz = gy.ravel(), gz.ravel()
+        keep = (np.abs(gy - gap_center) >= gap_half if gap_half > 0
+                else np.ones(gy.shape, bool))
+        pts.append(np.column_stack([np.zeros(keep.sum()), gy[keep], gz[keep]]))
+        return np.vstack(pts)
+
+    start, goal = (-1.2, 0.0, 0.75), (1.2, 0.0, 0.75)
+
+    def min_clearance(path, pts) -> float:
+        """경로 위 어느 점이든 가장 가까운 장애물 점까지의 거리 [m].
+        계획이 약속한 여유를 실제로 지켰는지 보는 유일한 잣대."""
+        dense = []
+        for a, b in zip(path[:-1], path[1:]):
+            a, b = np.asarray(a, float), np.asarray(b, float)
+            n = max(2, int(np.linalg.norm(b - a) / 0.02))
+            dense.append(a + (b - a) * np.linspace(0, 1, n)[:, None])
+        dense = np.vstack(dense)
+        # 점군이 작아 브루트포스로 충분하다 (scipy 없이 돌게).
+        best = math.inf
+        for chunk in np.array_split(dense, max(1, len(dense) // 200)):
+            d = np.linalg.norm(pts[None, :, :] - chunk[:, None, :], axis=2)
+            best = min(best, float(d.min()))
+        return best
+
+    # 1) 문이 넓으면(±0.6 m) 가장 안전한 단계(여유 0.30 m)에서 바로 풀린다.
+    pts = room_points(0.60)
+    gm_wide = planner.voxelize(pts, res_m, 1, 1)
+    path, info = plan_leg(pts, gm_wide, start, goal)
+    assert info["fallback"] is None and info["rung"] == 0, info
+    assert info["clearance_m"] == 0.30, info
+    # 문이 y=+0.8 로 치우쳐 있으니 직선 2.4 m 보다 길어야 = 진짜로 돌아갔어야 한다.
+    assert 2.5 < info["length_m"] < math.inf, info
+    c1 = min_clearance(path, pts)
+    print(f"  1) 넓은 문(±0.60)  rung={info['rung']} 여유 "
+          f"{info['clearance_m']:.3f} m, {info['length_m']:.2f} m, "
+          f"실측 최소거리 {c1:.3f} m")
+
+    # 2) 문틈 ±0.15 m — 여유 0.30 도 0.15 도 막힌다. 사다리를 내려가 풀되,
+    #    여유가 0 이 되지는 않아야 한다. 이게 이번 변경의 핵심 주장이다.
+    pts = room_points(0.15)
+    gm_mid = planner.voxelize(pts, res_m, 1, 1)
+    assert planner.astar(gm_mid, np.array(start), np.array(goal))[0] is None, \
+        "합성 씬이 의도와 다르다 — 팽창 1셀로도 문틈이 안 막혔다"
+    # 같은 격자·같은 질의라도 best_effort 를 켜면 None 대신 '갈 수 있는 데까지'가
+    # 나온다. 기본값(False)이 여전히 None 인 건 바로 위 assert 가 지킨다.
+    pp, pi = planner.astar(gm_mid, np.array(start), np.array(goal), best_effort=True)
+    assert pp is not None and pi["partial"], pi
+    assert max(float(q[0]) for q in pp) < 0.0, "best_effort 가 벽을 넘었다"
+    cache: dict = {}
+    path, info = plan_leg(pts, gm_mid, start, goal, grid_cache=cache)
+    assert info["fallback"] == "tightened", info
+    assert info["rung"] >= 2, info
+    assert info["clearance_m"] > 0.0, "여유 0 으로 푸는 단계가 있으면 안 된다"
+    assert 2.5 < info["length_m"] < math.inf, info
+    c2 = min_clearance(path, pts)
+    assert c2 > 0.03, f"경로가 벽에 붙었다 (최소거리 {c2:.3f} m)"
+    print(f"  2) 좁은 문틈(±0.15) rung={info['rung']} 여유 "
+          f"{info['clearance_m']:.3f} m ({info['first_reason']}), "
+          f"{info['length_m']:.2f} m, 실측 최소거리 {c2:.3f} m")
+
+    # 두 번째 호출은 캐시를 재사용한다 (격자를 다시 만들지 않는다).
+    keys, objs = set(cache), dict(cache)
+    plan_leg(pts, gm_mid, start, goal, grid_cache=cache)
+    assert set(cache) == keys and all(cache[k] is objs[k] for k in keys), \
+        "grid_cache 가 재사용되지 않았다"
+
+    # 3) 문이 아예 없으면 어느 단계로도 못 푼다. 뚫고 가면 안 되고, 벽 앞까지만
+    #    가야 한다 — 이번 변경에서 제일 중요한 성질이다.
+    pts = room_points(0.0)
+    gm_sealed = planner.voxelize(pts, res_m, 1, 1)
+    path, info = plan_leg(pts, gm_sealed, start, goal)
+    assert info["fallback"] == "nearest", info
+    assert info["clearance_m"] > 0.0, info
+    c3 = min_clearance(path, pts)
+    assert c3 > 0.03, f"벽 앞까지만 가야 하는데 붙었다 (최소거리 {c3:.3f} m)"
+    # 경로가 칸막이(x=0)를 넘지 않아야 한다 = 뚫고 가지 않았다.
+    assert max(float(p[0]) for p in path) < 0.0, \
+        f"막힌 벽을 통과했다 (최대 x={max(float(p[0]) for p in path):.2f})"
+    print(f"  3) 막힌 벽         rung={info['rung']} fallback=nearest, "
+          f"목표 {info['gap_to_goal_m']:.2f} m 앞까지, "
+          f"실측 최소거리 {c3:.3f} m, 벽 안 넘음")
+
+    print("plan_leg: 사다리 전 단계 통과 — 경로 None 없음, "
+          "여유 0 인 A* 경로 없음, 막힌 목표는 뚫지 않고 앞에서 멈춤")
+
+
+if __name__ == "__main__":
+    _demo()

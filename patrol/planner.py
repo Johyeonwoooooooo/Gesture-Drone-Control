@@ -31,6 +31,10 @@ class GridMeta:
     y_min: float
     z_min: float
     resolution: float
+    # 자유공간 연결 성분 라벨 (lazy, `connected()` 가 채운다). scipy 가 없으면
+    # 계속 None 이고, 그러면 도달 가능성 사전 검사를 그냥 건너뛴다.
+    labels: Optional[np.ndarray] = None
+    labels_tried: bool = False
 
     @property
     def shape(self) -> tuple[int, int, int]:
@@ -133,6 +137,39 @@ def find_nearest_free(gm: GridMeta, v: tuple[int, int, int], max_radius: int = 2
     return None
 
 
+def connected(gm: GridMeta, a, b) -> bool:
+    """Can A* possibly get from world point `a` to `b` on this grid?
+
+    A* is the expensive way to learn "no" — a failed search must expand every
+    voxel reachable from the start first (measured: 139k expansions ≈ 5.4 s on
+    the 0.15 m whole-building grid, and the 0.05 m grid just hits `max_iters`
+    after 8 s without even finishing). Connected-component labelling answers the
+    same question for the whole grid in one vectorized pass, and the labels are
+    then reused by every later query on that grid.
+
+    Returns True when the answer is unknown (no scipy, or either endpoint has no
+    free voxel nearby) so a missing optimization can only cost time, never a
+    path that would have been found.
+    """
+    if not gm.labels_tried:
+        gm.labels_tried = True
+        try:
+            from scipy.ndimage import label
+
+            gm.labels = label(gm.grid == 0,
+                              structure=np.ones((3, 3, 3), dtype=bool))[0]
+        except Exception:
+            gm.labels = None      # 검사 없이 진행 (느릴 뿐, 결과는 같다)
+    if gm.labels is None:
+        return True
+
+    av = find_nearest_free(gm, world_to_voxel(gm, a))
+    bv = find_nearest_free(gm, world_to_voxel(gm, b))
+    if av is None or bv is None:
+        return True               # astar 가 같은 이유로 곧 실패를 돌려준다
+    return bool(gm.labels[av] == gm.labels[bv])
+
+
 def line_of_sight(gm: GridMeta, a: np.ndarray, b: np.ndarray, steps: int | None = None) -> bool:
     dist = float(np.linalg.norm(b - a))
     n = steps or max(2, math.ceil(dist / (gm.resolution * 0.7)))
@@ -170,7 +207,22 @@ def path_length(path: list[np.ndarray] | None) -> float:
 # A*  (26-connected)
 # ---------------------------------------------------------------------------
 
-def astar(gm: GridMeta, start: np.ndarray, goal: np.ndarray, max_iters: int = 200_000):
+def astar(gm: GridMeta, start: np.ndarray, goal: np.ndarray, max_iters: int = 200_000,
+          best_effort: bool = False):
+    """26-connected A*. `best_effort` changes what a failure returns: instead of
+    `None`, the path to the closest-to-goal voxel the search actually reached.
+
+    The loop is pure Python — measured ~25k node expansions per second — so the
+    expansion count IS the runtime. A search that fails is the expensive case:
+    it has to expand every voxel reachable from `start` before it can say so.
+    `connected()` exists to skip those before they start.
+
+    A failed search has already expanded every voxel reachable from `start`, so
+    that answer is free — we just keep the running argmin of the heuristic. Used
+    for "get as close as you safely can" when the goal sits behind a gap too
+    narrow for the drone's clearance: better than giving up, and unlike a
+    straight line it never leaves free space.
+    """
     sv = find_nearest_free(gm, world_to_voxel(gm, start))
     ev = find_nearest_free(gm, world_to_voxel(gm, goal))
     if sv is None or ev is None:
@@ -204,6 +256,22 @@ def astar(gm: GridMeta, start: np.ndarray, goal: np.ndarray, max_iters: int = 20
     g_score = {start_key: 0.0}
     heap = [(heuristic(sv), 0.0, sv)]
     expanded = 0
+    best_key, best_h = start_key, heuristic(sv)
+
+    def rebuild(k):
+        path = []
+        while k != -1:
+            path.append(voxel_to_world(gm, decode(k)))
+            k = came_from[k]
+        path.reverse()
+        return path
+
+    def give_up(reason: str, n: int):
+        if not best_effort:
+            return None, {"expanded": n, "reason": reason}
+        return rebuild(best_key), {"expanded": n, "reason": reason,
+                                   "partial": True,
+                                   "gap_to_goal_m": best_h * gm.resolution}
 
     while heap:
         _, g, cur = heapq.heappop(heap)
@@ -213,15 +281,14 @@ def astar(gm: GridMeta, start: np.ndarray, goal: np.ndarray, max_iters: int = 20
 
         expanded += 1
         if expanded > max_iters:
-            return None, {"expanded": expanded, "reason": "max_iters exceeded"}
+            return give_up("max_iters exceeded", expanded)
+
+        h = heuristic(cur)
+        if h < best_h:
+            best_h, best_key = h, key
 
         if key == goal_key:
-            path = []
-            while key != -1:
-                path.append(voxel_to_world(gm, decode(key)))
-                key = came_from[key]
-            path.reverse()
-            return path, {"expanded": expanded}
+            return rebuild(key), {"expanded": expanded}
 
         ix, iy, iz = cur
         for dx, dy, dz, step in dirs:
@@ -235,7 +302,7 @@ def astar(gm: GridMeta, start: np.ndarray, goal: np.ndarray, max_iters: int = 20
                 came_from[nk] = key
                 heapq.heappush(heap, (ng + heuristic(nxt), ng, nxt))
 
-    return None, {"expanded": expanded, "reason": "no path"}
+    return give_up("no path", expanded)
 
 
 # ---------------------------------------------------------------------------
@@ -353,6 +420,7 @@ def plan_path(
     rrt_radius: float = 1.5,
     rrt_bias: float = 0.1,
     gm: Optional[GridMeta] = None,
+    best_effort: bool = False,
 ):
     """Plan a world-meter path from `start_world` to `goal_world` through the
     occupancy grid of `points_world`.
@@ -372,7 +440,8 @@ def plan_path(
                               max_iter=rrt_iter, step_len=rrt_step,
                               rewire_radius=rrt_radius, goal_bias=rrt_bias)
     else:
-        path, info = astar(gm, start_world, goal_world, max_iters=max_iters)
+        path, info = astar(gm, start_world, goal_world, max_iters=max_iters,
+                           best_effort=best_effort)
 
     if path is not None and smooth:
         path = smooth_path(path, gm)

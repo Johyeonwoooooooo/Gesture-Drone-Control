@@ -45,7 +45,7 @@ python api_server.py --port 8123 --llm-url ""
 |---|---|
 | `GET /api/drone` | `{x, y, z, source:"sim"\|"home", flying, connected}` — 1초 폴링 |
 | `GET /api/status` | `{ready, engine, building, rooms, model, llmOffline, mission:{state,id,busy,seq}}` |
-| `POST /plan` | `{start?, goal}` → `{engine, success, steps, bumps, dist, flown, ms, start, goal, path}` |
+| `POST /plan` | `{start?, goal}` → `{engine, success, fallback, clearanceM, steps, bumps, dist, flown, ms, start, goal, path}` |
 | `POST /api/intent` | 자연어 → 방 id 목록 (§1) |
 | `GET /api/rooms` | 방 22개 + 별칭 + 스캔 포즈 (§1-b) |
 | `POST /api/patrol/start` | 순찰 시작 (§2) |
@@ -55,10 +55,23 @@ python api_server.py --port 8123 --llm-url ""
 | `GET /` | `HAUNTED OPS.dc.html` 로 리다이렉트 |
 | `GET /<path>` | `web/` 정적 |
 
-`/plan` 응답 키는 기존과 같다. `path` 는 3D 궤적, `goal` 은 **실제로 쓰인
-(스냅된)** 좌표라 다음 구간의 `start` 로 그대로 넘기면 된다. 경로를 못 찾으면
-`{"success": false, "error": "<이유>", "path": []}` 이고 HTTP 는 200이다 —
-**`success` 를 봐야 한다.**
+`/plan` 의 `path` 는 3D 궤적, `goal` 은 **실제로 쓰인 (스냅된)** 좌표라 다음
+구간의 `start` 로 그대로 넘기면 된다.
+
+**경로는 항상 나온다** (`success` 는 이제 늘 true). 미션과 같은 플래너
+(`patrol_mission.plan_leg`)를 타서, 여유가 넉넉한 격자에서 막히면 그 구간만
+좁혀 다시 풀고 그래도 안 되면 갈 수 있는 데까지 간다. 목표에 닿았는지는
+`fallback` 으로 봐야 한다:
+
+| `fallback` | 뜻 | 목표 도달 |
+|---|---|---|
+| `null` | 여유 0.30 m 격자에서 그대로 풀림 | O |
+| `"tightened"` | 여유를 좁혀 그 구간만 재계획 | O |
+| `"nearest"` | 드론이 못 들어가는 목표 — 문 앞까지만 | X |
+| `"direct"` | 출발점이 막힘. 직선(벽 통과) 최후 수단 | X |
+
+`clearanceM` 은 그 경로가 확보한 장애물 여유 [m]. 자세한 사다리는
+`patrol/README.md` §한계.
 
 > **고도 주의.** 콘솔은 `meta.rooms[id].center[2]`(bbox 중간 높이)를 goal z 로
 > 보내는데, 그건 우리가 호버하는 높이보다 1 m 쯤 높고 가구 안에 떨어질 수 있다.
