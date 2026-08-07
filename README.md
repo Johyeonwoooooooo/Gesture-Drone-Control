@@ -551,14 +551,13 @@ Hierarchy에 `tello`(드론) + `Main Camera` + `Qpor2mEya8F` 가 보이면 그�
 된다. Scene 뷰에서 드론은 집에 비해 작고 멀어 안 보일 수 있는데 정상 — **Play를
 누르면** 드론이 집 안 홈으로 순간이동하고 카메라가 따라간다 (§5의 `spawnAtHome`).
 
-> **씬에 사람을 세우는 경로가 둘이다.**
+> **씬의 사람은 `test.unity` 에 배치된 NPC 프리팹 3개가 전부다.** 그리고 그
+> 에셋은 저장소에 없다 — **안 받으면 YOLO 가 잡을 대상이 하나도 없다.** 탐지를
+> 보려면 아래 zip 이 사실상 필수다.
 >
-> - **`PersonSpawner`** 가 매 Play 마다 캡슐+구로 5명을 자동으로 세운다. 씬 설정이
->   필요 없다. 다만 **캡슐은 YOLO 가 잘 못 잡는다** — 배선 점검용이지 탐지
->   성능을 보려는 용도가 아니다. 끄려면 씬에 `PersonSpawner` 를 하나 얹고
->   `enableSpawning` 을 내린다.
-> - **NPC 프리팹 3개** 가 `test.unity` 에 배치돼 있다. 사람 모양이라 YOLO 가
->   제대로 잡는 건 이쪽이다. **그 에셋은 저장소에 없다** — 아래처럼 받는다.
+> (캡슐+구로 사람을 자동 생성하던 `PersonSpawner` 가 master 에 잠깐 있었으나
+> `12c2196` 로 revert 됐다. 되살리더라도 **캡슐은 YOLO 가 잘 못 잡으므로**
+> 배선 점검용이지 탐지 성능을 보는 용도는 못 된다.)
 >
 > **NPC 에셋 받기 (약 500 MB, 최초 1회).** Synty NPC 세트
 > (`npc_casual_set_00`)는 에셋스토어 패키지라 공개 저장소에 재배포하지 않는다.
@@ -572,7 +571,7 @@ Hierarchy에 `tello`(드론) + `Main Camera` + `Qpor2mEya8F` 가 보이면 그�
 > zip 에는 `.meta` 가 같이 들어 있어 GUID 가 보존된다 — 풀기만 하면
 > `test.unity` 의 NPC 3개가 저절로 다시 연결된다. 유니티를 켜 둔 채 풀었으면
 > 창을 한 번 포커스해 임포트를 돌린다. **안 받아도 씬은 안 깨진다** — NPC 3개가
-> Missing Prefab 로 뜨고 스포너가 만든 사람만 남는다.
+> Missing Prefab 로 뜨고 빈 집이 될 뿐이다(전 방 "아무도 없음").
 >
 > **중복 탐지 제거는 아직 안 붙어 있다.** 씬 NPC 도 스포너 사람도
 > `PersonTarget` 이 없어서 지금은 드론 yaw 60° 폴백만 돈다(60° 안의 두 사람은 한
@@ -734,12 +733,12 @@ Play 중 Hierarchy에서 `HorrorAtmosphere` 오브젝트를 골라 Inspector로 
 
 ## 10. Future work
 
-- **사람 세우는 경로 둘 정리** — `PersonSpawner` 가 매 Play 마다 캡슐 5명을
-  세우고 `test.unity` 에 NPC 3개가 따로 배치돼 있어 평소 8명이 선다. 캡슐은
-  YOLO 가 잘 못 잡으므로(§8) 실질적으로 NPC 쪽만 탐지된다 — 한쪽으로 정리할 것.
+- **사람을 에셋 없이 세우는 길** — 지금 씬의 사람은 NPC 프리팹 3개뿐이고 그
+  에셋은 500 MB 라 저장소 밖에 있다(§8). 즉 zip 을 안 받은 사람은 탐지를 아예
+  못 본다. 캡슐 스포너(`PersonSpawner`, `12c2196` 로 revert)가 이걸 노렸는데
+  캡슐이 YOLO 에 잘 안 잡히는 문제가 남아 있다 — 저용량 사람 메시가 답일 듯.
 - **`PersonTarget` 부착** — 중복 탐지 제거가 id 기반으로 돌게 하려면 필요한데
-  지금 어느 사람에게도 안 붙어 있어 yaw 60° 폴백만 돈다. 스포너는
-  `BuildPerson` 에 `AddComponent<PersonTarget>()` 한 줄.
+  씬의 NPC 어느 것에도 안 붙어 있어 yaw 60° 폴백만 돈다.
 - **`web/` 병합 방향 정리** — 콘솔은 이 브랜치로 들어왔지만(`web-api`) 원본은
   `origin/hyeonwoo` 에도 그대로 있다. 같은 파일이 두 브랜치에 있어 다음 병합에서
   충돌한다. 특히 `startMission()`/`runSearch()` 의 API 배선은 이쪽에만 있어서,

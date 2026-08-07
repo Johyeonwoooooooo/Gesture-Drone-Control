@@ -164,20 +164,17 @@ python simulator/bridge/calibrate_transform.py --building 00809_Qpor2mEya8F \
   않으므로 `patrol/` 의 무-torch 성질이 유지된다 — `llm_server/` 와 같은 분리다.
   안 띄우면 매 요청이 타임아웃하고 그 방은 "아무도 없음" 으로 끝난다.
 
-  **씬에 사람을 세우는 경로가 둘이고, 둘 다 `PersonTarget` 을 안 붙인다.**
-  하나는 `test.unity` 에 배치된 NPC 프리팹 3개이고, 다른 하나는
-  `PersonSpawner`(master) 가 매 Play 마다 캡슐+구로 만들어 세우는 5명이다.
-  스포너는 `RuntimeInitializeOnLoadMethod` 부트스트랩이라 아무것도 안 해도 뜨므로
-  **평소엔 8명이 동시에 서 있다** — 씬 NPC 를 지우거나 스포너의 `enableSpawning`
-  을 끄는 건 아직 아무도 안 했다.
+  **씬의 사람은 `test.unity` 의 NPC 프리팹 3개가 전부다.** 캡슐+구로 사람을
+  자동 생성하던 `PersonSpawner` 가 master 에 잠깐 있었지만 `12c2196` 로 revert
+  됐다 — 되살릴 때도 캡슐이 YOLO 에 잘 안 잡힌다는 걸 먼저 확인할 것.
 
-  `PersonTarget` 은 같은 사람을 두 번 세지 않으려고 박스 중심 레이로 id 를 찾는
-  장치인데, 지금 어느 쪽에도 안 붙어 있어서 **항상 드론 yaw 60° 폴백만 탄다** —
-  60° 안에 선 서로 다른 두 사람은 한 명으로 합쳐진다. 스포너 쪽은
-  `BuildPerson` 에서 `AddComponent<PersonTarget>()` 한 줄이면 붙는다.
+  그 NPC 들에 **`PersonTarget` 이 안 붙어 있다.** 같은 사람을 두 번 세지 않으려고
+  박스 중심 레이로 id 를 찾는 장치인데, 안 붙어 있어서 **항상 드론 yaw 60°
+  폴백만 탄다** — 60° 안에 선 서로 다른 두 사람은 한 명으로 합쳐진다.
 
   **NPC 에셋(약 500 MB)은 저장소에 없다.** 에셋스토어 패키지라 공개 저장소에
   재배포하지 않는다 — `data/final_npy` 와 같은 취급이고 `.gitignore` 에 있다.
+  즉 **에셋을 안 받으면 씬에 사람이 하나도 없어** 탐지가 한 건도 안 뜬다.
   안 받으면 씬의 NPC 3개가 Missing Prefab 로 뜨고(씬은 안 깨진다) 스포너가 만든
   프리미티브 사람만 남는다. 받는 법은 README §8.
 

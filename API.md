@@ -293,10 +293,10 @@ POST /api/patrol/abort → {"ok": true}
   더 열어야 한다.
 - **`scan` verb 를 구현한 Unity 빌드 + 씬 안의 사람.** 배관은 다 있다
   (`PatrolPersonDetection.cs` → TCP 9100 `person_detector_tcp.py` → `detect`).
-  사람도 씬에 있다 — `PersonSpawner` 가 매 Play 마다 5명을 세우고, `test.unity`
-  에 NPC 프리팹 3개가 더 배치돼 있다(그 에셋은 저장소에 없다, README §8).
-  **`detect` 가 한 건도 안 오는 경우는 YOLO 프로세스를 안 띄웠을 때**이고 결과는
-  빈 집과 같다(전 방 "아무도 없음"). 서버가
+  사람은 `test.unity` 의 NPC 프리팹 3개뿐이고 **그 에셋은 저장소에 없다**
+  (README §8). **`detect` 가 한 건도 안 오는 경우는 둘 — NPC 에셋을 안 받았거나
+  YOLO 프로세스를 안 띄웠거나**이고, 둘 다 결과는 빈 집과 같다(전 방 "아무도
+  없음"). 서버가
   `scan` 무응답을 감지하면 rc 회전으로 내려가는데 그 경로에는 탐지가 없다
   (외부 디텍터를 UDP 9004 로 띄우면 있다). 웹 배선만 확인하려면
   `simulator/bridge/fake_unity_sim.py --detect-per-scan 1` 을 쓴다.
