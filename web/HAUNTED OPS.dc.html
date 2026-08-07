@@ -304,6 +304,16 @@ input[type=range]{accent-color:#ef4444}
         </div>
       </div>
       <div style="width:400px;border:1px solid #2a1015;background:#10070ae6;border-radius:12px;padding:16px 18px">
+        <!-- 서버가 LLM 으로 쓴 요약. 오는 데 몇 초 걸리므로 그동안은 로딩,
+             끝내 못 받으면 두 sc-if 가 모두 꺼져 자리째 사라진다. -->
+        <sc-if value="{{doneSummaryLoading}}" hint-placeholder-val="{{false}}">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;letter-spacing:.18em;margin-bottom:8px">AI 요약</div>
+          <div style="font-size:12px;color:#5f4a4e;line-height:1.8;margin-bottom:14px">보고서 요약을 생성하는 중…</div>
+        </sc-if>
+        <sc-if value="{{doneSummaryReady}}" hint-placeholder-val="{{true}}">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;letter-spacing:.18em;margin-bottom:8px">AI 요약</div>
+          <div style="font-size:12px;color:#cfc2c5;line-height:1.85;margin-bottom:14px;padding-left:10px;border-left:2px solid #1e3a2a">{{doneSummaryText}}</div>
+        </sc-if>
         <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;letter-spacing:.18em;margin-bottom:10px">순찰 요약</div>
         <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:12px">
           <sc-for list="{{doneRows}}" as="r" hint-placeholder-count="5">
@@ -344,6 +354,21 @@ input[type=range]{accent-color:#ef4444}
               <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8a7478;letter-spacing:.14em">SURVIVORS DETECTED</span>
             </span>
           </div>
+          <!-- 서버(patrol_report.py)가 LLM 으로 쓴 요약문. 화면이 지어내는 게
+               아니라 report.json 의 summary 를 그대로 띄운다. 모델이 없거나
+               죽으면 서버가 템플릿 문장으로 대신 채우므로 여기는 비지 않는다. -->
+          <sc-if value="{{repSummaryLoading}}" hint-placeholder-val="{{false}}">
+            <div style="border:1px solid #2a1015;background:#10070ae6;border-radius:11px;padding:13px 16px">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;letter-spacing:.18em;margin-bottom:9px">AI 요약 · LLM SUMMARY</div>
+              <div style="font-size:12px;color:#5f4a4e;line-height:1.8">보고서 요약을 생성하는 중…</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{repSummaryReady}}" hint-placeholder-val="{{true}}">
+            <div style="border:1px solid #3a161c;background:#10070ae6;border-radius:11px;padding:13px 16px;border-left:3px solid #ef4444">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;letter-spacing:.18em;margin-bottom:9px">AI 요약 · LLM SUMMARY</div>
+              <div style="font-size:12px;color:#cfc2c5;line-height:1.85">{{repSummary}}</div>
+            </div>
+          </sc-if>
           <div style="border:1px solid #2a1015;background:#10070ae6;border-radius:11px;padding:13px 16px">
             <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:#8a7478;letter-spacing:.18em;margin-bottom:9px">순찰 개요</div>
             <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:12px">
@@ -681,6 +706,10 @@ class Component extends DCLogic {
     over: null, selRecord: null, toasts: [],
     detections: [],     // 통보받은 사람 탐지 결과
     alert: null,        // 방금 들어온 탐지 (경고 배너용, 몇 초 뒤 사라짐)
+    // 서버가 쓴 순찰 보고서(report.json). report_ready 이벤트 뒤 한 번 받아온다.
+    // LLM 요약문(summary)과 실측치(facts/rooms)가 여기 들어 있다. 못 받으면
+    // null 로 남고 화면은 예전처럼 계획값으로 그린다.
+    report: null, reportLoading: false,
   };
   // 사람이 잡혔다고 알려왔을 때 카메라 위에 그릴 박스 자리(스테이지 대비 %).
   // 실제 좌표는 탐지 모델이 줘야 하는데 아직 없으니 겹치지 않게 흩어 놓는다.
@@ -832,6 +861,8 @@ class Component extends DCLogic {
     const box = d.box || this.DETECT_BOXES[(n - 1) % this.DETECT_BOXES.length];
     const det = {
       n, label: d.label || `생존자 ${n}`, room, time, box,
+      roomId: d.roomId || null,     // 서버가 준 방 id("012"). 없으면 이름으로 맞춘다
+
       conf: d.conf != null ? d.conf : 85 + Math.random() * 12,
       at: now.getTime(),
       photo: d.photo || window.__simShare.snapshot(box),
@@ -862,6 +893,7 @@ class Component extends DCLogic {
   // 화면 자체가 전면 레이아웃이라 보이는 결과는 거의 같고, 버튼으로 다시 켤 수 있다.
   startMission() {
     this.clearDetections();          // 새 순찰이면 지난 탐지는 지운다
+    this.setState({ report: null, reportLoading: false });   // 지난 요약도
     this.patrolStart = Date.now(); this.patrolEnd = null;
     this.setState({ screen: 'unity', over: null }, () => {
       requestAnimationFrame(() => {
@@ -882,7 +914,9 @@ class Component extends DCLogic {
     this.stopPatrolFeed();
     fetch('api/patrol/start', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targets: live.targets, returnHome: live.returnHome }),
+      // cmd 는 서버가 보고서 요약을 쓸 때 "사용자_명령" 으로 넣는 문장이다.
+      body: JSON.stringify({ targets: live.targets, returnHome: live.returnHome,
+                             cmd: (this.state.cmd || '').trim() }),
     }).then(r => r.json().then(j => r.ok ? j : Promise.reject(j)))
       .then(j => {
         this.missionId = j.missionId;
@@ -906,18 +940,61 @@ class Component extends DCLogic {
   onPatrolEvent(e) {
     if (e.kind === 'detect') {
       // box 는 이미 프레임 대비 % 다. 여기서 환산하지 말 것.
+      // roomId: 서버는 자기 표기("002_012")로 방을 부르고 콘솔은 뒤 3자리를
+      // 쓴다. display 문자열끼리 맞추면 콘솔 LABELS 와 room_aliases.json 이
+      // 어긋나 있어 영영 안 맞는다 — 그래서 id 로 맞춘다.
       window.__patrolDetect({
         label: e.label === 'person' ? undefined : e.label,
         room: e.display, conf: e.conf * 100, box: e.box,
+        roomId: String(e.room || '').split('_').pop() || null,
       });
     } else if (e.kind === 'status') {
       this.toast(e.text);
     } else if (e.kind === 'mission_end') {
+      // 여기서 곧바로 보고서가 나오지는 않는다 — 서버가 LLM 요약을 기다렸다가
+      // report_ready 를 보낸다. 그 몇 초 동안 화면에 로딩을 띄운다.
+      this.setState({ reportLoading: true });
       if (e.abortedReason) this.setState({ over: { cause: e.abortedReason }, screen: 'gameover' });
       else if (this.state.screen === 'unity') this.finishPatrol();
+    } else if (e.kind === 'report_ready') {
+      this.fetchReport(e.missionId || this.missionId);
     } else if (e.kind === 'error') {
+      this.setState({ reportLoading: false });
       this.toast(`오류 — ${e.message}`);
     }
+  }
+
+  // 서버가 쓴 보고서를 받아온다 (API.md §5). 실패해도 조용히 넘어간다 —
+  // report 가 null 이면 화면은 예전처럼 계획값으로 그려지므로 보고서 자체는
+  // 절대 비지 않는다.
+  fetchReport(id) {
+    if (!id) { this.setState({ reportLoading: false }); return; }
+    fetch(`api/patrol/report/${encodeURIComponent(id)}`)
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(j => this.setState({ report: j, reportLoading: false }))
+      .catch(() => this.setState({ report: null, reportLoading: false }));
+  }
+
+  // 보고서에서 화면이 쓰는 것만 추린다. 못 받았으면 null 이고, 그때 각 화면은
+  // 브리핑 때의 계획값으로 되돌아간다 — 즉 보고서가 비는 일은 없다.
+  //
+  // 여기 있는 숫자가 화면의 계획값과 다른 게 정상이다. live.dist 는 브리핑 때
+  // A* 가 뽑은 경로 길이고 facts.비행_거리_m 는 실제로 난 거리다. 마찬가지로
+  // live.returnHome 은 설정이고 facts.복귀_완료 는 결과다.
+  reportView() {
+    const rep = this.state.report;
+    if (!rep || !rep.facts) return null;
+    const rooms = Array.isArray(rep.rooms) ? rep.rooms : [];
+    const byId = {};
+    // 서버 표기 "002_012" → 콘솔 id "012"
+    for (const r of rooms) byId[String(r.room_name || '').split('_').pop()] = r;
+    return {
+      summary: String(rep.summary || '').trim(),
+      f: rep.facts, byId,
+      reached: rooms.filter(r => r.reached).length,
+      planned: rooms.length,
+      missed: rep.facts['미도달_구역'] || [],
+    };
   }
 
   finishPatrol() {
@@ -1135,57 +1212,95 @@ class Component extends DCLogic {
       const wpsAll = this.liveWps();
       const distM = live && live.dist ? live.dist : (wpsAll ? this.pathLen(wpsAll) : 0);
       const floorsHit = live ? [...new Set(live.targets.map(t => t.floor))].sort() : [];
-      vals.doneRoomsN = live ? `${live.targets.length}` : '0';
+      // 보고서가 왔으면 실측치가 계획값을 이긴다.
+      const R = this.reportView();
+      const planned = R ? Math.max(R.planned, live ? live.targets.length : 0)
+                        : (live ? live.targets.length : 0);
+      vals.doneSummaryLoading = !R && st.reportLoading;
+      vals.doneSummaryReady = !!(R && R.summary);
+      vals.doneSummaryText = R ? R.summary : '';
+      vals.doneRoomsN = `${R ? R.reached : planned}`;
       vals.doneSummary = live
         ? `${live.scope} · ${live.targets.length}개 구역 순찰${live.returnHome ? ' 후 홈 복귀' : ''}`
         : '';
       vals.doneRows = [
         { k: '순찰 범위', v: live ? live.scope : '—', c: '#e8dde0' },
         { k: '순찰한 층', v: floorsHit.length ? floorsHit.map(f => this.FLOORS[f]).join(' · ') : '—', c: '#57c4b8' },
-        { k: '순찰한 구역', v: live ? `${live.targets.length}개` : '0개', c: '#fca5a5' },
-        { k: '비행 거리', v: `${distM.toFixed(1)} m`, c: '#e8dde0' },
+        R ? { k: '순찰한 구역', v: `${R.reached}/${planned}개 도달`, c: R.reached < planned ? '#fbbf24' : '#fca5a5' }
+          : { k: '순찰한 구역', v: `${planned}개`, c: '#fca5a5' },
+        { k: '비행 거리', v: `${(R ? Number(R.f['비행_거리_m']) || 0 : distM).toFixed(1)} m`, c: '#e8dde0' },
         { k: '층 이동', v: live && live.floorChanges ? `${live.floorChanges}회` : '없음', c: '#fbbf24' },
-        { k: '복귀', v: live && live.returnHome ? '홈 복귀 완료' : '복귀 없음', c: live && live.returnHome ? '#4ade80' : '#8a7478' },
+        R ? { k: '복귀', v: R.f['복귀_완료'] ? '홈 복귀 완료' : (live && live.returnHome ? '복귀 미완료' : '복귀 없음'),
+              c: R.f['복귀_완료'] ? '#4ade80' : (live && live.returnHome ? '#f87171' : '#8a7478') }
+          : { k: '복귀', v: live && live.returnHome ? '홈 복귀 완료' : '복귀 없음', c: live && live.returnHome ? '#4ade80' : '#8a7478' },
       ];
       vals.doneTargets = targetRows;
       vals.goReport = () => this.go('report');
     }
     // ── 순찰 보고서 ───────────────────────────────────────────────
-    // 새 자료를 받지 않는다. 브리핑 때 확정된 순찰 계획(live) + 탐지 통보
-    // (state.detections) + 작전 시작·완료 시각만으로 만든다. 시간은 실제로
-    // 찍힌 것만 쓰고, 방별 도착 시각처럼 모르는 값은 지어내지 않는다.
+    // 뼈대는 브리핑 때 확정된 순찰 계획(live) + 탐지 통보(state.detections) +
+    // 작전 시작·완료 시각이고, 여기에 서버 보고서(state.report)가 오면 실측치가
+    // 계획값을 덮는다 — 요약문이 말하는 사실과 위쪽 표가 어긋나지 않도록.
+    // 보고서를 못 받으면 예전 그대로 계획값으로 그린다.
     if (scr === 'report') {
       const dets = st.detections;
       const wpsAll = this.liveWps();
       const distM = live && live.dist ? live.dist : (wpsAll ? this.pathLen(wpsAll) : 0);
       const floorsHit = live ? [...new Set(live.targets.map(t => t.floor))].sort() : [];
       const dur = (this.patrolStart && this.patrolEnd) ? (this.patrolEnd - this.patrolStart) / 1000 : 0;
-      const found = t => dets.filter(d => d.room === t.name || d.room === t.room);
+      // 서버가 준 방 id 로 먼저 맞춘다. 콘솔 LABELS 와 room_aliases.json 의
+      // 이름이 어긋나 있어서 display 문자열끼리는 영영 안 맞는다. 뒤의 두 조건은
+      // 「생존자 발견」 임시 버튼처럼 id 없이 들어온 탐지를 위해 남겨 둔다.
+      const found = t => dets.filter(d => (d.roomId
+        ? d.roomId === t.room
+        : (d.room === t.name || d.room === t.room)));
+      const R = this.reportView();
+      const planned = R ? Math.max(R.planned, live ? live.targets.length : 0)
+                        : (live ? live.targets.length : 0);
+      const nDet = R ? R.f['탐지_건수'] : dets.length;
+      vals.repSummaryLoading = !R && st.reportLoading;
+      vals.repSummaryReady = !!(R && R.summary);
+      vals.repSummary = R ? R.summary : '';
       vals.repIssued = `${this.hms(this.patrolEnd)} 발행`;
       vals.repCmd = st.cmd.trim() || this.DEFAULT_CMD;
-      vals.repHeadN = `${dets.length}`;
-      vals.repHeadC = dets.length ? '#ef4444' : '#4ade80';
-      vals.repHeadTxt = dets.length ? '생존자 발견' : '발견 없음';
+      vals.repHeadN = `${nDet}`;
+      vals.repHeadC = nDet ? '#ef4444' : '#4ade80';
+      vals.repHeadTxt = nDet ? '생존자 발견' : '발견 없음';
       vals.repRows = [
         { k: '순찰 범위', v: live ? live.scope : '—', c: '#e8dde0' },
         { k: '순찰한 층', v: floorsHit.length ? floorsHit.map(f => this.FLOORS[f]).join(' · ') : '—', c: '#57c4b8' },
-        { k: '순찰한 구역', v: live ? `${live.targets.length}개` : '0개', c: '#fca5a5' },
-        { k: '비행 거리', v: `${distM.toFixed(1)} m`, c: '#e8dde0' },
+        R ? { k: '순찰한 구역', v: `${R.reached}/${planned}개 도달`, c: R.reached < planned ? '#fbbf24' : '#fca5a5' }
+          : { k: '순찰한 구역', v: `${planned}개`, c: '#fca5a5' },
+        { k: '비행 거리', v: `${(R ? Number(R.f['비행_거리_m']) || 0 : distM).toFixed(1)} m`, c: '#e8dde0' },
         { k: '층 이동', v: live && live.floorChanges ? `${live.floorChanges}회 (계단 경유)` : '없음', c: '#fbbf24' },
         { k: '경로 생성 엔진', v: live ? live.engine : '—', c: '#a5b4fc' },
         { k: '작전 시각', v: this.patrolStart ? `${this.hms(this.patrolStart)} → ${this.hms(this.patrolEnd)}` : '—', c: '#a8969a' },
-        { k: '소요 시간', v: dur ? this.mmss(dur) : '—', c: '#a8969a' },
-        { k: '복귀', v: live && live.returnHome ? '홈 복귀 완료' : '복귀 없음', c: live && live.returnHome ? '#4ade80' : '#8a7478' },
+        { k: '소요 시간', v: R ? this.mmss(R.f['소요_시간_초']) : (dur ? this.mmss(dur) : '—'), c: '#a8969a' },
+        R ? { k: '복귀', v: R.f['복귀_완료'] ? '홈 복귀 완료' : (live && live.returnHome ? '복귀 미완료' : '복귀 없음'),
+              c: R.f['복귀_완료'] ? '#4ade80' : (live && live.returnHome ? '#f87171' : '#8a7478') }
+          : { k: '복귀', v: live && live.returnHome ? '홈 복귀 완료' : '복귀 없음', c: live && live.returnHome ? '#4ade80' : '#8a7478' },
+        // 아래 셋은 서버만 아는 값이라 보고서가 있을 때만, 그리고 0 이 아닐 때만 뜬다.
+        ...(R && R.f['충돌_횟수'] ? [{ k: '충돌', v: `${R.f['충돌_횟수']}회`, c: '#f87171' }] : []),
+        ...(R && R.missed.length ? [{ k: '미도달', v: R.missed.join(', '), c: '#fbbf24' }] : []),
+        ...(R && R.f['중단_사유'] ? [{ k: '중단 사유', v: R.f['중단_사유'], c: '#f87171' }] : []),
       ];
       vals.repAreas = (live ? live.targets : []).map(t => {
         const f = found(t);
+        // 보고서가 있으면 도달 여부·스캔 각도·탐지 수가 전부 실측이다. 없으면
+        // 예전대로 탐지 개수만 보고 판단한다 — 그 경우 못 간 방도 "이상 없음"이
+        // 되는데, 그건 화면이 도달 여부를 알 길이 없어서다.
+        const rv = R ? R.byId[t.room] : null;
+        const n = rv ? rv.events : f.length;
+        const missed = !!rv && !rv.reached;
         return {
           key: t.room, order: `${t.order}`, name: t.name,
-          sub: `${t.room} · ${this.FLOORS[t.floor]}`,
-          result: f.length ? `생존자 ${f.length}명` : '이상 없음',
-          resultC: f.length ? '#fca5a5' : '#6ee7b7',
-          border: f.length ? '#7f1d1d' : '#1e3a2a',
-          bg: f.length ? '#170f11' : '#0e1a14',
+          sub: (rv && rv.reached)
+            ? `${t.room} · ${this.FLOORS[t.floor]} · ${Math.round(rv.scan_degrees)}° 스캔`
+            : `${t.room} · ${this.FLOORS[t.floor]}`,
+          result: missed ? `미도달 (${rv.reason})` : (n ? `생존자 ${n}명` : '이상 없음'),
+          resultC: missed ? '#fbbf24' : (n ? '#fca5a5' : '#6ee7b7'),
+          border: missed ? '#4a3512' : (n ? '#7f1d1d' : '#1e3a2a'),
+          bg: missed ? '#1a1206' : (n ? '#170f11' : '#0e1a14'),
         };
       });
       vals.repLog = [
