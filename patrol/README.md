@@ -25,14 +25,49 @@
 |---|---|
 | `server.py` | 메인 REPL. 모든 인자·상태(드론 위치, 마지막 순찰)를 들고 있다 |
 | `remote_llm.py` | 저장소의 유일한 `generate()` — `--llm-url` 의 OpenAI 호환 서버에 HTTP로 물어본다. urllib만 씀 |
-| `patrol_intent.py` | 순찰 구역 해석 — LLM 프롬프트 + 별칭·타입·층 5단 폴백 |
+| `patrol_intent.py` | 순찰 구역 해석 — LLM 프롬프트 + 별칭·타입·층·개수 폴백 (아래) |
 | `litept_backend.py` | `detections.json` 로드, 방별 포인트 병합, 홈 좌표 |
 | `room_index.py` | 방 인덱스(코드·타입·중심·바닥높이) + 별칭 + 스캔 포즈. `out/room_index.json` 캐시 |
 | `planner.py` | 복셀 그리드 A* / RRT*. `chaewon` 브랜치 `comparison/3D.py` 에서 가져와 순수 numpy로 정리 |
 | `patrol_mission.py` | 순찰 실행 루프 — 구간 비행, 스캔 지휘, 탐지 반응(정지·라이트·사진), 복귀. `on_progress` 로 구조화된 진행 이벤트를 낸다 |
 | `detect_events.py` | UDP 9004 탐지 수신기 (외부 디텍터 프로세스용 — **기본 경로 아님**). ARM/DISARM 게이팅 |
 | `patrol_report.py` | 순찰 보고서 md/html/json + 이벤트 사진 |
-| `room_aliases.json` | 방 별칭 ("현우방" → `002_012`), `floor_offset` |
+| `room_aliases.json` | 방 별칭 ("현우" → 현우 소유 4개 방), `floor_offset`. **첫 별칭 = 웹 콘솔이 그 방에 쓰는 이름** |
+
+### 구역 해석 순서 (`resolve_rooms`)
+
+원문 스캔이 먼저고 LLM 은 마지막이다. 3B 모델은 이 중 최소 하나를 늘 틀린다.
+
+1. **별칭** 부분일치 (긴 별칭 먼저). 층을 말했으면 그 층으로 좁힌다
+   ("2층 복도만"). 모델이 준 방 코드와 **합치지 않는다** — 별칭은 사용자가
+   실제로 쓴 글자에서 나오고 22개 방을 다 덮으므로 그 자체로 완전한 답이다.
+2. **방 코드** — 모델이 준 id 중 원문이 뒷받침하는 것만.
+3. **방 종류** (모델 목록 또는 `ROOM_KW_MAP` 키워드) → 4. **층 전체**
+   → 5. **건물 전체**.
+6. 아무것도 안 걸리면 **모델이 고른 방을 그대로** ("LLM 추정"). 규칙이 답을
+   낼 수 있을 때는 여전히 규칙이 이긴다.
+
+**개수 표현은 위치와 직교한다.** "어디"를 1~5 로 고르고, "몇 개"를 원문의
+개수 단어로 자른다 (`_quantity` / `_take`):
+
+| 말 | 결과 |
+|---|---|
+| 전부 · 전체 · 모든 방 · 싹 · 다 돌 | 후보 **전부**. `--max-rooms` 를 적용하지 않는다 |
+| 절반 · 반만 · half | 후보의 **무작위 절반** |
+| 아무거나 · 아무 방 · 랜덤 | 무작위 `ANY_ROOMS`(3)개 |
+
+무작위 선택은 **층 오름차순**으로 정렬해 돌려준다 — 층 이동이 한 방향만
+남는 게 그 조합에서 최소다 (`room_index.order_rooms` 도 층이 1순위지만, 그
+성질이 바깥 정렬에 의존하면 안 된다).
+
+주의 두 가지. **개수만 말하고 층은 안 말했으면 모델이 준 층을 버린다** —
+"절반만 해줘" 에 `floors:[1]` 을 답하는 일이 잦고, 그러면 집 전체의 절반이
+1층의 절반으로 조용히 쪼그라든다. 그리고 `ROOM_KW_MAP` 의 `'방' → bedroom`
+때문에 "전체 **방** 순찰해줘" 가 침실만 골랐었다 — 개수 질의에서는 진짜
+종류 단어(거실·화장실·주방…)가 원문에 없으면 종류를 통째로 버린다.
+
+넓은 질의는 2 m² 미만 방을 뺀다(`min_area_m2`). 00809 에서는 안방 `000_003`
+(1.3 × 0.6 m) 하나가 빠져 "전체"가 21개다 — 이름으로 부르면 그대로 간다.
 
 ## 주요 인자
 
@@ -65,6 +100,8 @@ Qwen/Qwen2.5-3B-Instruct` `--llm-api-key` `--llm-timeout 60`.
 ```bash
 python patrol/litept_backend.py                # 방별 인스턴스 수 + home 좌표
 python -m patrol.room_index --list             # 방 목록/별칭 (cwd = repo root)
+python -m patrol.patrol_intent                 # 구역 해석 (전부/절반/아무거나)
+python -m patrol.patrol_mission                # plan_leg 3단 폴백
 python -m patrol.detect_events --emit --label person --conf 0.9 --image /abs/x.jpg
 
 # LLM 왕복만 점검 (llm_server/serve.py 가 떠 있어야 함)
