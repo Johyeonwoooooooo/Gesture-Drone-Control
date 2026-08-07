@@ -314,7 +314,12 @@ def handle_client(
             response["elapsed_ms"] = round((time.time() - started) * 1000.0, 1)
             response["saved_path"] = ""
             response["saved_annotated_path"] = ""
-            if save_dir and (save_all or response.get("person_detected")) and save_limiter.should_save():
+            # --save-all means all of them: the throttle exists so a person standing
+            # in frame does not fill the disk, not to thin out a debug capture.
+            should_write = save_all or (
+                response.get("person_detected") and save_limiter.should_save()
+            )
+            if save_dir and should_write:
                 response["saved_path"], response["saved_annotated_path"] = save_image(
                     save_dir,
                     image,
@@ -391,9 +396,11 @@ def main() -> int:
     parser.add_argument("--save-dir", default="",
                         help="optional directory for saving JPEG frames received from Unity")
     parser.add_argument("--save-min-interval", type=float, default=3.0,
-                        help="minimum seconds between saved person-detection frames")
+                        help="minimum seconds between saved person-detection frames "
+                             "(does not apply to --save-all)")
     parser.add_argument("--save-all", action="store_true",
-                        help="debug mode: save received frames even when no person is detected")
+                        help="debug mode: save every received frame, unthrottled, "
+                             "even when no person is detected")
     args = parser.parse_args()
     serve(
         args.host,

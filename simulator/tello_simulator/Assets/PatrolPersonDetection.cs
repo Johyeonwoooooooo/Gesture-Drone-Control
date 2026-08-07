@@ -370,15 +370,17 @@ public class PatrolPersonDetection : MonoBehaviour
             }
         }
 
-        DetectionResponse finalResponse = (stoppedResponse != null && stoppedResponse.ok && stoppedResponse.person_detected)
-            ? stoppedResponse
-            : response;
-        byte[] finalJpg = (stoppedResponse != null && stoppedResponse.ok && stoppedResponse.person_detected && stoppedJpg != null)
-            ? stoppedJpg
-            : jpg;
-        float finalYaw = (stoppedResponse != null && stoppedResponse.ok && stoppedResponse.person_detected)
-            ? stoppedYaw
-            : yaw;
+        // The resnap only wins if it actually shows the person. person_detected is
+        // the detector's own floor (--confidence 0.1), which a dark corner clears on
+        // its own — accepting on that swaps a good frame for one with nobody in it,
+        // and the report photo ends up an empty room. Hold the resnap to the same
+        // threshold every other decision here uses.
+        bool resnapUsable = stoppedResponse != null
+            && stoppedResponse.ok
+            && BestBox(stoppedResponse) != null;
+        DetectionResponse finalResponse = resnapUsable ? stoppedResponse : response;
+        byte[] finalJpg = (resnapUsable && stoppedJpg != null) ? stoppedJpg : jpg;
+        float finalYaw = resnapUsable ? stoppedYaw : yaw;
 
         DetectionBox best = BestBox(finalResponse);
         if (best == null)
