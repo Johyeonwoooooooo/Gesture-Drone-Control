@@ -98,6 +98,16 @@ FACE_TRAVEL_RC_LIMIT = 45       # deg/s. 스캔이 50 deg/s 라 그보다 살짝
 FACE_TRAVEL_DEADBAND_DEG = 6.0  # 이 안이면 안 돌린다 (제자리 떨림 방지)
 FACE_TRAVEL_MIN_SPEED = 0.3     # u/s. 거의 정지 상태에서 기수가 헤매지 않게
 
+# 이 각도 밖이면 **수평 병진을 멈추고 기수부터 맞춘다.** P 제어만으로는 코너를
+# 못 따라간다 — 상한이 45 deg/s 라 90° 코너 하나를 도는 데 2초가 걸리는데 그동안
+# 병진은 최고 속도로 계속 나가므로 코너마다 게걸음이 된다. 실측(ㄷ 자 경로,
+# fake_unity_sim): 이동 시간의 41% 가 15° 밖, 23% 가 45° 밖, 최대 91°.
+# 회전을 먼저 끝내면 그 구간이 사라진다. 대신 코너마다 1~2초 멈춘다.
+#
+# 수직(ud)은 막지 않는다. 고도는 기수와 무관하고, 같이 막으면 층 이동이
+# 회전 대기에 묶인다.
+FACE_TRAVEL_MOVE_TOLERANCE_DEG = 20.0
+
 
 def world_velocity_to_rc(
     yaw_deg: float,
@@ -109,10 +119,15 @@ def world_velocity_to_rc(
     the commanded rc reproduces v_world exactly (until rc_limit clips it).
 
     `face_travel` 이 켜져 있으면 기수를 진행 방향으로 돌리는 yaw 성분을 같이
-    싣는다. 예전엔 여기서 yaw 를 **항상 0** 으로 돌려줘서 드론이 마지막 스캔이
-    끝난 각도 그대로 옆으로·뒤로 게걸음을 쳤다. 3인칭 화면에서는 티가 안 났지만
-    탐지 카메라가 드론 1인칭이 되면서 그대로 드러난다 — 이동 내내 벽만 본다.
-    병진 속도는 건드리지 않으므로 경로 추종 자체는 그대로다."""
+    싣고, **크게 어긋나 있으면 수평 병진을 멈추고 회전을 먼저 끝낸다**
+    (`FACE_TRAVEL_MOVE_TOLERANCE_DEG`). 예전엔 여기서 yaw 를 항상 0 으로
+    돌려줘서 드론이 마지막 스캔이 끝난 각도 그대로 옆으로·뒤로 게걸음을 쳤고,
+    yaw 를 실은 뒤에도 회전이 코너를 못 따라가 코너마다 게걸음이 남았다.
+    3인칭 화면에서는 티가 안 나지만 탐지 카메라가 드론 1인칭이라 그대로
+    드러난다 — 이동 내내 벽만 본다.
+
+    경로 자체는 그대로다. 병진을 **줄이는** 게 아니라 정렬될 때까지 **미루는**
+    것이라, 목표 속도 벡터는 손대지 않고 웨이포인트도 그대로 지난다."""
     yaw = math.radians(yaw_deg)
     wx, wy, wz = float(v_world[0]), float(v_world[1]), float(v_world[2])
     local_x = math.cos(yaw) * wx - math.sin(yaw) * wz
@@ -123,6 +138,7 @@ def world_velocity_to_rc(
         return int(max(-rc_limit, min(rc_limit, round(v * scale))))
 
     yaw_rc = 0
+    align_first = False
     if face_travel and math.hypot(wx, wz) >= FACE_TRAVEL_MIN_SPEED:
         # Unity 의 eulerAngles.y 와 같은 규약: 0° 가 +Z, +X 쪽으로 증가한다.
         desired_deg = math.degrees(math.atan2(wx, wz))
@@ -131,6 +147,12 @@ def world_velocity_to_rc(
             yaw_rc = int(max(-FACE_TRAVEL_RC_LIMIT,
                              min(FACE_TRAVEL_RC_LIMIT,
                                  round(error_deg * FACE_TRAVEL_GAIN))))
+        align_first = abs(error_deg) > FACE_TRAVEL_MOVE_TOLERANCE_DEG
+
+    if align_first:
+        # 수평만 0. 고도는 계속 간다. 다음 틱에 PID 가 같은 속도 벡터를 다시
+        # 주므로 오차가 허용치 안으로 들어오는 순간 병진이 이어진다.
+        return 0, 0, clip(wy), yaw_rc
 
     return clip(local_x), clip(local_z), clip(wy), yaw_rc
 
