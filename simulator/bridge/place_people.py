@@ -53,6 +53,19 @@ MAX_DIST_FROM_SCAN = 5.0   # 너무 멀면 어두워서 안 잡힌다
 MIN_SEPARATION = 1.2       # 사람끼리
 BODY_RADIUS = 0.35
 
+# 사람 뒤(방 중심 반대쪽)를 이만큼 훑어 벽이나 가구가 있는 자리만 받는다.
+#
+# 문간은 방에서 **가장 확실하게 비어 있는 자리**라 아래 링 탐색이 제일 먼저
+# 찾아낸다 — 그래서 사람이 입구에 서고 드론이 방에 들어오다 부딪혔다. 벽을
+# 등진 자리만 받으면 사람은 저절로 사이드로 가고 문간은 빠진다: 문간은 뒤가
+# 계속 뚫려 있어서 이 검사를 통과하지 못한다.
+#
+# 자기 몸 반경 안은 이미 standing_spot_is_clear 가 비어 있다고 확인한 뒤라
+# 훑기는 BODY_RADIUS 밖에서 시작한다.
+BACKING_MAX_M = 1.2
+BACKING_STEP_M = 0.15      # 복셀 해상도와 같게
+BACKING_HEIGHTS = (0.3, 0.9, 1.5)
+
 
 def min_dist_for(room) -> float:
     """1.5 m 를 고정으로 요구하면 2.3×2.4 m 짜리 방에서는 그 반경이 이미 방
@@ -93,33 +106,63 @@ def standing_spot_is_clear(gm, xy: np.ndarray, floor_z: float) -> bool:
     return True
 
 
-def spots_for_room(room, gm, hover_height: float, want: int) -> list[np.ndarray]:
-    """Ring search outward from the scan pose, keeping spots that are clear,
-    far enough from the drone, and far enough from each other."""
-    if want <= 0:
-        return []
+def has_backing(gm, xy: np.ndarray, floor_z: float,
+                outward: np.ndarray) -> bool:
+    """사람 등 뒤(방 중심 반대쪽)에 벽이나 가구가 있는가 — 즉 '사이드'인가.
 
-    scan = room_index.scan_pose(room, hover_height, gm)
+    문간은 뒤가 계속 뚫려 있으므로 여기서 걸러진다. 벽·가구·창틀 어느 것이든
+    막혀 있기만 하면 통과다. 격자 밖도 막힌 것으로 친다 (건물 바깥이다)."""
+    n = int(round((BACKING_MAX_M - BODY_RADIUS) / BACKING_STEP_M))
+    for i in range(1, n + 1):
+        p = xy + outward * (BODY_RADIUS + i * BACKING_STEP_M)
+        for dz in BACKING_HEIGHTS:
+            if not _free(gm, np.array([p[0], p[1], floor_z + dz])):
+                return True
+    return False
+
+
+def _ring_search(room, gm, scan: np.ndarray, want: int,
+                 chosen: list[np.ndarray], require_backing: bool) -> None:
+    """스캔 지점에서 바깥으로 링을 넓혀가며 자리를 고른다 (`chosen` 을 채운다)."""
     lo = room.bbox_min[:2] + BODY_RADIUS
     hi = room.bbox_max[:2] - BODY_RADIUS
-    chosen: list[np.ndarray] = []
-    start = min_dist_for(room)
-
-    for radius in np.arange(start, MAX_DIST_FROM_SCAN + 0.01, 0.25):
+    for radius in np.arange(min_dist_for(room), MAX_DIST_FROM_SCAN + 0.01, 0.25):
         # 각도를 라디우스마다 어긋나게 돌려 같은 방향으로만 줄 서지 않게 한다.
         phase = (radius * 37.0) % 30.0
         for ang in np.arange(phase, phase + 360.0, 15.0):
             if len(chosen) >= want:
-                return chosen
+                return
             a = math.radians(ang)
-            xy = scan[:2] + radius * np.array([math.cos(a), math.sin(a)])
+            direction = np.array([math.cos(a), math.sin(a)])
+            xy = scan[:2] + radius * direction
             if np.any(xy < lo) or np.any(xy > hi):
                 continue
             if not standing_spot_is_clear(gm, xy, room.floor_z):
                 continue
+            if require_backing and not has_backing(gm, xy, room.floor_z,
+                                                   direction):
+                continue
             if any(np.linalg.norm(xy - c[:2]) < MIN_SEPARATION for c in chosen):
                 continue
             chosen.append(np.array([xy[0], xy[1], room.floor_z]))
+
+
+def spots_for_room(room, gm, hover_height: float, want: int) -> list[np.ndarray]:
+    """Ring search outward from the scan pose, keeping spots that are clear,
+    far enough from the drone, far enough from each other, and **backed by a
+    wall** so nobody stands in the doorway the drone flies through.
+
+    벽을 등진 자리를 먼저 다 훑고, 그래도 인원이 모자랄 때만 등 검사를 풀고
+    다시 훑는다. 작고 뻥 뚫린 방에서 '입구를 피하려다 아무도 못 세우는' 쪽이
+    더 나쁘기 때문이다 — 그 방은 원래도 부딪힐 자리가 없다."""
+    if want <= 0:
+        return []
+
+    scan = room_index.scan_pose(room, hover_height, gm)
+    chosen: list[np.ndarray] = []
+    _ring_search(room, gm, scan, want, chosen, require_backing=True)
+    if len(chosen) < want:
+        _ring_search(room, gm, scan, want, chosen, require_backing=False)
     return chosen
 
 
