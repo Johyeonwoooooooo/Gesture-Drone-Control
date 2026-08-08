@@ -256,7 +256,10 @@ def main() -> None:
             return
 
         start = drone_world_pos()
-        rooms = room_index.order_rooms(rooms, start)
+        pinned = patrol_intent.resolve_order(intent, rooms)
+        rooms = room_index.order_rooms(rooms, start, pinned)
+        if pinned:
+            why += f", 순서 지정 {len(pinned)}곳"
         print(f"[patrol] {why}: " + " -> ".join(r.display for r in rooms))
         status(f"순찰 계획: {len(rooms)}개 구역 ({why})")
 

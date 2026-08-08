@@ -404,7 +404,13 @@ def build_app(scene: Scene) -> FastAPI:
         intent = patrol_intent.parse_patrol(scene.llm, text, scene.rooms)
         rooms, why = patrol_intent.resolve_rooms(
             intent, scene.rooms, text, max_rooms=scene.args.max_rooms)
-        rooms = room_index.order_rooms(rooms, scene.drone_pose()[0])
+        # The order the user spoke wins over distance, for the rooms it names;
+        # everything else is filled in greedily behind it. The console takes this
+        # array as the visit order, so this is the only place order is decided.
+        pinned = patrol_intent.resolve_order(intent, rooms)
+        rooms = room_index.order_rooms(rooms, scene.drone_pose()[0], pinned)
+        if pinned:
+            why += f", 순서 지정 {len(pinned)}곳"
         if not rooms and scene.offline_llm:
             # Offline it is the keyword tiers alone, so say which lever is
             # missing instead of letting it read as "the model didn't get it".

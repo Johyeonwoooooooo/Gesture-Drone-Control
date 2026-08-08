@@ -24,10 +24,11 @@ from typing import Dict, List, Optional, Sequence
 
 try:
     from patrol.litept_backend import ROOM_KW_MAP
-    from patrol.room_index import RoomInfo, room_directory_text
+    from patrol.room_index import RoomInfo, person_groups, room_directory_text
 except ImportError:  # plain-script import path
     from litept_backend import ROOM_KW_MAP  # type: ignore
-    from room_index import RoomInfo, room_directory_text  # type: ignore
+    from room_index import (RoomInfo, person_groups,  # type: ignore
+                            room_directory_text)
 
 PATROL_SYSTEM_PROMPT = """You pick the patrol area for an indoor drone from a natural-language command.
 
@@ -42,22 +43,32 @@ Fill in:
 - scope:        "room" (specific rooms), "floor" (whole floor(s)),
   "building" (집 전체 / 온 집 / whole house), or "" if unclear.
 - return_home:  true unless the user says not to come back. Default true.
+- order:        list of ROOM IDs in the order the user asked to visit them,
+  when the user STATES an order ("A 갔다가 B", "A부터", "A 먼저", "A 다음에 B").
+  Empty list if the user stated no order — do NOT invent one, an empty list is
+  the right answer for "2층 전부 순찰해줘".
 
 Always answer with a single JSON object, no prose, no markdown fences.
 
 Examples:
 
-User: 현우방만 탐색해줘
-{"target_rooms":["000_002","001_007","002_014","002_019"],"room_types":[],"floors":[],"scope":"room","return_home":true}
+User: 채원의 금고가 있다는 소문의 방만 탐색해줘
+{"target_rooms":["002_012"],"room_types":[],"floors":[],"scope":"room","return_home":true,"order":[]}
 
 User: 2층 전부 순찰해줘
-{"target_rooms":[],"room_types":[],"floors":[2],"scope":"floor","return_home":true}
+{"target_rooms":[],"room_types":[],"floors":[2],"scope":"floor","return_home":true,"order":[]}
 
 User: 집 전체 돌면서 사람 있는지 확인해줘
-{"target_rooms":[],"room_types":[],"floors":[],"scope":"building","return_home":true}
+{"target_rooms":[],"room_types":[],"floors":[],"scope":"building","return_home":true,"order":[]}
 
 User: 3층 화장실들 확인해줘
-{"target_rooms":[],"room_types":["bathroom"],"floors":[3],"scope":"floor","return_home":true}
+{"target_rooms":[],"room_types":["bathroom"],"floors":[3],"scope":"floor","return_home":true,"order":[]}
+
+User: 채원의 금고가 있다는 소문의 방 갔다가 규철의 지하조직 본부 순찰해줘
+{"target_rooms":["002_012","002_016"],"room_types":[],"floors":[],"scope":"room","return_home":true,"order":["002_012","002_016"]}
+
+User: 지윤의 위장 세탁소 먼저 보고 현우의 이중장부 서재 확인해줘
+{"target_rooms":["002_015","002_014"],"room_types":[],"floors":[],"scope":"room","return_home":true,"order":["002_015","002_014"]}
 """
 
 _FLOOR_RE = re.compile(r"(\d+)\s*층")
@@ -68,8 +79,13 @@ _DOWN_WORDS = ("아래층", "아랫층", "아래 층", "downstairs", "1층")
 # 은 층으로 후보를 고르고 개수로 자른다. LLM 필드가 아니라 원문 스캔인 이유는
 # `_resolve_floors` 의 "N층" 과 같다: 3B 모델이 자주 흘리는데, 글자는 안 흘린다.
 # 오프라인 모드(--llm-url "")에서도 그대로 동작하는 건 덤이다.
-_ALL_WORDS = ("전부", "전체", "모든 방", "온 집", "싹", "다 돌",
-              "whole house", "all rooms", "everything")
+#
+# "남김없이" 는 두 곳이 같은 뜻으로 쓴다 — `_quantity` 의 "all"(상한을 풀고
+# 후보 전체를 돈다)과 `_wants_all`(방 종류를 "그 종류 전부"로 읽어도 되는가).
+# 같은 말이므로 정규식도 하나다. 홀로 선 '다' 만 세고 '갔다가/났다' 같은 어미는
+# 세지 않는다 — 어미까지 세면 웬만한 문장이 전부 '전체' 요청이 된다.
+_ALL_RE = re.compile(r"전부|모두|모든|전체|싹|죄다|온 집|(^|\s)다(\s|$)"
+                     r"|whole house|all rooms|everything")
 _HALF_WORDS = ("절반", "반만", "반 정도", "half")
 _ANY_WORDS = ("아무", "랜덤", "random")
 
@@ -84,6 +100,7 @@ class PatrolIntent:
     floors_kr: List[int] = field(default_factory=list)  # as the user says them
     scope: str = ""                         # room | floor | building | ""
     return_home: bool = True
+    order: List[str] = field(default_factory=list)   # visit order the user SAID
     raw: dict = field(default_factory=dict)
     raw_text: str = ""
 
@@ -104,9 +121,31 @@ def parse_patrol(llm, user_text: str, index: Dict[str, RoomInfo],
                    if str(f).strip().lstrip("-").isdigit()],
         scope=str(data.get("scope", "")).strip().lower(),
         return_home=bool(data.get("return_home", True)),
+        order=[r for r in map(_coerce_room_id,
+                              _as_list(data.get("order"))) if r],
         raw=data if isinstance(data, dict) else {},
         raw_text=gen,
     )
+
+
+def resolve_order(intent: PatrolIntent, rooms: Sequence[RoomInfo]) -> List[RoomInfo]:
+    """The visit order the user actually stated, as far as it can be trusted.
+
+    The model's `order` is a suggestion about the SENTENCE, not about the map, so
+    it is checked against the rooms we already resolved rather than believed:
+    ids we did not pick are dropped (the model likes to name a neighbour it saw
+    in the directory) and duplicates collapse. Whatever is left is a prefix —
+    `order_rooms` fills the rest by distance, so a partial or empty answer costs
+    nothing. That is what makes trusting the model here cheap: it can only
+    reorder rooms that some other tier already decided we are visiting.
+    """
+    by_name = {r.room_name: r for r in rooms}
+    out: List[RoomInfo] = []
+    for rid in intent.order:
+        room = by_name.get(rid)
+        if room is not None and room not in out:
+            out.append(room)
+    return out
 
 
 def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
@@ -120,57 +159,128 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
     """
     text = raw_text.lower()
     floors = _resolve_floors(intent, raw_text, index)
+    # The floors the USER actually spelled out, with the model's guess left out.
+    # `intent.floors_kr` is not a claim that a floor was mentioned — the 3B model
+    # volunteers one for nearly every query, floor 1 by default. That guess is
+    # fine as a hint for the broad tiers, but it must never veto a room the user
+    # named outright, so the alias tier filters on this instead.
+    text_floors = _resolve_floors(PatrolIntent(), raw_text, index)
     qty = _quantity(raw_text)
     offset = next(iter(index.values())).floor_offset if index else 1
 
     # 개수만 말하고 층은 안 말했으면 층은 없는 것이다. 이 자리에 남아 있는 층은
     # 모델이 지어낸 것뿐인데("절반만 해줘" 에 floors:[1] 을 심심찮게 답한다),
-    # 그게 남으면 집 전체의 절반이 1층의 절반으로 조용히 쪼그라든다.
-    if qty and not _FLOOR_RE.search(raw_text) \
-            and not any(w in raw_text for w in _UP_WORDS + _DOWN_WORDS):
+    # 그게 남으면 집 전체의 절반이 1층의 절반으로 조용히 쪼그라든다. `text_floors`
+    # 가 비었다는 게 곧 "사용자는 층을 말하지 않았다" 이므로 그걸 그대로 쓴다.
+    if qty and not text_floors:
         floors = []
 
-    # Room ids the LLM named — but only ones the TEXT backs up. Asked something
-    # off-topic ("냉장고 찾아줘"), the 3B model still fills target_rooms with
-    # plausible-looking ids. Silently patrolling three invented rooms is worse
-    # than admitting we did not understand, so an id only counts if its code,
-    # one of its aliases, or its type/floor shows up in what the user wrote.
-    picked = [index[r] for r in intent.target_rooms
-              if r in index and _text_backs_room(index[r], text, floors)]
-
-    # 1. alias substring match on the raw text (longest alias first).
-    #    This outranks the model's own id list, because it is derived from the
-    #    user's literal words — "현우" is in the text or it is not. Asked for
-    #    현우's rooms the 3B model reliably answers with ONE of the four, and a
-    #    partial answer that short-circuits this scan is worse than no answer:
-    #    the console then shows one room where the user asked for a person.
+    # 1. rooms the user NAMED, from two directions that are unioned rather than
+    #    raced: ids the model proposed (backed by the text) and aliases found in
+    #    the text. Racing them loses rooms — asked "본부 갔다가 금고 순찰해줘"
+    #    the model answers ["002_016"], and if that short list wins outright the
+    #    금고 the user typed by name never gets patrolled. Neither side is
+    #    complete on its own, so take both.
     #
-    #    The model's picks are NOT merged in here. room_aliases.json names all
-    #    22 rooms, so a hit is already the complete answer, and the union only
-    #    added noise: "거실 해줘" pulled in 002_019 because the model offered it
-    #    and it happens to be typed `living`, so asking for 거실 also flew to
-    #    "현우의 음모 회의실".
+    #    The model's ids still need backing: asked something off-topic ("냉장고
+    #    찾아줘") a 3B fills target_rooms with plausible-looking codes, and
+    #    silently patrolling three invented rooms is worse than admitting we did
+    #    not understand. An id counts only if its code, one of its aliases, or
+    #    its type/floor shows up in what the user actually wrote.
+    #    `text_floors` again, not `floors`: backing an id with the model's own
+    #    guessed floor is circular — it lets the model vouch for itself. Asked
+    #    "무기고 확인해줘" it answers 000_002 (the 벙커) and volunteers 1층, and
+    #    the id passes because it sits on the floor the same answer invented.
+    picked = [index[r] for r in intent.target_rooms
+              if r in index and _text_backs_room(index[r], text, text_floors)]
+
+    # 2. alias substring match on the raw text (longest alias first).
+    #    A floor SPELLED IN THE TEXT constrains this tier. "2층 복도 순찰해줘"
+    #    must not drag in the 3층 corridors just because those two letters
+    #    appear — an alias is a substring test, it knows nothing about 층.
+    #    `text_floors`, not `floors`: filtering on the model's guessed floor
+    #    silently vetoes rooms the user named in full ("규철의 지하조직 본부" ->
+    #    the model volunteers 2층, the room is on 3층, the name loses).
+    #    When the filter empties the list we FALL THROUGH rather than return the
+    #    wrong-floor room: the user named a floor, so the type/floor tiers below
+    #    answer it better than a confident miss.
     alias_hits: List[RoomInfo] = []
+    matched: List[str] = []          # the alias strings that actually hit
     pairs = sorted(((a, r) for r in index.values() for a in r.aliases),
                    key=lambda p: -len(p[0]))
     for alias, room in pairs:
-        if alias.lower() in text and room not in alias_hits:
-            alias_hits.append(room)
-    if alias_hits:
-        matched = alias_hits[0].aliases[0]
-        # A floor said out loud narrows the hits: "복도" names three rooms on
-        # three floors, so "2층 복도만" must not fly to all of them. Only
-        # applied when something survives — an explicit name outranks a floor.
-        if floors:
-            on_floor = [r for r in alias_hits if r.floor in floors]
-            if on_floor:
-                alias_hits = on_floor
-                matched += f", {'/'.join(str(f + offset) for f in sorted(floors))}층"
-        return _dedup(alias_hits)[:max_rooms], f"별칭 매칭 ({matched})"
+        if alias.lower() in text:
+            matched.append(alias)
+            if room not in alias_hits:
+                alias_hits.append(room)
+    if text_floors:
+        alias_hits = [r for r in alias_hits if r.floor in text_floors]
 
-    # 2. room ids from the LLM, when no alias in the text pinned anything down
-    if picked:
-        return _dedup(picked)[:max_rooms], "방 코드 지정"
+    # 2a. a PERSON named in the text, when no single room was ("규철이방 다
+    #     순찰해줘", "현우 관련 구역 전부"). The screen names of this building are
+    #     organised by person — 규철 owns four of them — so a person reads as a
+    #     group the same way 화장실 reads as a kind. Neither the LLM nor the rest
+    #     of the tiers can do it: a 3B scores 0/5 picking "the 현우 ones" out of
+    #     the directory (7B too), and without this the only thing left matching
+    #     "규철이방" is the single letter 방, which lands on every bedroom.
+    #
+    #     A person whose name sits INSIDE a room name we already matched does not
+    #     count: "현우의 이중장부 서재" must stay one room, not become all four
+    #     현우 rooms — naming a room is the more specific request. But that check
+    #     is per person, not "any alias matched at all". In "규철이방 다랑 현우의
+    #     이중장부 서재 가줘" 현우 is spoken for by the matched name while 규철 is
+    #     not, so 규철 still opens up into its group and the two are unioned.
+    #     The model's `picked` is dropped for the group part — for a group request
+    #     its ids are guesses at which member to visit, and we want all of them.
+    spoken_for = " ".join(matched)
+    person_hits: List[RoomInfo] = []
+    people: List[str] = []
+    for who, group in person_groups(index).items():
+        if who in raw_text and who not in spoken_for:
+            people.append(who)
+            person_hits.extend(group)
+    if text_floors:
+        person_hits = [r for r in person_hits if r.floor in text_floors]
+    if person_hits:
+        why = f"{'/'.join(sorted(people))} 관련 구역"
+        if alias_hits:
+            why += " + 방 이름 지정"
+        return _capped(_dedup(person_hits + alias_hits), why, max_rooms)
+
+    # 2b. a KIND of room the model named ("3층 침실 전부") is a claim about the
+    #     WHOLE request, so it joins the union too instead of losing to whatever
+    #     partial id list arrived beside it — the model answers 침실 3개 for a
+    #     floor that has 4 and, raced, that short list would win.
+    #     Gated on the user actually saying "전부/모두/…", not merely on the
+    #     model having filled room_types. The model sets that field for by-name
+    #     queries too — it answers bedroom for "채원의 심문실(추정) 순찰해줘" —
+    #     so keying on the field alone drags every bedroom into a request for one
+    #     room. "전부" is the thing that means "every room of this kind"; without
+    #     it a type is at most a description of the room already named.
+    #     `intent.room_types` only, never the keyword scan in tier 3: that one
+    #     fires on a bare "방" sitting inside a room's own name ("채원의 금고가
+    #     있다는 소문의 방").
+    typed_hits: List[RoomInfo] = []
+    n_small = 0
+    if intent.room_types and _wants_all(raw_text):
+        pool = [r for r in index.values() if not floors or r.floor in floors]
+        of_type = [r for r in pool if r.room_type in intent.room_types]
+        typed_hits = _filter_small(of_type, min_area_m2)
+        n_small = len(of_type) - len(typed_hits)
+
+    named = _dedup(picked + alias_hits + typed_hits)
+    if named:
+        bits = []
+        if picked and alias_hits:
+            bits.append("방 이름 지정")
+        elif picked:
+            bits.append("방 코드 지정")
+        elif alias_hits:
+            bits.append(f"별칭 매칭 ({alias_hits[0].aliases[0]})")
+        if typed_hits:
+            bits.append(f"방 종류={'/'.join(intent.room_types)}"
+                        + (f", 층={sorted(floors)}" if floors else ""))
+        return _capped(named, " + ".join(bits), max_rooms, n_small)
 
     # 3. room types (LLM list, else a Korean keyword scan)
     types = list(intent.room_types)
@@ -191,23 +301,30 @@ def resolve_rooms(intent: PatrolIntent, index: Dict[str, RoomInfo],
     if types:
         typed = [r for r in pool if r.room_type in types]
         if typed:
-            return _take(_filter_small(typed, min_area_m2), qty, max_rooms,
+            kept = _filter_small(typed, min_area_m2)
+            return _take(kept, qty, max_rooms,
                          f"방 종류={'/'.join(types)}"
-                         + (f", 층={sorted(floors)}" if floors else ""))
+                         + (f", 층={sorted(floors)}" if floors else ""),
+                         len(typed) - len(kept))
 
     # 4. floor sweep
     if floors:
-        return _take(_filter_small(pool, min_area_m2), qty, max_rooms,
-                     "/".join(f"{f + offset}층" for f in sorted(floors)) + " 전체")
+        kept = _filter_small(pool, min_area_m2)
+        return _take(kept, qty, max_rooms,
+                     "/".join(f"{f + offset}층" for f in sorted(floors)) + " 전체",
+                     len(pool) - len(kept))
 
-    # 5. whole building. 개수를 말한 것("절반만", "아무거나")도 여기로 온다 —
-    #    어디인지는 안 말했으니 후보는 집 전체이고, 자르는 건 `_take` 다.
+    # 5. whole building. 개수를 말한 것("절반만", "아무거나", "전부")도 여기로 온다
+    #    — 어디인지는 안 말했으니 후보는 집 전체이고, 자르는 건 `_take` 다.
+    #    예전의 "전체/모든 방/온 집/whole house/all rooms" 문자열 목록은 그대로
+    #    `_ALL_RE`(-> qty == "all") 가 됐으므로 `qty` 하나로 갈음한다.
     if intent.scope == "building" or qty or "집 전체" in raw_text:
-        return _take(_filter_small(list(index.values()), min_area_m2),
-                     qty, max_rooms, "건물 전체")
+        every = list(index.values())
+        kept = _filter_small(every, min_area_m2)
+        return _take(kept, qty, max_rooms, "건물 전체", len(every) - len(kept))
 
     # 6. 아무 규칙에도 안 걸렸다 = 원문에 우리가 아는 말이 하나도 없다. 마지막
-    #    수단으로 LLM 이 고른 방을 그냥 쓴다. 위(2번)에서는 `_text_backs_room`
+    #    수단으로 LLM 이 고른 방을 그냥 쓴다. 위(1번)에서는 `_text_backs_room`
     #    이 이걸 걸렀는데, 그건 규칙이 답을 낼 수 있을 때 모델의 추측이 끼어드는
     #    걸 막으려는 것이었다. 여기까지 왔으면 낼 답이 없으므로, 남은 선택지는
     #    모델의 추측과 빈 손 둘뿐이다 — 추측이라고 말하고 내보내는 쪽이 낫다.
@@ -230,13 +347,13 @@ def _quantity(raw_text: str) -> str:
         return "half"
     if any(w in t for w in _ANY_WORDS):
         return "any"
-    if any(w in t for w in _ALL_WORDS):
+    if _ALL_RE.search(t):
         return "all"
     return ""
 
 
 def _take(rooms: Sequence[RoomInfo], qty: str, max_rooms: int,
-          why: str) -> tuple[List[RoomInfo], str]:
+          why: str, n_small: int = 0) -> tuple[List[RoomInfo], str]:
     """후보를 요청한 '양' 으로 자른다. -> (방 목록, 설명).
 
     `max_rooms` 는 넓은 질의가 22개짜리 비행이 되는 걸 막는 안전장치인데,
@@ -247,10 +364,15 @@ def _take(rooms: Sequence[RoomInfo], qty: str, max_rooms: int,
     `room_index.order_rooms` 로 다시 정렬하지만(그쪽도 층이 1순위), 층 이동은
     올라가는 한 방향만 남기는 게 최소이고 그 성질이 이 함수 밖의 정렬에
     의존하면 안 된다.
+
+    개수 말이 없으면 `_capped` 에 그대로 넘긴다 — 상한과 '작은 방 제외' 를
+    설명에 적는 건 저쪽 일이다. 둘이 각자 자르면 설명이 둘로 갈린다.
     """
     rooms = _dedup(rooms)
     if qty == "all":
-        return rooms, why
+        # 상한을 풀되 '작은 방 N개 제외' 는 그대로 알린다. 상한 자리에 실제
+        # 개수를 넣으면 `_capped` 가 상한 문구만 빼고 나머지를 그대로 쓴다.
+        return _capped(rooms, why, len(rooms), n_small)
     if qty in ("half", "any") and rooms:
         n = (max(1, len(rooms) // 2) if qty == "half"
              else min(ANY_ROOMS, len(rooms)))
@@ -258,7 +380,7 @@ def _take(rooms: Sequence[RoomInfo], qty: str, max_rooms: int,
                         key=lambda r: (r.floor, r.room_name))
         label = "무작위 절반" if qty == "half" else "무작위"
         return picked, f"{why} 중 {label} {n}개"
-    return rooms[:max_rooms], why
+    return _capped(rooms, why, max_rooms, n_small)
 
 
 def _text_backs_room(room: RoomInfo, text: str, floors: Sequence[int]) -> bool:
@@ -294,6 +416,30 @@ def _resolve_floors(intent: PatrolIntent, raw_text: str,
     if any(w in raw_text for w in _DOWN_WORDS) and available:
         return [available[0]]
     return []
+
+
+def _wants_all(raw_text: str) -> bool:
+    """Did the user ask for EVERY room of a kind ("3층 침실 전부")?"""
+    return bool(_ALL_RE.search(raw_text))
+
+
+def _capped(rooms: Sequence[RoomInfo], why: str, max_rooms: int,
+            n_small: int = 0) -> tuple[List[RoomInfo], str]:
+    """Apply the room cap and say so — both trims belong in `why`.
+
+    Dropping rooms silently reads on screen as "this is your whole patrol". 3층
+    has 13 rooms against a default cap of 12, and 1층's second room is a 0.7 m²
+    detection the closet filter removes, so "3층 전부"/"1층 전부" both come back
+    short on this very building. The console prints `why` verbatim, so the count
+    is the only place a user can notice.
+    """
+    out = list(rooms[:max_rooms])
+    notes = []
+    if n_small:
+        notes.append(f"작은 방 {n_small}개 제외")
+    if len(rooms) > max_rooms:
+        notes.append(f"{len(rooms)}개 중 {max_rooms}개만, 상한")
+    return out, why + (f" ({', '.join(notes)})" if notes else "")
 
 
 def _filter_small(rooms: Sequence[RoomInfo], min_area_m2: float) -> List[RoomInfo]:
@@ -446,6 +592,93 @@ def _demo() -> None:
 
     print("patrol_intent: 전부·절반·아무거나 통과 "
           "— 전부는 안 잘리고, 무작위는 매번 다르고, 순서는 층 오름차순")
+
+    _demo_naming()
+
+
+def _demo_naming() -> None:
+    """이름으로 방을 부르는 티어(1/2/2a/2b) 검사.
+
+    `room_aliases.json` 을 실제로 읽되 탐지 데이터(`data/final_npy`, 저장소 밖)도
+    LLM 도 쓰지 않는다 — 방의 기하는 이 티어들이 안 보기 때문에 아무 값이나 넣어도
+    된다. `intent` 는 3B 가 실제로 답하던 값을 손으로 넣는다: 특히 **층을 지어낸**
+    경우가 핵심이라, 이 검사 절반이 그것 때문에 있다.
+
+    여기 있는 케이스는 전부 한때 틀렸던 것들이다. 별칭에 맨이름("현우")을 넣어
+    사람 그룹을 흉내내던 시절엔 1)이 4개를 잡았고, 별칭 티어가 모델이 지어낸 층으로
+    필터링하던 시절엔 2)가 **다른 방으로 날아갔다**.
+    """
+    import json as _json
+    import sys
+    from pathlib import Path
+
+    import numpy as np
+
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, OSError):
+            pass
+
+    path = Path(__file__).with_name("room_aliases.json")
+    raw = _json.loads(path.read_text(encoding="utf-8"))
+    offset = int(raw.get("floor_offset", 1))
+
+    index: Dict[str, RoomInfo] = {}
+    for name, al in raw["aliases"].items():
+        floor = int(name.split("_")[0])
+        index[name] = RoomInfo(
+            room_name=name, room_dir=name, room_type="bedroom", floor=floor,
+            centroid=np.array([0.0, 0.0, float(floor) * 3]),
+            floor_z=float(floor) * 3,
+            bbox_min=np.array([0.0, 0.0, 0.0]),
+            bbox_max=np.array([4.0, 4.0, 2.5]), n_points=1000,
+            aliases=list(al), floor_offset=offset)
+
+    def ask(text: str, **kw) -> List[str]:
+        rooms, why = resolve_rooms(PatrolIntent(**kw), index, text,
+                                   max_rooms=12)
+        ask.why = why                                        # type: ignore[attr-defined]
+        return [r.room_name for r in rooms]
+
+    def group(who: str) -> List[str]:
+        return sorted(r.room_name for r in person_groups(index)[who])
+
+    # 1) 방 하나를 화면 이름으로 부르면 그 방 하나. 모델이 같은 사람의 다른 방을
+    #    함께 답해도(늘 그런다) 이름이 더 구체적인 요청이므로 이름이 이긴다.
+    got = ask("현우의 이중장부 서재만 순찰해줘",
+              target_rooms=["002_019"], floors_kr=[3], scope="room")
+    assert got == ["002_014"], (got, ask.why)               # type: ignore[attr-defined]
+
+    # 2) 모델이 지어낸 층은 이름을 거부하지 못한다. 본부는 3층인데 3B 는 2층이라
+    #    답한다 — 예전엔 그 필터에 걸려 2층의 다른 규철 방으로 날아갔다.
+    got = ask("규철의 지하조직 본부 순찰해줘",
+              target_rooms=["002_016"], floors_kr=[2], scope="room")
+    assert got == ["002_016"], (got, ask.why)               # type: ignore[attr-defined]
+
+    # 3) 사람 이름은 그 사람 방 전부. LLM 이 그중 하나만 답해도 전부로 편다.
+    got = ask("현우방 다 순찰해줘", target_rooms=["002_014"], scope="room")
+    assert sorted(got) == group("현우"), (got, ask.why)      # type: ignore[attr-defined]
+
+    # 4) 그룹과 이름을 한 문장에. 이름으로 불린 사람(현우)은 그 방 하나만,
+    #    안 불린 사람(규철)은 그룹 전체 — 그리고 둘은 합집합이다.
+    got = ask("규철이방 다랑 현우의 이중장부 서재 가줘")
+    assert sorted(got) == sorted(group("규철") + ["002_014"]), (got, ask.why)  # type: ignore[attr-defined]
+
+    # 5) 사용자가 입력한 층은 별칭을 좁힌다. '복도' 는 세 층에 다 있다.
+    assert ask("2층 복도만 순찰해줘") == ["001_010"], ask.why  # type: ignore[attr-defined]
+    assert sorted(ask("복도 전부 순찰해줘")) == ["001_010", "002_011", "002_023"]
+
+    # 6) 한 문장의 방 여러 개는 합집합이다. 모델은 보통 둘 중 하나만 답한다.
+    got = ask("지하조직 본부랑 금고 순찰해줘", target_rooms=["002_016"],
+              scope="room")
+    assert sorted(got) == ["002_012", "002_016"], (got, ask.why)  # type: ignore[attr-defined]
+
+    # 7) 아는 말이 하나도 없으면 방을 잡지 않는다 (LLM 추정도 없을 때).
+    assert ask("냉장고 찾아줘") == [], ask.why                 # type: ignore[attr-defined]
+
+    print(f"patrol_intent: 이름 티어 통과 ({len(index)}개 방) — 이름이 지어낸 층을 "
+          "이기고, 사람은 그룹으로 펴지고, 이름 지정은 그룹으로 안 번진다")
 
 
 if __name__ == "__main__":
