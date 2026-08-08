@@ -170,8 +170,13 @@ def follow_path(
     state_stall_sec: float = 5.0,
     on_state: Optional[Callable[[DroneState], None]] = None,
     on_status: Callable[[str], None] = print,
+    should_abort: Optional[Callable[[], bool]] = None,
 ) -> FollowResult:
-    """Drive rc commands until the last waypoint is reached (or a failure)."""
+    """Drive rc commands until the last waypoint is reached (or a failure).
+
+    `should_abort` 는 매 틱 확인한다. 한 구간이 최대 `timeout_sec`(기본 600초)
+    까지 도는데, 그동안 멈출 방법이 없으면 사용자가 순찰을 중단해도 이 루프가
+    계속 rc 를 쏜다 — 그게 '중단 후 재시작이 안 되던' 문제의 절반이었다."""
     waypoints = [np.asarray(w, dtype=float) for w in waypoints_unity]
     # kp 를 max_speed 에 묶는다. A* 웨이포인트가 0.15 m 격자라 다음 점까지의
     # 오차가 threshold 언저리를 못 벗어나고, 고정 kp 로는 kp*오차 가 곧 순항
@@ -216,6 +221,9 @@ def follow_path(
     pos: Optional[np.ndarray] = None
     while True:
         now = time.time()
+        if should_abort is not None and should_abort():
+            on_status("중단 요청 — 비행 정지")
+            return stop_and_result(False, "aborted", pos)
         if now - start_time > timeout_sec:
             on_status(f"flight timeout after {timeout_sec:.0f}s")
             return stop_and_result(False, "timeout", pos)

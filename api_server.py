@@ -231,9 +231,17 @@ class MissionRunner:
     def busy(self) -> bool:
         return self._thread is not None and self._thread.is_alive()
 
+    # 중단된 순찰이 스스로 정리하고 끝나기를 기다려 주는 시간. 비행 루프는 한
+    # 틱(0.05초) 안에 빠져나오지만 그 뒤 보고서를 쓰는데 요약문이 LLM 호출이라
+    # 몇 초 걸린다. 그동안 스레드가 살아 있어 `busy` 가 True 이므로, 이걸 안
+    # 기다리면 사용자가 중단 직후 누른 재시작이 409 로 튕긴다.
+    ABORT_WIND_DOWN_SEC = 8.0
+
     def start(self, rooms: List[RoomInfo], return_home: bool,
               cmd: str = "") -> str:
         with self._lock:
+            if self.busy and self.abort_requested and self._thread is not None:
+                self._thread.join(timeout=self.ABORT_WIND_DOWN_SEC)
             if self.busy:
                 raise HTTPException(409, "순찰이 이미 진행 중입니다")
             self.mission_id = time.strftime("%Y%m%d_%H%M%S")
@@ -280,7 +288,8 @@ class MissionRunner:
                 sc.home, cfg,
                 on_status=lambda t: self.log.append("status", {"text": t}),
                 on_progress=self.log.append,
-                follow_path_mod=sc.follow_path)
+                follow_path_mod=sc.follow_path,
+                should_abort=lambda: self.abort_requested)
             self.last_result = result
             self.last_report_dir = out_dir
             # `cmd` 는 요약 프롬프트의 `사용자_명령` 이 된다 — 콘솔이 실제로 받은

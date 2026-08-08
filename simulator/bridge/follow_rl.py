@@ -170,8 +170,13 @@ def follow_rl(
     stall_sec: float = 8.0,          # 이 시간 동안 목표에 못 다가가면 실패 (PID 폴백용)
     on_state: Optional[Callable] = None,
     on_status: Callable[[str], None] = print,
+    should_abort: Optional[Callable[[], bool]] = None,
 ) -> FollowResult:
-    """A* 경로(월드 m)를 정책으로 따라 난다. 실패하면 호출자가 PID 로 폴백한다."""
+    """A* 경로(월드 m)를 정책으로 따라 난다. 실패하면 호출자가 PID 로 폴백한다.
+
+    `should_abort` 는 follow_path 와 같은 뜻이고 같은 자리에서 확인한다. 여기서
+    "aborted" 를 돌려주면 호출자(fly_leg)가 PID 폴백을 타지 않고 바로 끝낸다 —
+    중단인데 폴백으로 다시 날면 안 되기 때문이다."""
     path = np.asarray(path_world, dtype=float)
     goal = path[-1]
 
@@ -211,6 +216,9 @@ def follow_rl(
 
     while True:
         now = time.time()
+        if should_abort is not None and should_abort():
+            on_status("중단 요청 — 비행 정지")
+            return stop(False, "aborted")
         if now - start_time > timeout_sec:
             on_status(f"rl flight timeout after {timeout_sec:.0f}s")
             return stop(False, "timeout")

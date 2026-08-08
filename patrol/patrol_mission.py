@@ -127,6 +127,7 @@ def _yaw_delta(a: float, b: float) -> float:
 def scan_room(bridge, listener: Optional[DetectionListener], cfg: PatrolConfig,
               on_status: Callable[[str], None],
               on_event: Optional[Callable[[DetectionEvent], None]] = None,
+              should_abort: Optional[Callable[[], bool]] = None,
               ) -> tuple[bool, float, int, bool]:
     """Scan the room the drone is hovering in.
 
@@ -145,7 +146,7 @@ def scan_room(bridge, listener: Optional[DetectionListener], cfg: PatrolConfig,
         bridge.drain_events()
         bridge.start_scan(cfg.scan_deg_per_sec, cfg.scan_turns)
         done, degrees, events, answered = _await_unity_scan(
-            bridge, cfg, on_status, on_event)
+            bridge, cfg, on_status, on_event, should_abort)
         if answered:
             return done, degrees, events, True
         if cfg.scan_mode == "unity":
@@ -161,6 +162,7 @@ def scan_room(bridge, listener: Optional[DetectionListener], cfg: PatrolConfig,
 def _await_unity_scan(bridge, cfg: PatrolConfig,
                       on_status: Callable[[str], None],
                       on_event: Optional[Callable[[DetectionEvent], None]],
+                      should_abort: Optional[Callable[[], bool]] = None,
                       ) -> tuple[bool, float, int, bool]:
     """Consume detect/scan_done while Unity sweeps. -> (..., answered).
 
@@ -180,6 +182,11 @@ def _await_unity_scan(bridge, cfg: PatrolConfig,
 
     while True:
         waited = time.time() - t0
+        # 스캔 한 바퀴는 50°/s 에서 7초다. 중단을 여기서 안 보면 그 7초가 통째로
+        # 재시작 지연이 되므로, `answered=True` 로 돌려줘 rc 폴백은 타지 않게 한다.
+        if should_abort is not None and should_abort():
+            bridge.stop_scan()
+            return False, 0.0, events, True
         if not answered and waited > cfg.scan_probe_sec:
             return False, 0.0, 0, False
         if waited > full_timeout:
@@ -449,7 +456,8 @@ def run_patrol(bridge, sim_tf, points_world: np.ndarray, gm: planner.GridMeta,
                listener: Optional[DetectionListener] = None,
                on_status: Callable[[str], None] = print,
                on_progress: Optional[Callable[[str, dict], None]] = None,
-               follow_path_mod=None) -> PatrolResult:
+               follow_path_mod=None,
+               should_abort: Optional[Callable[[], bool]] = None) -> PatrolResult:
     """Fly the whole patrol. Requires an active `--sim` bridge + transform.
 
     `on_status` is prose for a human (terminal + Unity banner). `on_progress`
@@ -460,7 +468,15 @@ def run_patrol(bridge, sim_tf, points_world: np.ndarray, gm: planner.GridMeta,
 
     Kinds: mission_start, leg_start, arrived, leg_failed, scan_start,
     scan_done, detect, returning, landed, mission_end.
+
+    `should_abort` 는 사용자가 순찰을 중단했는지 묻는다. 구간 경계마다, 그리고
+    비행·스캔 루프 **안에서** 확인한다 — 경계에서만 보면 한 구간이 타임아웃
+    (최대 600초)까지 도는 동안 아무도 못 멈춘다. 중단이 확인되면 `aborted_reason`
+    을 "aborted" 로 두고 정상 종료 경로(`_finish`)로 빠진다: 보고서는 그대로
+    나오고, 스레드가 즉시 끝나므로 다음 순찰을 바로 시작할 수 있다.
     """
+    def aborted() -> bool:
+        return should_abort is not None and should_abort()
     if follow_path_mod is None:  # injected by the server (repo-root sys.path)
         from simulator.bridge import follow_path as follow_path_mod  # type: ignore
 
@@ -515,19 +531,23 @@ def run_patrol(bridge, sim_tf, points_world: np.ndarray, gm: planner.GridMeta,
                 max_speed=cfg.speed, rc_limit=cfg.rc_limit,
                 timeout_sec=cfg.leg_timeout,
                 abort_on_collision=cfg.abort_on_collision,
-                on_status=lambda t: on_status(f"  {t}"))
-            if not fr.success:
+                on_status=lambda t: on_status(f"  {t}"),
+                should_abort=should_abort)
+            if not fr.success and fr.reason != "aborted":
                 # 정책이 막히면 미션을 버리지 않고 PID 로 마저 간다. 남은 구간은
                 # 현재 위치에서 다시 계획된 게 아니라 원래 경로라, 이미 지나온
                 # 앞부분은 PID 가 알아서 건너뛴다(도착 판정 반경).
                 on_status(f"  RL 실패({fr.reason}) → PID 로 폴백")
-        if fr is None or not fr.success:
+        # 중단이면 폴백하지 않는다 — 멈추라고 했는데 다른 추종기로 다시 날면 안 된다.
+        if (fr is None or not fr.success) and not (fr is not None
+                                                   and fr.reason == "aborted"):
             fr = follow_path_mod.follow_path(
                 bridge, [tuple(p) for p in wps_unity],
                 max_speed=cfg.speed, rc_limit=cfg.rc_limit,
                 timeout_sec=cfg.leg_timeout,
                 abort_on_collision=cfg.abort_on_collision,
-                on_status=lambda t: on_status(f"  {t}"))
+                on_status=lambda t: on_status(f"  {t}"),
+                should_abort=should_abort)
         res.collisions += fr.collision_count
         res.trajectory_unity.extend([list(p) for p in fr.trajectory_unity])
         res.distance_m += float(info["length_m"]) if fr.success else 0.0
@@ -553,12 +573,24 @@ def run_patrol(bridge, sim_tf, points_world: np.ndarray, gm: planner.GridMeta,
         pos_world = _drone_world(bridge, sim_tf, pos_world)
 
         for i, room in enumerate(rooms, 1):
+            if aborted():
+                res.aborted_reason = "aborted"
+                on_status("순찰 중단됨 — 남은 구역은 건너뜁니다")
+                break
             t_room = time.time()
             goal = scan_pose(room, cfg.hover_height, gm)
             label = f"[{i}/{len(rooms)}] {room.display}"
             progress("leg_start", room=room.room_name, display=room.display,
                      order=i, of=len(rooms))
             reached, reason, leg_m = fly_leg(goal, label)
+            if reason == "aborted":
+                res.aborted_reason = "aborted"
+                res.rooms.append(RoomVisit(
+                    room.room_name, room.display, False, reason, False, 0.0, 0,
+                    leg_m, time.time() - t_room))
+                on_status("순찰 중단됨 — 이동 중 정지")
+                progress("leg_failed", room=room.room_name, reason=reason)
+                break
             if not reached:
                 res.rooms.append(RoomVisit(
                     room.room_name, room.display, False, reason, False, 0.0, 0,
@@ -589,7 +621,8 @@ def run_patrol(bridge, sim_tf, points_world: np.ndarray, gm: planner.GridMeta,
             on_status(f"{label} 도착 — 360° 스캔 중...")
             progress("scan_start", room=room.room_name, display=room.display)
             done, degrees, n_ev, by_unity = scan_room(
-                bridge, listener, cfg, on_status, on_event=_on_event)
+                bridge, listener, cfg, on_status, on_event=_on_event,
+                should_abort=should_abort)
             if cfg.scan_mode == "auto" and not by_unity:
                 # One probe per mission, not per room: a build without the verb
                 # would otherwise cost scan_probe_sec in every single room.
@@ -604,7 +637,10 @@ def run_patrol(bridge, sim_tf, points_world: np.ndarray, gm: planner.GridMeta,
                      degrees=round(degrees, 1), detections=len(room_events),
                      completed=bool(done))
 
-        if cfg.return_home:
+        # 중단이면 복귀도 하지 않는다. 멈추라고 한 직후에 집까지 한 구간을 더
+        # 나는 건 사용자가 기대하는 동작이 아니고, 그 구간이 끝날 때까지 스레드가
+        # 살아 있어 재시작도 그만큼 늦어진다.
+        if cfg.return_home and not aborted():
             progress("returning")
             reached, _, _ = fly_leg(home_world, "복귀 지점(home)")
             res.returned_home = reached
